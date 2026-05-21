@@ -3,9 +3,11 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V93
-  V54 - BUG FIX: liq_pct NameError → load_stocks 전 기본값 0.5 설정
-UPDATED : 2026-05-12
+VERSION : APP_V94
+  V94 - 매수 조건 현실화: 브레이크아웃 5일 확장 / EPS 30→15% / 신고가 -10→-20%
+        3일 연속 소폭 상승(📈 꾸준상승) 신호 추가 — OR 게이트로 브레이크아웃 보완
+        경고 발동 기준 7→6조건 완화
+UPDATED : 2026-05-21
 CHANGES :
   V01 - 원본 기본 대시보드 (yfinance)
   V02 - FRED 연동 / 다크테마 / RS 버그 수정
@@ -120,7 +122,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="V93 Quantum Institutional OS",
+st.set_page_config(page_title="V94 Quantum Institutional OS",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V79: 모바일 최적화 CSS ─────────────────────────────
@@ -1184,12 +1186,24 @@ def load_stocks(tickers, _bust=0):
                             qr=float(qc_s.iloc[-1]/qc_s.iloc[-days]-1)
                             rs_vals[vk]=round((sr-qr)*100,2)
             rs_raw=rs_vals["rs_1m"]*0.15+rs_vals["rs_3m"]*0.25+rs_vals["rs_6m"]*0.35+rs_vals["rs_12m"]*0.25
-            breakout=vol_surge=False
-            if len(close)>=22:
-                high20=float(close.iloc[-22:-1].max()); breakout=float(close.iloc[-1])>high20
-                if len(volume)>=21:
-                    avg_vol=float(volume.tail(20).mean())
-                    vol_surge=float(volume.iloc[-1])>avg_vol*1.5 if avg_vol>0 else False
+            breakout=vol_surge=consecutive_rise=False
+            if len(close)>=27:
+                # ── 브레이크아웃: 최근 5일 내 고점이 이전 20일 고점 돌파 (V94)
+                _recent_high  = float(close.tail(5).max())
+                _prior_high20 = float(close.iloc[-27:-5].max())
+                breakout = _recent_high > _prior_high20
+            elif len(close)>=22:
+                breakout = float(close.iloc[-1]) > float(close.iloc[-22:-1].max())
+            if len(volume)>=21:
+                avg_vol=float(volume.tail(20).mean())
+                # ── 거래량 급증: 최근 5일 내 1회 이상 1.5배 초과 (V94)
+                vol_surge=bool((volume.tail(5)>avg_vol*1.5).any()) if avg_vol>0 else False
+            # ── 3일 연속 소폭 상승: 3일 모두 양봉 + 각 일 상승폭 0~5% (V94)
+            if len(close)>=4:
+                try:
+                    _c_gains=[(float(close.iloc[-i])/float(close.iloc[-i-1])-1) for i in range(1,4)]
+                    consecutive_rise=all(0<g<0.05 for g in _c_gains)
+                except: consecutive_rise=False
             exit_signal=False
             if len(close)>=11:
                 exit_signal=float(close.iloc[-1])<float(close.rolling(10).mean().iloc[-1])
@@ -1227,17 +1241,19 @@ def load_stocks(tickers, _bust=0):
             vol_ratio=float(volume.iloc[-1])/avg_v if avg_v>0 else 1.0
             _liq_pct_safe = liq_pct if 'liq_pct' in dir() and isinstance(liq_pct, (int,float)) else 0.5
             ai=round(max(0,min(100,max(rs_raw,0)*0.30+max(eps,0)*0.20+max(rev,0)*0.15+val_sc*0.15+(vol_ratio*5)*0.10+(_liq_pct_safe*50)*0.10)),1)
-            # RSI 과매수 체크 (V84)
             _rsi_overbought = rsi_val is not None and rsi_val >= 70
             _rsi_ok         = rsi_val is None or rsi_val < 70
+            _entry_ok       = breakout or consecutive_rise   # OR 게이트 (V94)
             if exit_signal:
                 signal = "⚠️ EXIT"
-            elif _rsi_overbought and breakout:
-                signal = "🔥 과열주의"  # 브레이크아웃이지만 RSI 과매수
+            elif _rsi_overbought and _entry_ok:
+                signal = "🔥 과열주의"
             elif ai>=80 and breakout and vol_surge and _rsi_ok:
                 signal = "🚀 STRONG BUY"
             elif ai>=70 and breakout and _rsi_ok:
                 signal = "🟢 BUY"
+            elif ai>=65 and consecutive_rise and _rsi_ok:
+                signal = "📈 꾸준상승"
             elif ai>=55:
                 signal = "🟡 WATCH"
             else:
@@ -1280,6 +1296,7 @@ def load_stocks(tickers, _bust=0):
                 "Vol Ratio":round(vol_ratio,2),
                 "RSI":rsi_val,
                 "Breakout":"✅" if breakout else "—","Vol Surge":"✅" if vol_surge else "—",
+                "3연상":"✅" if consecutive_rise else "—",
                 "Exit Signal":"⚠️" if exit_signal else "—","Signal":signal,
                 "실적예정":earnings_date_str,"실적경고":"⚠️" if earnings_warn else "—"})
         except: failed.append(tk)
@@ -1288,7 +1305,7 @@ def load_stocks(tickers, _bust=0):
     df["RS Score"]=df["RS Raw"].rank(pct=True).mul(100).round(0).astype(int)
     df["RS Rank"]=df["RS Raw"].rank(ascending=False).astype(int)
     df=df.sort_values("AI Score",ascending=False).reset_index(drop=True); df.index=df.index+1
-    port=df[(df["RS Score"]>=80)&(df["Breakout"]=="✅")&(df["Exit Signal"]=="—")&(df["PEG"].fillna(2.9)<3.0)].head(5).copy()
+    port=df[(df["RS Score"]>=80)&((df["Breakout"]=="✅")|(df.get("3연상","—")=="✅"))&(df["Exit Signal"]=="—")&(df["PEG"].fillna(2.9)<3.0)].head(5).copy()
     if not port.empty:
         total=port["AI Score"].sum()
         port["비중%"]=(port["AI Score"]/total*100).clip(upper=30)
@@ -1774,7 +1791,30 @@ sb.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── 투자 전략 가이드 삭제 (V93o: 각 탭 미션박스로 대체됨)
+# ── API 키 설정 (사이드바 맨 하단) ───────────────────────
+# ── 투자 전략 가이드 (V91: 탭→사이드바 이동) ──────────
+sb.markdown("""
+<details style='margin:2px 0;border:0.5px solid #E2E6ED;border-radius:6px;overflow:hidden'>
+<summary style='cursor:pointer;padding:6px 10px;background:#F9FAFB;
+  font-size:11px;color:#374151;list-style:none'>투자 전략 가이드</summary>
+<div style='padding:10px 12px;font-size:11px;color:#374151;line-height:1.9'>
+<b style='color:#1D4ED8'>"유동성 흐름을 먼저 읽고, 강한 섹터에서 강한 종목을 산다"</b><br><br>
+<b>판단 순서:</b><br>
+1 유동성 탭 - 단계 확인<br>
+2 종목테이블 - RS80+ AI70+ 브레이크아웃<br>
+3 포트폴리오 - 투자금 기반 매수 계획<br><br>
+<b>신호 의미:</b><br>
+STRONG BUY — AI80+ 브레이크아웃 거래량 급증<br>
+BUY — AI70+ 브레이크아웃 확인<br>
+과열주의 — 브레이크아웃 RSI70+ 과매수<br>
+WATCH — AI55+ 돌파 대기<br>
+EXIT — MA10 이탈 청산 검토<br><br>
+<b>매도 기준:</b><br>
+손절가 = 매수가 x 0.92 (-8%)<br>
+MA10 이탈 Exit 신호<br>
+유동성 1-2단계 하락 전량 청산 검토
+</div></details>
+""", unsafe_allow_html=True)
 
 sb.markdown("""
 <details style='margin:2px 0;border:0.5px solid #E2E6ED;border-radius:6px;overflow:hidden'>
@@ -1902,61 +1942,9 @@ try:
                    f"<span style='font-size:10px;color:{_fc}'>{_fb}</span></div>")
     else: _fg_row = ""
 
-    # VIX + 공포탐욕 조합 해석 (V93o)
-    _combo_html = ""
-    if _vix_v and _fg:
-        _vix_ok = _vix_v < 20
-        _fg_ok  = _fg <= 55
-        _fg_hot = _fg >= 75
-        _vix_hot = _vix_v >= 30
-
-        if _vix_ok and _fg_hot:
-            _combo_bg="#FFFBEB"; _combo_bc="#FDE68A"; _combo_tc="#92400E"
-            _combo_ico="⚠️"
-            _combo_msg="시장 조용 + 투자자 과열<br>→ 단기 조정 가능성. 신규 매수 보류"
-        elif _vix_hot and _fg_ok:
-            _combo_bg="#FEF2F2"; _combo_bc="#FECACA"; _combo_tc="#B91C1C"
-            _combo_ico="🔴"
-            _combo_msg="시장 공포 + 심리 극도공포<br>→ 바닥 매수 기회 접근 중"
-        elif _vix_ok and not _fg_hot and not _fg_ok:
-            _combo_bg="#F0FDF4"; _combo_bc="#86EFAC"; _combo_tc="#15803d"
-            _combo_ico="✅"
-            _combo_msg="변동성 낮음 + 심리 중립<br>→ 좋은 매수 환경"
-        elif _vix_ok and _fg <= 45:
-            _combo_bg="#EFF6FF"; _combo_bc="#BFDBFE"; _combo_tc="#1D4ED8"
-            _combo_ico="🟢"
-            _combo_msg="변동성 낮음 + 심리 공포<br>→ 최적 매수 타이밍"
-        elif _vix_hot and _fg_hot:
-            _combo_bg="#FEF2F2"; _combo_bc="#FECACA"; _combo_tc="#B91C1C"
-            _combo_ico="🚨"
-            _combo_msg="변동성 폭등 + 심리 과열<br>→ 위험 신호, 즉시 리스크 점검"
-        else:
-            _combo_bg="#F9FAFB"; _combo_bc="#E2E6ED"; _combo_tc="#6B7280"
-            _combo_ico="→"
-            _combo_msg="보통 구간 · 추세 확인 후 판단"
-
-        _combo_html = (
-            f"<details style='margin-top:5px;border:0.5px solid {_combo_bc};"
-            f"border-radius:6px;overflow:hidden'>"
-            f"<summary style='cursor:pointer;padding:5px 9px;"
-            f"background:{_combo_bg};font-size:10px;font-weight:500;"
-            f"color:{_combo_tc};list-style:none'>"
-            f"{_combo_ico} 지수 해석 보기</summary>"
-            f"<div style='padding:9px 10px;background:#FFFFFF'>"
-            f"<div style='font-size:11px;color:#374151;line-height:1.8;margin-bottom:7px'>"
-            f"{_combo_msg}</div>"
-            f"<div style='font-size:10px;color:#9CA3AF;border-top:0.5px solid #F3F4F6;padding-top:6px'>"
-            f"<b style='color:#374151'>4가지 조합 패턴:</b><br>"
-            f"VIX낮음+탐욕과열 → ⚠️ 조정 경고<br>"
-            f"VIX낮음+공포 → 🟢 최적 매수<br>"
-            f"VIX낮음+중립 → ✅ 좋은 환경<br>"
-            f"VIX높음+극도공포 → 🔴 바닥 접근</div>"
-            f"</div></details>"
-        )
-
     _mkt_html = (_sb_row("나스닥", "QQQ") +
                  _sb_row("S&P500", "SPY") +
-                 _vix_row + _fg_row + _combo_html)
+                 _vix_row + _fg_row)
     mkt_panel_placeholder.markdown(_mkt_html, unsafe_allow_html=True)
 except: pass
 
@@ -4712,15 +4700,18 @@ with tab2:
         # ── 조건수 계산 ─────────────────────────────────────
         _df = df_all.copy()
         _df["✅유동성"]  = _liq_stage >= 3
-        _df["✅브레이크"] = _df.get("Breakout",   pd.Series("—",index=_df.index)) == "✅"
+        _df["✅브레이크"] = (
+            (_df.get("Breakout", pd.Series("—",index=_df.index)) == "✅") |
+            (_df.get("3연상",    pd.Series("—",index=_df.index)) == "✅")
+        )
         _df["✅거래량"]  = _df.get("Vol Surge",   pd.Series("—",index=_df.index)) == "✅"
         _df["✅RS80"]    = _df.get("RS Score",    pd.Series(0,  index=_df.index)) >= 80
         _df["✅AI70"]    = _df.get(_sc_col,       pd.Series(0,  index=_df.index)) >= 70
-        _df["✅신고가"]  = _df.get("52주 고점%",  pd.Series(-99,index=_df.index)) >= -10
+        _df["✅신고가"]  = _df.get("52주 고점%",  pd.Series(-99,index=_df.index)) >= -20
         _df["✅실적OK"]  = _df.get("실적경고",    pd.Series("—",index=_df.index)) != "⚠️"
-        _df["✅EPS30"]   = _df.get("EPS Growth%", pd.Series(0,  index=_df.index)) >= 30
+        _df["✅EPS15"]   = _df.get("EPS Growth%", pd.Series(0,  index=_df.index)) >= 15
         _df["✅RSI정상"] = _df.get("RSI", pd.Series(50,index=_df.index)).fillna(50) < 70
-        _cond_cols = ["✅유동성","✅브레이크","✅거래량","✅RS80","✅AI70","✅신고가","✅실적OK","✅EPS30","✅RSI정상"]
+        _cond_cols = ["✅유동성","✅브레이크","✅거래량","✅RS80","✅AI70","✅신고가","✅실적OK","✅EPS15","✅RSI정상"]
         _df["조건수"]  = _df[_cond_cols].sum(axis=1).astype(int)
         _n_all = len(_df)
 
@@ -4734,7 +4725,7 @@ with tab2:
             return f"✅ {v:.0f}" if v >= 70 else f"❌ {v:.0f}"
         def _fmt_eps(row):
             v = float(row.get("EPS Growth%", 0) or 0)
-            return f"✅ {v:.0f}%" if v >= 30 else f"❌ {v:.0f}%"
+            return f"✅ {v:.0f}%" if v >= 15 else f"❌ {v:.0f}%"
         def _fmt_rsi(row):
             v = row.get("RSI", None)
             if v is None or str(v) == "nan": return "—"
@@ -4742,7 +4733,7 @@ with tab2:
             return f"🔥 {v:.0f}" if v >= 70 else f"✅ {v:.0f}"
         def _fmt_ath(row):
             v = float(row.get("52주 고점%", 0) or 0)
-            return f"✅ {v:.0f}%" if v >= -10 else f"❌ {v:.0f}%"
+            return f"✅ {v:.0f}%" if v >= -20 else f"❌ {v:.0f}%"
         def _fmt_cond(row):
             n = int(row.get("조건수", 0))
             if n >= 9: return f"🔥{n}/9"
@@ -4764,8 +4755,8 @@ with tab2:
             ("거래량 급증",  None, f"{int(_df['✅거래량'].sum())}/{_n_all}"),
             ("RS 80↑",      None, f"{int(_df['✅RS80'].sum())}/{_n_all}"),
             ("AI 70↑",      None, f"{int(_df['✅AI70'].sum())}/{_n_all}"),
-            ("신고가 -10%↑",None, f"{int(_df['✅신고가'].sum())}/{_n_all}"),
-            ("EPS 30%↑",    None, f"{int(_df['✅EPS30'].sum())}/{_n_all}"),
+            ("신고가 -20%↑",None, f"{int(_df['✅신고가'].sum())}/{_n_all}"),
+            ("EPS 15%↑",    None, f"{int(_df['✅EPS15'].sum())}/{_n_all}"),
             ("실적 안전",    None, f"{int(_df['✅실적OK'].sum())}/{_n_all}"),
         ]
         _bh = ("<div style='display:grid;grid-template-columns:repeat(4,1fr);"
@@ -4823,7 +4814,7 @@ with tab2:
         _showcols = [c for c in [
             "Ticker","섹터","조건/9","Signal",
             "RS✅","AI✅","EPS✅","RSI✅","신고가✅",
-            "Breakout","Vol Surge",
+            "Breakout","Vol Surge","3연상",
             "Price","PEG","Rev Growth%",
             "실적예정","실적경고"
         ] if c in _disp_df.columns]
@@ -4846,6 +4837,7 @@ with tab2:
                 "PEG":         st.column_config.NumberColumn("PEG",    format="%.1f", width="small"),
                 "Breakout":    st.column_config.TextColumn("B/O",                      width="small"),
                 "Vol Surge":   st.column_config.TextColumn("Vol↑",                     width="small"),
+                "3연상":       st.column_config.TextColumn("3연상",                    width="small"),
                 "실적경고":    st.column_config.TextColumn("실적",    width="small"),
                 "실적예정":    st.column_config.TextColumn("발표일",  width="small"),
                 "섹터":        st.column_config.TextColumn("섹터",    width="medium"),
@@ -4857,14 +4849,14 @@ with tab2:
 
         # ── ④ 표 아래 — 경고 배너들 ─────────────────────────
         # 7조건 없음 경고
-        _cnt7 = int((_df["조건수"] >= 7).sum())
+        _cnt6 = int((_df["조건수"] >= 6).sum())
         _cnt5 = int((_df["조건수"] >= 5).sum())
-        if _cnt7 == 0:
+        if _cnt6 == 0:
             st.markdown(
                 f"<div style='background:#FFFBEB;border:0.5px solid #FDE68A;"
                 f"border-radius:7px;padding:7px 12px;margin-top:6px;"
                 f"font-size:11px;color:#92400E'>"
-                f"⚠️ 7조건 이상 충족 종목 없음 &nbsp;|&nbsp; "
+                f"⚠️ 6조건 이상 충족 종목 없음 &nbsp;|&nbsp; "
                 f"5조건 이상: <b>{_cnt5}종목</b> — 조건수↓ 정렬로 확인</div>",
                 unsafe_allow_html=True)
 
@@ -4900,16 +4892,19 @@ with tab3:
     if not df_all.empty:
         _df = df_all.copy()
         _df["✅유동성"]  = _stage >= 3
-        _df["✅브레이크"] = _df.get("Breakout",   pd.Series("—",index=_df.index)) == "✅"
+        _df["✅브레이크"] = (
+            (_df.get("Breakout", pd.Series("—",index=_df.index)) == "✅") |
+            (_df.get("3연상",    pd.Series("—",index=_df.index)) == "✅")
+        )
         _df["✅거래량"]  = _df.get("Vol Surge",   pd.Series("—",index=_df.index)) == "✅"
         _df["✅RS80"]    = _df.get("RS Score",    pd.Series(0,  index=_df.index)) >= 80
         _df["✅AI70"]    = _df.get(_sc_col,       pd.Series(0,  index=_df.index)) >= 70
-        _df["✅신고가"]  = _df.get("52주 고점%",  pd.Series(-99,index=_df.index)) >= -10
+        _df["✅신고가"]  = _df.get("52주 고점%",  pd.Series(-99,index=_df.index)) >= -20
         _df["✅실적OK"]  = _df.get("실적경고",    pd.Series("—",index=_df.index)) != "⚠️"
-        _df["✅EPS30"]   = _df.get("EPS Growth%", pd.Series(0,  index=_df.index)) >= 30
+        _df["✅EPS15"]   = _df.get("EPS Growth%", pd.Series(0,  index=_df.index)) >= 15
         _df["조건수"]    = _df[["✅유동성","✅브레이크","✅거래량","✅RS80",
-                                "✅AI70","✅신고가","✅실적OK","✅EPS30"]].sum(axis=1).astype(int)
-        _buy_df  = _df[_df["조건수"] >= 6].sort_values(["조건수",_sc_col],ascending=[False,False]).head(5)
+                                "✅AI70","✅신고가","✅실적OK","✅EPS15"]].sum(axis=1).astype(int)
+        _buy_df  = _df[_df["조건수"] >= 5].sort_values(["조건수",_sc_col],ascending=[False,False]).head(5)
         _exit_df = _df[_df.get("Exit Signal", pd.Series("—",index=_df.index))=="⚠️"]
     else:
         _buy_df = pd.DataFrame(); _exit_df = pd.DataFrame()
@@ -4959,8 +4954,8 @@ with tab3:
                 "border-radius:10px;padding:12px 14px;height:120px;"
                 "display:flex;align-items:center;justify-content:center;text-align:center'>"
                 "<div style='font-size:12px;color:#92400E'>"
-                "⚠️ 7조건 충족 종목 없음<br>"
-                "<span style='font-size:11px'>유동성 단계 또는 브레이크아웃 조건 미충족</span>"
+                "⚠️ 6조건 충족 종목 없음<br>"
+                "<span style='font-size:11px'>종목테이블에서 4조건↑ 종목을 WATCH LIST로 관리하세요</span>"
                 "</div></div>",
                 unsafe_allow_html=True)
 
@@ -5068,10 +5063,10 @@ with tab3:
             _sig= _r.get("Signal","—")
             # 진입 근거 텍스트
             _reasons = []
-            if _cn >= 7: _reasons.append("7조건 이상 충족 — 최우선 진입 검토")
+            if _cn >= 6: _reasons.append("6조건 이상 충족 — 최우선 진입 검토")
             if _rs >= 90: _reasons.append(f"RS {_rs}점 — 나스닥 상위 10% 주도주")
             if _ai >= 80: _reasons.append(f"AI {_ai:.0f}점 — 실적·밸류에이션 강함")
-            if _ep >= 30: _reasons.append(f"EPS 성장 {_ep:.0f}% — 이익 고성장 중")
+            if _ep >= 15: _reasons.append(f"EPS 성장 {_ep:.0f}% — 이익 성장 중")
             _reason_txt = " &nbsp;|&nbsp; ".join(_reasons) if _reasons else "조건 충족"
 
             # 손절가(-8%) / 1차목표(+20%) / 2차목표(+35%) 계산
@@ -5231,7 +5226,7 @@ with tab3:
         st.markdown(
             "<div style='background:#FFFBEB;border:0.5px solid #FDE68A;"
             "border-radius:8px;padding:12px 16px;font-size:12px;color:#92400E'>"
-            "⚠️ 현재 7조건 충족 종목 없음 — 종목테이블에서 6/8 이상 종목을 확인하세요</div>",
+            "⚠️ 현재 6조건 충족 종목 없음 — 종목테이블에서 4/8 이상 종목을 WATCH LIST로 관리하세요</div>",
             unsafe_allow_html=True)
 
     st.markdown("<hr style='border-color:#E2E6ED;margin:14px 0'>", unsafe_allow_html=True)
@@ -5553,8 +5548,8 @@ with tab4:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>V56 QUANTUM INSTITUTIONAL OS</b>"
-        f" &nbsp;|&nbsp; APP_V86 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>V94 QUANTUM INSTITUTIONAL OS</b>"
+        f" &nbsp;|&nbsp; APP_V94 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

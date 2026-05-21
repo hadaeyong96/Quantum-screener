@@ -838,6 +838,28 @@ kr_panel_placeholder.markdown(
 
 sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=True)
 
+# ── 글로벌 자산 placeholder ────────────────────────────
+sb.markdown("<div style='font-size:9px;font-weight:500;color:#9CA3AF;"
+            "letter-spacing:1px;margin-bottom:4px'>글로벌 자산</div>",
+            unsafe_allow_html=True)
+asset_panel_placeholder = sb.empty()
+asset_panel_placeholder.markdown(
+    "<div style='font-size:10px;color:#9CA3AF;padding:4px'>로드 중...</div>",
+    unsafe_allow_html=True)
+
+sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=True)
+
+# ── 국제 지수 placeholder ──────────────────────────────
+sb.markdown("<div style='font-size:9px;font-weight:500;color:#9CA3AF;"
+            "letter-spacing:1px;margin-bottom:4px'>국제 지수</div>",
+            unsafe_allow_html=True)
+global_panel_placeholder = sb.empty()
+global_panel_placeholder.markdown(
+    "<div style='font-size:10px;color:#9CA3AF;padding:4px'>로드 중...</div>",
+    unsafe_allow_html=True)
+
+sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=True)
+
 # ── ⑤ DATA STATUS (소형) ─────────────────────────────
 sb.markdown("<div style='font-size:9px;font-weight:500;color:#9CA3AF;"
             "letter-spacing:1px;margin-bottom:4px'>데이터 상태</div>",
@@ -959,16 +981,26 @@ def load_sp500_pe(_bust=0):
 
 @st.cache_data(ttl=300, show_spinner=False)
 def load_market(_bust=0):
-    """V92: KOSPI, KOSDAQ, 2Y, 30Y 추가 수집"""
+    """V93: 글로벌 자산(금/BTC/오일) + 국제지수 추가"""
     res = {}
     for sym, key in [
+        # 미국 시장
         ("QQQ","QQQ"), ("SPY","SPY"), ("^VIX","VIX"),
-        ("^TNX","TNX"),                   # 10년물 (기존)
-        ("^IRX","IRX"),                   # 2년물  (신규)
-        ("^TYX","TYX"),                   # 30년물 (신규)
-        ("^KS11","KOSPI"),                # KOSPI  (신규)
-        ("^KQ11","KOSDAQ"),               # KOSDAQ (신규)
-        ("USDKRW=X","USDKRW"),            # USD/KRW(신규)
+        ("^TNX","TNX"), ("^IRX","IRX"), ("^TYX","TYX"),
+        # 글로벌 자산
+        ("GC=F","GOLD"),          # 금
+        ("BTC-USD","BTC"),        # 비트코인
+        ("CL=F","OIL"),           # WTI 원유
+        # 국제 지수
+        ("^N225","NIKKEI"),       # 일본 닛케이
+        ("000001.SS","SHANGHAI"), # 중국 상하이
+        ("^HSI","HANGSENG"),      # 홍콩 항셍
+        ("^GDAXI","DAX"),         # 독일 DAX
+        ("^FTSE","FTSE"),         # 영국 FTSE
+        # 한국
+        ("^KS11","KOSPI"),
+        ("^KQ11","KOSDAQ"),
+        ("USDKRW=X","USDKRW"),
     ]:
         try:
             s = get_close(sym, "2y")
@@ -1925,6 +1957,78 @@ try:
                    f"{_yield_cell('30년','TYX')}"
                    f"</div>")
     yield_placeholder.markdown(_yield_html, unsafe_allow_html=True)
+except: pass
+
+try:
+    # ③-b 글로벌 자산 패널 (금/BTC/원유)
+    def _asset_cell(label, key, fmt="price"):
+        s = mkt.get(key)
+        if s is None or s.empty:
+            return (f"<div style='display:flex;justify-content:space-between;"
+                    f"align-items:center;padding:2px 0;font-size:11px'>"
+                    f"<span style='color:#9CA3AF'>{label}</span>"
+                    f"<span style='color:#9CA3AF'>—</span></div>")
+        cur  = float(s.iloc[-1])
+        prev = float(s.iloc[-2]) if len(s) > 1 else cur
+        chg  = (cur - prev) / prev * 100 if prev != 0 else 0
+        col  = "#15803d" if chg > 0 else ("#B91C1C" if chg < 0 else "#9CA3AF")
+        arr  = "▲" if chg > 0 else ("▼" if chg < 0 else "―")
+        if fmt == "btc":
+            val_s = f"${cur:,.0f}"
+        elif fmt == "oil":
+            val_s = f"${cur:.1f}"
+        else:  # gold
+            val_s = f"${cur:,.0f}"
+        return (f"<div style='display:flex;justify-content:space-between;"
+                f"align-items:center;padding:2px 0;font-size:11px'>"
+                f"<span style='color:#9CA3AF'>{label}</span>"
+                f"<span style='font-family:monospace;font-weight:500;"
+                f"color:#0D1117'>{val_s}</span>"
+                f"<span style='font-size:10px;color:{col}'>"
+                f"{arr}{abs(chg):.1f}%</span></div>")
+
+    _asset_html = (
+        _asset_cell("금 (Gold)",   "GOLD", "gold") +
+        _asset_cell("BTC",         "BTC",  "btc")  +
+        _asset_cell("WTI 원유",    "OIL",  "oil")
+    )
+    asset_panel_placeholder.markdown(_asset_html, unsafe_allow_html=True)
+except: pass
+
+try:
+    # ③-c 국제 지수 패널
+    def _idx_row(flag, label, key):
+        s = mkt.get(key)
+        if s is None or s.empty:
+            return (f"<div style='display:flex;align-items:center;gap:4px;"
+                    f"padding:2px 0;font-size:11px'>"
+                    f"<span>{flag}</span>"
+                    f"<span style='flex:1;color:#9CA3AF'>{label}</span>"
+                    f"<span style='color:#9CA3AF'>—</span></div>")
+        cur  = float(s.iloc[-1])
+        prev = float(s.iloc[-2]) if len(s) > 1 else cur
+        chg  = (cur - prev) / prev * 100 if prev != 0 else 0
+        col  = "#15803d" if chg > 0 else ("#B91C1C" if chg < 0 else "#9CA3AF")
+        arr  = "▲" if chg > 0 else ("▼" if chg < 0 else "―")
+        val_s = f"{cur:,.0f}" if cur > 1000 else f"{cur:,.2f}"
+        return (f"<div style='display:flex;align-items:center;gap:4px;"
+                f"padding:2px 0;font-size:11px'>"
+                f"<span>{flag}</span>"
+                f"<span style='flex:1;color:#9CA3AF'>{label}</span>"
+                f"<span style='font-family:monospace;font-size:10px;"
+                f"color:#0D1117'>{val_s}</span>"
+                f"<span style='font-size:10px;color:{col};margin-left:4px'>"
+                f"{arr}{abs(chg):.1f}%</span></div>")
+
+    _global_html = (
+        _idx_row("🇺🇸","나스닥",  "QQQ")      +
+        _idx_row("🇯🇵","닛케이",  "NIKKEI")   +
+        _idx_row("🇨🇳","상하이",  "SHANGHAI") +
+        _idx_row("🇭🇰","항셍",    "HANGSENG") +
+        _idx_row("🇩🇪","DAX",     "DAX")      +
+        _idx_row("🇬🇧","FTSE",    "FTSE")
+    )
+    global_panel_placeholder.markdown(_global_html, unsafe_allow_html=True)
 except: pass
 
 try:

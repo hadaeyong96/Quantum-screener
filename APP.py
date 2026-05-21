@@ -2159,7 +2159,7 @@ except Exception as _ds_err:
 # ─────────────────────────────────────────────────────────
 # 탭 정의 (V44)
 # ─────────────────────────────────────────────────────────
-tab0, tab1, tab2 = st.tabs(['💧 유동성', '📊 종목테이블', '💼 포트폴리오'])
+tab0, tab1, tab2 = st.tabs(['STEP1 💧 유동성', 'STEP2 📊 종목 선별', 'STEP3 💼 매수 실행'])
 
 # ── V93: 지표 설명 expander 헬퍼 ─────────────────────────
 def _indicator_explain(key):
@@ -2336,9 +2336,51 @@ def _indicator_explain(key):
 """
     st.markdown(_html, unsafe_allow_html=True)
 
+    def _render_stepbar(current_step, liq_stage, n_buy):
+        """상단 3단계 스텝 바 + 미션 박스"""
+        _s = ["STEP1 완료 ✓" if current_step>1 else ("STEP1 진행중" if current_step==1 else "STEP1"),
+              "STEP2 완료 ✓" if current_step>2 else ("STEP2 진행중" if current_step==2 else "STEP2"),
+              "STEP3 완료 ✓" if current_step>3 else ("STEP3 진행중" if current_step==3 else "STEP3")]
+        _c = ["#22c55e" if current_step>1 else ("#1D4ED8" if current_step==1 else "#9CA3AF"),
+              "#22c55e" if current_step>2 else ("#1D4ED8" if current_step==2 else "#9CA3AF"),
+              "#22c55e" if current_step>3 else ("#1D4ED8" if current_step==3 else "#9CA3AF")]
+        _bg = ["#f0fdf4" if current_step>1 else ("#eff6ff" if current_step==1 else "#f9fafb"),
+               "#f0fdf4" if current_step>2 else ("#eff6ff" if current_step==2 else "#f9fafb"),
+               "#f0fdf4" if current_step>3 else ("#eff6ff" if current_step==3 else "#f9fafb")]
+        _desc = ["시장에 돈이 있는가?","강한 종목을 찾는다","얼마나 살 것인가?"]
+        _nums = ["✓" if current_step>i+1 else str(i+1) for i in range(3)]
+        _html = "<div style='display:flex;align-items:center;gap:0;margin-bottom:12px'>"
+        for i in range(3):
+            _html += (
+                f"<div style='display:flex;align-items:center;gap:7px;flex:1;"
+                f"background:{_bg[i]};border:0.5px solid {_c[i]}33;"
+                f"border-radius:8px;padding:8px 12px;margin-right:{"4px" if i<2 else "0"}'>"
+                f"<div style='width:22px;height:22px;border-radius:50%;background:{_c[i]};"
+                f"color:white;display:flex;align-items:center;justify-content:center;"
+                f"font-size:11px;font-weight:700;flex-shrink:0'>{_nums[i]}</div>"
+                f"<div><div style='font-size:11px;font-weight:600;color:{_c[i]}'>{_s[i]}</div>"
+                f"<div style='font-size:10px;color:{_c[i]};opacity:0.7'>{_desc[i]}</div></div>"
+                f"</div>"
+            )
+        _html += "</div>"
+        st.markdown(_html, unsafe_allow_html=True)
+
+
 # TAB 0 — 유동성
 # ═══════════════════════════════════
 with tab0:
+    _render_stepbar(1, _stage, 0)
+    # STEP1 미션 박스
+    _liq_ok = _stage >= 3
+    st.markdown(
+        f"<div style='background:{'#F0FDF4' if _liq_ok else '#FEF2F2'};"
+        f"border:0.5px solid {'#86EFAC' if _liq_ok else '#FECACA'};"
+        f"border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:11px;color:#374151'>"
+        f"<b style='color:{'#15803d' if _liq_ok else '#B91C1C'}'>"
+        f"{'✅ STEP1 통과 — STEP2 종목 선별로 이동하세요' if _liq_ok else '⚠️ 유동성 단계 부족 — 신규 매수 보류'}</b>"
+        f"&nbsp;|&nbsp; 현재 {_stage}단계 &nbsp;|&nbsp;"
+        f" {'투자금의 ' + {5:'80~100%',4:'50~70%',3:'20~40%',2:'0%',1:'0%'}.get(_stage,'—') + ' 투입 가능'}</div>",
+        unsafe_allow_html=True)
     st.markdown('<div class="sec-header">💧 글로벌 유동성 흐름 분석 (Global Liquidity OS)</div>',
                 unsafe_allow_html=True)
 
@@ -4437,6 +4479,7 @@ def build_full_report():
 # TAB 1 — 종목테이블 (V55) — 아래 전체 코드는 TAB1_CONTENT
 # ═════════════════════════════════════════════════════════
 with tab1:
+    _render_stepbar(2, _stage, 0)
     st.markdown('<div class="sec-header">📊 종목 분석 테이블</div>', unsafe_allow_html=True)
 
     if df_all.empty:
@@ -4459,14 +4502,38 @@ with tab1:
         _cond_cols = ["✅유동성","✅브레이크","✅거래량","✅RS80","✅AI70","✅신고가","✅실적OK","✅EPS30","✅RSI정상"]
         _df["조건수"]  = _df[_cond_cols].sum(axis=1).astype(int)
         _n_all = len(_df)
-        # V93: 체크 아이콘 시각화 컬럼 생성
-        _cond_labels = ["유동성","브레이크아웃","거래량","RS80","AI70","신고가","실적OK","EPS30","RSI정상"]
-        def _make_check_bar(row):
-            icons = ""
-            for col in _cond_cols:
-                icons += "✅" if row[col] else "⬜"
-            return icons
-        _df["조건체크"] = _df.apply(_make_check_bar, axis=1)
+
+        # ── V93j: 조건 점수 옆 체크 아이콘 컬럼 ─────────────
+        _sc2 = "섹터 AI Score" if "섹터 AI Score" in _df.columns else "AI Score"
+        def _fmt_rs(row):
+            v = int(row.get("RS Score", 0) or 0)
+            return f"✅ {v}" if v >= 80 else f"❌ {v}"
+        def _fmt_ai(row):
+            v = float(row.get(_sc2, 0) or 0)
+            return f"✅ {v:.0f}" if v >= 70 else f"❌ {v:.0f}"
+        def _fmt_eps(row):
+            v = float(row.get("EPS Growth%", 0) or 0)
+            return f"✅ {v:.0f}%" if v >= 30 else f"❌ {v:.0f}%"
+        def _fmt_rsi(row):
+            v = row.get("RSI", None)
+            if v is None or str(v) == "nan": return "—"
+            v = float(v)
+            return f"🔥 {v:.0f}" if v >= 70 else f"✅ {v:.0f}"
+        def _fmt_ath(row):
+            v = float(row.get("52주 고점%", 0) or 0)
+            return f"✅ {v:.0f}%" if v >= -10 else f"❌ {v:.0f}%"
+        def _fmt_cond(row):
+            n = int(row.get("조건수", 0))
+            if n >= 9: return f"🔥{n}/9"
+            if n >= 7: return f"✅{n}/9"
+            if n >= 5: return f"🟡{n}/9"
+            return f"❌{n}/9"
+        _df["RS✅"]   = _df.apply(_fmt_rs,   axis=1)
+        _df["AI✅"]   = _df.apply(_fmt_ai,   axis=1)
+        _df["EPS✅"]  = _df.apply(_fmt_eps,  axis=1)
+        _df["RSI✅"]  = _df.apply(_fmt_rsi,  axis=1)
+        _df["신고가✅"] = _df.apply(_fmt_ath, axis=1)
+        _df["조건/9"] = _df.apply(_fmt_cond, axis=1)
 
         # ── ① 조건 배지 — 표 위에 2×4 그리드 ───────────────
         _badge_defs = [
@@ -4533,10 +4600,10 @@ with tab1:
 
         # 컬럼 최소화 — 핵심만, PEG판정/Signal/RevGrowth/ROE 제외해 폭 축소
         _showcols = [c for c in [
-            "Ticker","섹터","조건수","조건체크","Signal",
-            _sc_col, "RS Score", "RSI",
+            "Ticker","섹터","조건/9","Signal",
+            "RS✅","AI✅","EPS✅","RSI✅","신고가✅",
             "Breakout","Vol Surge",
-            "Price","52주 고점%","신고가단계","PEG","EPS Growth%","Rev Growth%",
+            "Price","PEG","Rev Growth%",
             "실적예정","실적경고"
         ] if c in _disp_df.columns]
 
@@ -4545,12 +4612,12 @@ with tab1:
             use_container_width=True,
             height=520,
             column_config={
-                _sc_col:       st.column_config.NumberColumn("AI",      format="%.0f", width="small"),
-                "RS Score":    st.column_config.NumberColumn("RS",      format="%d",   width="small"),
-                "조건수":      st.column_config.NumberColumn("조건/9",  format="%d",   width="small"),
-                "조건체크":    st.column_config.TextColumn(
-                    "✅ 조건 달성 (유동성·B/O·Vol·RS·AI·신고가·실적·EPS·RSI)",
-                    width="large"),
+                "조건/9":  st.column_config.TextColumn("조건/9",  width="small"),
+                "RS✅":    st.column_config.TextColumn("RS",     width="small"),
+                "AI✅":    st.column_config.TextColumn("AI",     width="small"),
+                "EPS✅":   st.column_config.TextColumn("EPS",    width="small"),
+                "RSI✅":   st.column_config.TextColumn("RSI",    width="small"),
+                "신고가✅": st.column_config.TextColumn("신고가", width="small"),
                 "Price":       st.column_config.NumberColumn("가격$",   format="$%.0f",width="small"),
                 "신고가단계":  st.column_config.TextColumn("신고가",    width="small"),
                 "52주 고점%":  st.column_config.NumberColumn("신고가%", format="%.0f%%",width="small"),
@@ -4597,6 +4664,7 @@ with tab1:
 # TAB 2 — 포트폴리오 (V91)
 # ═════════════════════════════════════════════════════════
 with tab2:
+    _render_stepbar(3, _stage, 0)
     st.markdown('<div class="sec-header">💼 포트폴리오 & 투자 판단</div>', unsafe_allow_html=True)
 
     # ── 공통 변수 준비 ─────────────────────────────────────

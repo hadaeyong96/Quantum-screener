@@ -1774,30 +1774,7 @@ sb.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── API 키 설정 (사이드바 맨 하단) ───────────────────────
-# ── 투자 전략 가이드 (V91: 탭→사이드바 이동) ──────────
-sb.markdown("""
-<details style='margin:2px 0;border:0.5px solid #E2E6ED;border-radius:6px;overflow:hidden'>
-<summary style='cursor:pointer;padding:6px 10px;background:#F9FAFB;
-  font-size:11px;color:#374151;list-style:none'>투자 전략 가이드</summary>
-<div style='padding:10px 12px;font-size:11px;color:#374151;line-height:1.9'>
-<b style='color:#1D4ED8'>"유동성 흐름을 먼저 읽고, 강한 섹터에서 강한 종목을 산다"</b><br><br>
-<b>판단 순서:</b><br>
-1 유동성 탭 - 단계 확인<br>
-2 종목테이블 - RS80+ AI70+ 브레이크아웃<br>
-3 포트폴리오 - 투자금 기반 매수 계획<br><br>
-<b>신호 의미:</b><br>
-STRONG BUY — AI80+ 브레이크아웃 거래량 급증<br>
-BUY — AI70+ 브레이크아웃 확인<br>
-과열주의 — 브레이크아웃 RSI70+ 과매수<br>
-WATCH — AI55+ 돌파 대기<br>
-EXIT — MA10 이탈 청산 검토<br><br>
-<b>매도 기준:</b><br>
-손절가 = 매수가 x 0.92 (-8%)<br>
-MA10 이탈 Exit 신호<br>
-유동성 1-2단계 하락 전량 청산 검토
-</div></details>
-""", unsafe_allow_html=True)
+# ── 투자 전략 가이드 삭제 (V93o: 각 탭 미션박스로 대체됨)
 
 sb.markdown("""
 <details style='margin:2px 0;border:0.5px solid #E2E6ED;border-radius:6px;overflow:hidden'>
@@ -1925,9 +1902,61 @@ try:
                    f"<span style='font-size:10px;color:{_fc}'>{_fb}</span></div>")
     else: _fg_row = ""
 
+    # VIX + 공포탐욕 조합 해석 (V93o)
+    _combo_html = ""
+    if _vix_v and _fg:
+        _vix_ok = _vix_v < 20
+        _fg_ok  = _fg <= 55
+        _fg_hot = _fg >= 75
+        _vix_hot = _vix_v >= 30
+
+        if _vix_ok and _fg_hot:
+            _combo_bg="#FFFBEB"; _combo_bc="#FDE68A"; _combo_tc="#92400E"
+            _combo_ico="⚠️"
+            _combo_msg="시장 조용 + 투자자 과열<br>→ 단기 조정 가능성. 신규 매수 보류"
+        elif _vix_hot and _fg_ok:
+            _combo_bg="#FEF2F2"; _combo_bc="#FECACA"; _combo_tc="#B91C1C"
+            _combo_ico="🔴"
+            _combo_msg="시장 공포 + 심리 극도공포<br>→ 바닥 매수 기회 접근 중"
+        elif _vix_ok and not _fg_hot and not _fg_ok:
+            _combo_bg="#F0FDF4"; _combo_bc="#86EFAC"; _combo_tc="#15803d"
+            _combo_ico="✅"
+            _combo_msg="변동성 낮음 + 심리 중립<br>→ 좋은 매수 환경"
+        elif _vix_ok and _fg <= 45:
+            _combo_bg="#EFF6FF"; _combo_bc="#BFDBFE"; _combo_tc="#1D4ED8"
+            _combo_ico="🟢"
+            _combo_msg="변동성 낮음 + 심리 공포<br>→ 최적 매수 타이밍"
+        elif _vix_hot and _fg_hot:
+            _combo_bg="#FEF2F2"; _combo_bc="#FECACA"; _combo_tc="#B91C1C"
+            _combo_ico="🚨"
+            _combo_msg="변동성 폭등 + 심리 과열<br>→ 위험 신호, 즉시 리스크 점검"
+        else:
+            _combo_bg="#F9FAFB"; _combo_bc="#E2E6ED"; _combo_tc="#6B7280"
+            _combo_ico="→"
+            _combo_msg="보통 구간 · 추세 확인 후 판단"
+
+        _combo_html = (
+            f"<details style='margin-top:5px;border:0.5px solid {_combo_bc};"
+            f"border-radius:6px;overflow:hidden'>"
+            f"<summary style='cursor:pointer;padding:5px 9px;"
+            f"background:{_combo_bg};font-size:10px;font-weight:500;"
+            f"color:{_combo_tc};list-style:none'>"
+            f"{_combo_ico} 지수 해석 보기</summary>"
+            f"<div style='padding:9px 10px;background:#FFFFFF'>"
+            f"<div style='font-size:11px;color:#374151;line-height:1.8;margin-bottom:7px'>"
+            f"{_combo_msg}</div>"
+            f"<div style='font-size:10px;color:#9CA3AF;border-top:0.5px solid #F3F4F6;padding-top:6px'>"
+            f"<b style='color:#374151'>4가지 조합 패턴:</b><br>"
+            f"VIX낮음+탐욕과열 → ⚠️ 조정 경고<br>"
+            f"VIX낮음+공포 → 🟢 최적 매수<br>"
+            f"VIX낮음+중립 → ✅ 좋은 환경<br>"
+            f"VIX높음+극도공포 → 🔴 바닥 접근</div>"
+            f"</div></details>"
+        )
+
     _mkt_html = (_sb_row("나스닥", "QQQ") +
                  _sb_row("S&P500", "SPY") +
-                 _vix_row + _fg_row)
+                 _vix_row + _fg_row + _combo_html)
     mkt_panel_placeholder.markdown(_mkt_html, unsafe_allow_html=True)
 except: pass
 

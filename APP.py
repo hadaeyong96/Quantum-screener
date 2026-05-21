@@ -2336,34 +2336,39 @@ def _indicator_explain(key):
 """
     st.markdown(_html, unsafe_allow_html=True)
 
-    def _render_stepbar(current_step, liq_stage, n_buy):
-        """상단 3단계 스텝 바 + 미션 박스"""
-        _s = ["STEP1 완료 ✓" if current_step>1 else ("STEP1 진행중" if current_step==1 else "STEP1"),
-              "STEP2 완료 ✓" if current_step>2 else ("STEP2 진행중" if current_step==2 else "STEP2"),
-              "STEP3 완료 ✓" if current_step>3 else ("STEP3 진행중" if current_step==3 else "STEP3")]
-        _c = ["#22c55e" if current_step>1 else ("#1D4ED8" if current_step==1 else "#9CA3AF"),
-              "#22c55e" if current_step>2 else ("#1D4ED8" if current_step==2 else "#9CA3AF"),
-              "#22c55e" if current_step>3 else ("#1D4ED8" if current_step==3 else "#9CA3AF")]
-        _bg = ["#f0fdf4" if current_step>1 else ("#eff6ff" if current_step==1 else "#f9fafb"),
-               "#f0fdf4" if current_step>2 else ("#eff6ff" if current_step==2 else "#f9fafb"),
-               "#f0fdf4" if current_step>3 else ("#eff6ff" if current_step==3 else "#f9fafb")]
-        _desc = ["시장에 돈이 있는가?","강한 종목을 찾는다","얼마나 살 것인가?"]
-        _nums = ["✓" if current_step>i+1 else str(i+1) for i in range(3)]
-        _html = "<div style='display:flex;align-items:center;gap:0;margin-bottom:12px'>"
-        for i in range(3):
-            _html += (
-                f"<div style='display:flex;align-items:center;gap:7px;flex:1;"
-                f"background:{_bg[i]};border:0.5px solid {_c[i]}33;"
-                f"border-radius:8px;padding:8px 12px;margin-right:{"4px" if i<2 else "0"}'>"
-                f"<div style='width:22px;height:22px;border-radius:50%;background:{_c[i]};"
-                f"color:white;display:flex;align-items:center;justify-content:center;"
-                f"font-size:11px;font-weight:700;flex-shrink:0'>{_nums[i]}</div>"
-                f"<div><div style='font-size:11px;font-weight:600;color:{_c[i]}'>{_s[i]}</div>"
-                f"<div style='font-size:10px;color:{_c[i]};opacity:0.7'>{_desc[i]}</div></div>"
-                f"</div>"
-            )
-        _html += "</div>"
-        st.markdown(_html, unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────────────────
+# _render_stepbar — 탭 상단 3단계 스텝 바 (전역 함수, V93j)
+# ─────────────────────────────────────────────────────────
+def _render_stepbar(current_step, liq_stage, n_buy):
+    """상단 3단계 스텝 바"""
+    _s = ["STEP1 완료 ✓" if current_step>1 else ("STEP1 진행중" if current_step==1 else "STEP1"),
+          "STEP2 완료 ✓" if current_step>2 else ("STEP2 진행중" if current_step==2 else "STEP2"),
+          "STEP3 완료 ✓" if current_step>3 else ("STEP3 진행중" if current_step==3 else "STEP3")]
+    _c = ["#22c55e" if current_step>1 else ("#1D4ED8" if current_step==1 else "#9CA3AF"),
+          "#22c55e" if current_step>2 else ("#1D4ED8" if current_step==2 else "#9CA3AF"),
+          "#22c55e" if current_step>3 else ("#1D4ED8" if current_step==3 else "#9CA3AF")]
+    _bg = ["#f0fdf4" if current_step>1 else ("#eff6ff" if current_step==1 else "#f9fafb"),
+           "#f0fdf4" if current_step>2 else ("#eff6ff" if current_step==2 else "#f9fafb"),
+           "#f0fdf4" if current_step>3 else ("#eff6ff" if current_step==3 else "#f9fafb")]
+    _desc = ["시장에 돈이 있는가?", "강한 종목을 찾는다", "얼마나 살 것인가?"]
+    _nums = ["✓" if current_step>i+1 else str(i+1) for i in range(3)]
+    _html = "<div style='display:flex;align-items:center;gap:4px;margin-bottom:12px'>"
+    for i in range(3):
+        _mr = "margin-right:4px;" if i < 2 else ""
+        _html += (
+            f"<div style='display:flex;align-items:center;gap:7px;flex:1;"
+            f"background:{_bg[i]};border:0.5px solid {_c[i]}44;"
+            f"border-radius:8px;padding:8px 12px;{_mr}'>"
+            f"<div style='width:22px;height:22px;border-radius:50%;background:{_c[i]};"
+            f"color:white;display:flex;align-items:center;justify-content:center;"
+            f"font-size:11px;font-weight:700;flex-shrink:0'>{_nums[i]}</div>"
+            f"<div><div style='font-size:11px;font-weight:600;color:{_c[i]}'>{_s[i]}</div>"
+            f"<div style='font-size:10px;color:{_c[i]};opacity:0.7'>{_desc[i]}</div></div>"
+            f"</div>"
+        )
+    _html += "</div>"
+    st.markdown(_html, unsafe_allow_html=True)
 
 
 # TAB 0 — 유동성

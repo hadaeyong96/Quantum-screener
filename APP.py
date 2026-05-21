@@ -4355,6 +4355,14 @@ with tab1:
         _cond_cols = ["✅유동성","✅브레이크","✅거래량","✅RS80","✅AI70","✅신고가","✅실적OK","✅EPS30","✅RSI정상"]
         _df["조건수"]  = _df[_cond_cols].sum(axis=1).astype(int)
         _n_all = len(_df)
+        # V93: 체크 아이콘 시각화 컬럼 생성
+        _cond_labels = ["유동성","브레이크아웃","거래량","RS80","AI70","신고가","실적OK","EPS30","RSI정상"]
+        def _make_check_bar(row):
+            icons = ""
+            for col in _cond_cols:
+                icons += "✅" if row[col] else "⬜"
+            return icons
+        _df["조건체크"] = _df.apply(_make_check_bar, axis=1)
 
         # ── ① 조건 배지 — 표 위에 2×4 그리드 ───────────────
         _badge_defs = [
@@ -4421,7 +4429,7 @@ with tab1:
 
         # 컬럼 최소화 — 핵심만, PEG판정/Signal/RevGrowth/ROE 제외해 폭 축소
         _showcols = [c for c in [
-            "Ticker","섹터","조건수","Signal",
+            "Ticker","섹터","조건수","조건체크","Signal",
             _sc_col, "RS Score", "RSI",
             "Breakout","Vol Surge",
             "Price","52주 고점%","신고가단계","PEG","EPS Growth%","Rev Growth%",
@@ -4435,7 +4443,10 @@ with tab1:
             column_config={
                 _sc_col:       st.column_config.NumberColumn("AI",      format="%.0f", width="small"),
                 "RS Score":    st.column_config.NumberColumn("RS",      format="%d",   width="small"),
-                "조건수":      st.column_config.NumberColumn("조건/8",  format="%d",   width="small"),
+                "조건수":      st.column_config.NumberColumn("조건/9",  format="%d",   width="small"),
+                "조건체크":    st.column_config.TextColumn(
+                    "✅ 조건 달성 (유동성·B/O·Vol·RS·AI·신고가·실적·EPS·RSI)",
+                    width="large"),
                 "Price":       st.column_config.NumberColumn("가격$",   format="$%.0f",width="small"),
                 "신고가단계":  st.column_config.TextColumn("신고가",    width="small"),
                 "52주 고점%":  st.column_config.NumberColumn("신고가%", format="%.0f%%",width="small"),
@@ -4596,24 +4607,29 @@ with tab2:
     # 섹션 1 — 투자금 입력 + 매수 종목 상세
     # ════════════════════════════════════════════════════════
 
-    # 투자금 입력 — 포트폴리오 탭 상단 (V93)
+    # ── 투자금 입력 — on_change 콜백으로 재로딩 방지 (V93) ──
+    # 콜백: 투자금 변경 시 session_state만 업데이트, 전체 재로딩 없음
+    def _on_invest_change():
+        st.session_state["invest_amount"] = float(
+            st.session_state.get("port_invest_amount", 1000))
+
     _pc1, _pc2 = st.columns([1, 2])
     with _pc1:
         st.markdown(
             "<div style='font-size:11px;font-weight:500;color:#374151;margin-bottom:4px'>"
             "💼 투자금 (만원)</div>",
             unsafe_allow_html=True)
-        _invest_input = st.number_input(
+        st.number_input(
             "투자금",
             min_value=0, max_value=1000000,
             value=int(st.session_state.get("invest_amount", 1000)),
             step=500, format="%d",
             key="port_invest_amount",
             label_visibility="collapsed",
+            on_change=_on_invest_change,
             help="투자 예정 금액. 0이면 포트폴리오 계산 생략")
-        st.session_state["invest_amount"] = float(_invest_input)
-        _invest = float(_invest_input)
-        # INVEST_AMOUNT_만원 업데이트 (전역 변수 갱신)
+        # 캐시 클리어 없이 session_state에서 읽기
+        _invest = float(st.session_state.get("invest_amount", 1000))
         INVEST_AMOUNT_만원 = _invest
         INVEST_AMOUNT_원   = _invest * 10000
     with _pc2:
@@ -4724,7 +4740,9 @@ with tab2:
         if _invest > 0:
             st.markdown("<div style='margin:8px 0'></div>", unsafe_allow_html=True)
             try:
-                fx_raw = mkt.get("USDKRW") or mkt.get("FX")
+                fx_raw = mkt.get("USDKRW")
+                if fx_raw is None or fx_raw.empty:
+                    fx_raw = mkt.get("FX")
                 _fx = float(fx_raw.iloc[-1]) if fx_raw is not None and not fx_raw.empty else 1380.0
             except: _fx = 1380.0
             _ir_map = {5:0.90,4:0.65,3:0.40,2:0.10,1:0.0}

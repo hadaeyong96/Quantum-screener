@@ -2159,7 +2159,13 @@ except Exception as _ds_err:
 # ─────────────────────────────────────────────────────────
 # 탭 정의 (V44)
 # ─────────────────────────────────────────────────────────
-tab0, tab1, tab2 = st.tabs(['STEP1 💧 유동성', 'STEP2 📊 종목 선별', 'STEP3 💼 매수 실행'])
+tab0, tab1, tab2, tab3, tab4 = st.tabs([
+    'STEP1 💧 유동성',
+    'STEP2 📡 섹터 강도',
+    'STEP3 📊 종목 선별',
+    'STEP4 💰 매수 실행',
+    'STEP5 📋 보유 관리'
+])
 
 # ── V93: 지표 설명 expander 헬퍼 ─────────────────────────
 def _indicator_explain(key):
@@ -2369,6 +2375,176 @@ def _render_stepbar(current_step, liq_stage, n_buy):
         )
     _html += "</div>"
     st.markdown(_html, unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────────────────
+# 섹터 ETF 데이터 수집 (V93n)
+# ─────────────────────────────────────────────────────────
+SECTOR_ETFS = {
+    "기술":      "XLK",
+    "반도체":    "SOXX",
+    "헬스케어":  "XLV",
+    "금융":      "XLF",
+    "에너지":    "XLE",
+    "소비재":    "XLY",
+    "유틸리티":  "XLU",
+    "부동산":    "XLRE",
+    "소재":      "XLB",
+}
+
+@st.cache_data(ttl=900, show_spinner=False)
+def load_sector_data(_bust=0):
+    res = {}
+    for name, etf in SECTOR_ETFS.items():
+        try:
+            s = get_close(etf, "1y")
+            if s is None or len(s) < 22: continue
+            price   = float(s.iloc[-1])
+            ret_1m  = round((price / float(s.iloc[-22]) - 1) * 100, 2) if len(s) >= 22 else 0
+            ret_3m  = round((price / float(s.iloc[-63]) - 1) * 100, 2) if len(s) >= 63 else 0
+            ma20    = float(s.rolling(20).mean().iloc[-1])
+            ma50    = float(s.rolling(50).mean().iloc[-1]) if len(s) >= 50 else price
+            # RS vs QQQ
+            qqq_s   = get_close("QQQ", "1y")
+            qqq_ret = (float(qqq_s.iloc[-1])/float(qqq_s.iloc[-22])-1)*100 if qqq_s is not None and len(qqq_s)>=22 else 0
+            rs      = round(ret_1m - qqq_ret, 2)
+            res[name] = {
+                "etf": etf, "price": price,
+                "ret_1m": ret_1m, "ret_3m": ret_3m,
+                "above_ma20": price > ma20,
+                "above_ma50": price > ma50,
+                "rs_vs_qqq": rs,
+                "series": s,
+            }
+        except: pass
+    return res
+
+sector_data = load_sector_data(_bust=st.session_state.get("cache_key",0))
+
+# ─────────────────────────────────────────────────────────
+# TAB 1 — STEP2 섹터 강도 (V93n)
+# ─────────────────────────────────────────────────────────
+with tab1:
+    _render_stepbar(2, LIQ_ACTION.get("stage", 0), 0)
+    st.markdown('<div class="sec-header">📡 섹터 강도 분석 (STEP 2)</div>',
+                unsafe_allow_html=True)
+
+    # 미션 박스
+    st.markdown("""
+    <div style='background:#F5F3FF;border:0.5px solid #C4B5FD;border-radius:8px;
+         padding:9px 14px;margin-bottom:12px;font-size:11px;color:#374151'>
+      <b style='color:#6D28D9'>✅ STEP2 에서 확인할 것</b><br>
+      ① 1개월 수익률 상위 섹터 → 지금 돈이 몰리는 곳<br>
+      ② MA20 위 ✅ + 수익률 양수 → 강한 섹터 조건<br>
+      ③ RS(QQQ 대비) 양수 → 나스닥보다 강한 섹터<br>
+      <span style='color:#9CA3AF'>강한 섹터에서 강한 종목을 선별하면 승률이 올라갑니다</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if sector_data:
+        # go는 이미 import됨
+        # 1M 수익률 바 차트
+        _sec_df = sorted(sector_data.items(), key=lambda x: x[1]["ret_1m"], reverse=True)
+        _names  = [x[0] for x in _sec_df]
+        _ret1m  = [x[1]["ret_1m"] for x in _sec_df]
+        _ma20   = [x[1]["above_ma20"] for x in _sec_df]
+        _rs     = [x[1]["rs_vs_qqq"] for x in _sec_df]
+
+        # 색상: MA20 위 + 양수 = 초록, MA20 위 + 음수 = 주황, MA20 아래 = 빨강
+        _colors = []
+        for i, (nm, d) in enumerate(_sec_df):
+            if d["above_ma20"] and d["ret_1m"] > 0: _colors.append("#22c55e")
+            elif d["above_ma20"]: _colors.append("#F59E0B")
+            else: _colors.append("#EF4444")
+
+        _fig_sec = go.Figure()
+        _fig_sec.add_trace(go.Bar(
+            x=_names, y=_ret1m,
+            marker_color=_colors,
+            text=[f"{v:+.1f}%" for v in _ret1m],
+            textposition="outside",
+            textfont=dict(size=11, color="#374151"),
+            hovertemplate="<b>%{x}</b><br>1M 수익률: %{y:.1f}%<extra></extra>"
+        ))
+        _fig_sec.add_hline(y=0, line_color="#E5E7EB", line_width=1)
+        _fig_sec.update_layout(
+            template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
+            height=260, margin=dict(l=4,r=4,t=28,b=4),
+            title=dict(text="섹터별 1개월 수익률 vs QQQ 기준", font=dict(size=12)),
+            xaxis=dict(gridcolor="#EBEDF0", tickfont=dict(size=11)),
+            yaxis=dict(gridcolor="#EBEDF0", ticksuffix="%"),
+            showlegend=False)
+        st.plotly_chart(_fig_sec, use_container_width=True, key="sec_bar_chart")
+
+        # 강한 섹터 / 약한 섹터
+        _strong = [(nm, d) for nm, d in _sec_df if d["above_ma20"] and d["ret_1m"] > 0]
+        _weak   = [(nm, d) for nm, d in _sec_df if not d["above_ma20"] or d["ret_1m"] < -2]
+
+        _c1, _c2 = st.columns(2)
+        with _c1:
+            st.markdown(
+                "<div style='background:#F0FDF4;border:0.5px solid #86EFAC;"
+                "border-radius:8px;padding:10px 14px'>"
+                "<div style='font-size:11px;font-weight:600;color:#15803d;"
+                "margin-bottom:6px'>💪 강한 섹터</div>" +
+                "".join(f"<div style='font-size:11px;color:#374151;padding:2px 0'>"
+                        f"✅ <b>{nm}</b> ({d['etf']}) &nbsp;"
+                        f"+{d['ret_1m']:.1f}% &nbsp; RS {d['rs_vs_qqq']:+.1f}%</div>"
+                        for nm, d in _strong) +
+                ("<div style='font-size:11px;color:#9CA3AF'>없음</div>" if not _strong else "") +
+                "</div>", unsafe_allow_html=True)
+
+        with _c2:
+            st.markdown(
+                "<div style='background:#FEF2F2;border:0.5px solid #FECACA;"
+                "border-radius:8px;padding:10px 14px'>"
+                "<div style='font-size:11px;font-weight:600;color:#B91C1C;"
+                "margin-bottom:6px'>📉 약한 섹터</div>" +
+                "".join(f"<div style='font-size:11px;color:#374151;padding:2px 0'>"
+                        f"❌ <b>{nm}</b> ({d['etf']}) &nbsp;"
+                        f"{d['ret_1m']:.1f}%</div>"
+                        for nm, d in _weak) +
+                ("<div style='font-size:11px;color:#9CA3AF'>없음</div>" if not _weak else "") +
+                "</div>", unsafe_allow_html=True)
+
+        # 섹터 RS 상세 테이블
+        st.markdown("<div style='margin:10px 0'></div>", unsafe_allow_html=True)
+        _sec_table = []
+        for nm, d in _sec_df:
+            _sec_table.append({
+                "섹터": nm,
+                "ETF": d["etf"],
+                "현재가": f"${d['price']:.1f}",
+                "1M 수익률": f"{d['ret_1m']:+.1f}%",
+                "3M 수익률": f"{d['ret_3m']:+.1f}%",
+                "RS vs QQQ": f"{d['rs_vs_qqq']:+.1f}%",
+                "MA20": "✅ 위" if d["above_ma20"] else "❌ 아래",
+                "강도": "🔥 강함" if d["above_ma20"] and d["ret_1m"]>0 else ("🟡 보통" if d["above_ma20"] else "🔴 약함"),
+            })
+        
+        _df_sec = pd.DataFrame(_sec_table)
+        st.dataframe(_df_sec, use_container_width=True, hide_index=True,
+                     key="sec_detail_table",
+                     column_config={
+                         "1M 수익률": st.column_config.TextColumn("1M %", width="small"),
+                         "3M 수익률": st.column_config.TextColumn("3M %", width="small"),
+                         "RS vs QQQ": st.column_config.TextColumn("RS", width="small"),
+                         "MA20": st.column_config.TextColumn("MA20", width="small"),
+                         "강도": st.column_config.TextColumn("강도", width="small"),
+                     })
+
+        # 다음 단계 안내
+        if _strong:
+            _top = _strong[0][0]
+            st.markdown(
+                f"<div style='background:#EFF6FF;border:0.5px solid #BFDBFE;"
+                f"border-radius:8px;padding:10px 14px;margin-top:8px;font-size:11px;color:#374151'>"
+                f"<b style='color:#1D4ED8'>→ STEP3으로</b> &nbsp;|&nbsp; "
+                f"가장 강한 섹터: <b>{_top}</b> &nbsp;|&nbsp; "
+                f"종목 선별 탭에서 이 섹터 종목을 우선 확인하세요</div>",
+                unsafe_allow_html=True)
+    else:
+        st.info("섹터 데이터 로드 중... 잠시 후 새로고침하세요.")
 
 
 # TAB 0 — 유동성
@@ -4494,9 +4670,9 @@ def build_full_report():
 # ═════════════════════════════════════════════════════════
 # TAB 1 — 종목테이블 (V55) — 아래 전체 코드는 TAB1_CONTENT
 # ═════════════════════════════════════════════════════════
-with tab1:
-    _render_stepbar(2, LIQ_ACTION.get("stage", 0), 0)
-    st.markdown('<div class="sec-header">📊 종목 분석 테이블</div>', unsafe_allow_html=True)
+with tab2:
+    _render_stepbar(3, LIQ_ACTION.get("stage", 0), 0)
+    st.markdown('<div class="sec-header">📊 종목 선별 (STEP 3)</div>', unsafe_allow_html=True)
 
     if df_all.empty:
         st.markdown('<div class="warn-box">⚠️ 종목 데이터 없음 — 사이드바 [🔄 새로고침]을 눌러주세요.</div>', unsafe_allow_html=True)
@@ -4679,9 +4855,9 @@ with tab1:
 # ═════════════════════════════════════════════════════════
 # TAB 2 — 포트폴리오 (V91)
 # ═════════════════════════════════════════════════════════
-with tab2:
-    _render_stepbar(3, LIQ_ACTION.get("stage", 0), 0)
-    st.markdown('<div class="sec-header">💼 포트폴리오 & 투자 판단</div>', unsafe_allow_html=True)
+with tab3:
+    _render_stepbar(4, LIQ_ACTION.get("stage", 0), 0)
+    st.markdown('<div class="sec-header">💰 매수 실행 (STEP 4)</div>', unsafe_allow_html=True)
 
     # ── 공통 변수 준비 ─────────────────────────────────────
     _sc_col    = "섹터 AI Score" if "섹터 AI Score" in df_all.columns else "AI Score"
@@ -5299,6 +5475,13 @@ with tab2:
     # ════════════════════════════════════════════════════════
     # 섹션 3.5 — 보유 종목 하락 점검 체크리스트 (V84)
     # ════════════════════════════════════════════════════════
+
+# ── STEP5 보유 관리 탭 시작 ─────────────────────────────
+with tab4:
+    _render_stepbar(5, LIQ_ACTION.get("stage", 0), 0)
+    st.markdown('<div class="sec-header">📋 보유 관리 (STEP 5)</div>',
+                unsafe_allow_html=True)
+
     st.markdown(
         "<div style='font-family:Space Mono,monospace;font-size:11px;"
         "color:#B91C1C;letter-spacing:1px;margin:10px 0 8px 0'>"

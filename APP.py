@@ -5327,72 +5327,7 @@ with tab2:
     # ════════════════════════════════════════════════════════
     # 섹션 4 — 유동성 7지표 상세 (접기)
     # ════════════════════════════════════════════════════════
-    # 유동성 7지표 details (V93: st.expander 버그 수정)
-    # S&P500 오버레이 (국채금리 차트, V93)
-    if _sp500_overlay is not None and not _sp500_overlay.empty and t10_s2 is not None:
-        try:
-            _sp5t = _sp500_overlay[_sp500_overlay.index >= pd.Timestamp.now() - pd.DateOffset(years=5)]
-            if len(_sp5t) >= 5:
-                _sp_n = _sp5t / float(_sp5t.iloc[0]) * 100 * (t10_val or 4.0) / 100
-                fig_t10.add_trace(go.Scatter(
-                    x=_sp5t.index, y=_sp5t/float(_sp5t.iloc[0])*5,
-                    name="S&P500 (÷20 스케일)", mode="lines",
-                    line=dict(color="#9CA3AF", width=1.5, dash="dot"), opacity=0.6,
-                    yaxis="y2",
-                    hovertemplate="S&P500: %{customdata:.0f}<extra></extra>",
-                    customdata=_sp5t.values))
-                fig_t10.update_layout(
-                    yaxis2=dict(overlaying="y", side="right",
-                                showgrid=False, tickfont=dict(size=9, color="#9CA3AF"),
-                                title="S&P500"))
-        except: pass
 
-    st.markdown(
-        "<details style='margin:6px 0;border:0.5px solid #E2E6ED;"
-        "border-radius:8px;overflow:hidden'>"
-        "<summary style='cursor:pointer;padding:9px 14px;background:#F9FAFB;"
-        "font-size:12px;color:#374151;list-style:none'>"
-        "유동성 7지표 상세 (클릭해서 펼치기)</summary>"
-        "<div style='padding:10px 14px'>",
-        unsafe_allow_html=True)
-    _det_rows = [
-        ("기준금리","FedFunds","FEDFUNDS","%",False,"3%↓ 우호","5%↑ 압박"),
-        ("M2 통화량","M2","M2SL","B$",True,"증가 = 우호","감소 = 위험"),
-        ("역레포 RRP","RRP","RRPONTSYD","B$",False,"감소 = 유입","증가 = 흡수"),
-        ("TGA 재무부","TGA","WDTGAL","B$",False,"감소 = 우호","급증 = 주의"),
-        ("은행 준비금","Reserves","WRESBAL","B$",True,"3조$↑ 안정","3조$↓ 경색"),
-        ("실질금리","RealRate","DFII10","%",False,"1%↓ 우호","2%↑ 압박"),
-        ("크레딧 스프레드","CreditSpread","BAMLH0A0HYM2","%",False,"3.5%↓ 안정","5%↑ 위험"),
-    ]
-    for _name,_key,_fred,_unit,_hi,_ok,_bad in _det_rows:
-        _info  = IND_SCORE_100.get(_key, {})
-        _score = _info.get("score"); _val = _info.get("val")
-        if _score is None: continue
-        if   _score>=65: _sc="#15803d"; _bg="#F0FDF4"; _ic="✅"
-        elif _score>=40: _sc="#92400E"; _bg="#FFFBEB"; _ic="⚠️"
-        else:            _sc="#B91C1C"; _bg="#FEF2F2"; _ic="❌"
-        _val_str = (f"${_val/1000:.2f}T" if _unit=="B$" and _val and _val>=1000
-                    else f"${_val:.0f}B" if _unit=="B$" and _val
-                    else f"{_val:.2f}%" if _unit=="%" and _val else "N/A")
-        _bar_w = f"{_score:.0f}"
-        st.markdown(
-            f"<div style='background:{_bg};border:0.5px solid {_sc}33;"
-            f"border-radius:7px;padding:9px 14px;margin-bottom:6px;"
-            f"display:flex;align-items:center;gap:12px'>"
-            f"<div style='min-width:120px;font-size:12px;font-weight:600;color:#0D1117'>"
-            f"{_ic} {_name}</div>"
-            f"<div style='font-family:Space Mono,monospace;font-size:13px;"
-            f"font-weight:700;color:{_sc};min-width:70px'>{_val_str}</div>"
-            f"<div style='flex:1'>"
-            f"<div style='background:#E5E7EB;border-radius:3px;height:6px'>"
-            f"<div style='background:{_sc};width:{_bar_w}%;height:6px;border-radius:3px'></div></div></div>"
-            f"<div style='font-size:11px;font-weight:600;color:{_sc};min-width:40px;text-align:right'>"
-            f"{_score:.0f}점</div>"
-            f"<div style='font-size:10px;color:#9CA3AF;min-width:160px;text-align:right'>"
-            f"✅ {_ok} / ❌ {_bad}</div>"
-            f"</div>",
-            unsafe_allow_html=True)
-    st.markdown("</div></details>", unsafe_allow_html=True)
 
 
 # ── 푸터 ─────────────────────────────────────────────────

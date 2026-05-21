@@ -4488,7 +4488,7 @@ def build_full_report():
 # TAB 1 — 종목테이블 (V55) — 아래 전체 코드는 TAB1_CONTENT
 # ═════════════════════════════════════════════════════════
 with tab1:
-    _render_stepbar(2, _stage, 0)
+    _render_stepbar(2, LIQ_ACTION.get("stage", 0), 0)
     st.markdown('<div class="sec-header">📊 종목 분석 테이블</div>', unsafe_allow_html=True)
 
     if df_all.empty:
@@ -4673,7 +4673,7 @@ with tab1:
 # TAB 2 — 포트폴리오 (V91)
 # ═════════════════════════════════════════════════════════
 with tab2:
-    _render_stepbar(3, _stage, 0)
+    _render_stepbar(3, LIQ_ACTION.get("stage", 0), 0)
     st.markdown('<div class="sec-header">💼 포트폴리오 & 투자 판단</div>', unsafe_allow_html=True)
 
     # ── 공통 변수 준비 ─────────────────────────────────────

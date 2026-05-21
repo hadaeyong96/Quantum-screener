@@ -2374,17 +2374,21 @@ def _render_stepbar(current_step, liq_stage, n_buy):
 # TAB 0 — 유동성
 # ═══════════════════════════════════
 with tab0:
-    _render_stepbar(1, _stage, 0)
+    _s0 = LIQ_ACTION.get("stage", 0)
+    _render_stepbar(1, _s0, 0)
     # STEP1 미션 박스
-    _liq_ok = _stage >= 3
+    _liq_ok = _s0 >= 3
+    _pct_map = {5:"80~100%", 4:"50~70%", 3:"20~40%", 2:"0%", 1:"0%"}
+    _step1_msg = "STEP1 통과 - STEP2 종목 선별로 이동하세요" if _liq_ok else "유동성 단계 부족 - 신규 매수 보류"
+    _step1_ico = "ok" if _liq_ok else "warn"
     st.markdown(
         f"<div style='background:{'#F0FDF4' if _liq_ok else '#FEF2F2'};"
         f"border:0.5px solid {'#86EFAC' if _liq_ok else '#FECACA'};"
         f"border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:11px;color:#374151'>"
         f"<b style='color:{'#15803d' if _liq_ok else '#B91C1C'}'>"
-        f"{'✅ STEP1 통과 — STEP2 종목 선별로 이동하세요' if _liq_ok else '⚠️ 유동성 단계 부족 — 신규 매수 보류'}</b>"
-        f"&nbsp;|&nbsp; 현재 {_stage}단계 &nbsp;|&nbsp;"
-        f" {'투자금의 ' + {5:'80~100%',4:'50~70%',3:'20~40%',2:'0%',1:'0%'}.get(_stage,'—') + ' 투입 가능'}</div>",
+        f"{'✅' if _liq_ok else '⚠️'} {_step1_msg}</b>"
+        f"&nbsp;|&nbsp; 현재 {_s0}단계 &nbsp;|&nbsp;"
+        f"투자금의 {_pct_map.get(_s0, '—')} 투입 가능</div>",
         unsafe_allow_html=True)
     st.markdown('<div class="sec-header">💧 글로벌 유동성 흐름 분석 (Global Liquidity OS)</div>',
                 unsafe_allow_html=True)

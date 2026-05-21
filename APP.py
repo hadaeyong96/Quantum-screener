@@ -2615,169 +2615,168 @@ with tab0:
             IND_SCORE_100.get("CreditSpread",{}).get("val"),_safe_series("CreditSpread")),
     ]
 
-    # ── 종합 점수 pill ─────────────────────────────────────
-    _total_sc  = LIQ_SCORE_100
-    _tot_dot, _tot_tc, _tot_bg, _tot_fc, _tot_bar, _tot_lbl = _tier5(_total_sc)
-    if _total_sc >= 65:   _pill_style = "background:#dcfce7;color:#15803d"
-    elif _total_sc >= 40: _pill_style = "background:#fef9c3;color:#a16207"
-    else:                 _pill_style = "background:#fee2e2;color:#b91c1c"
+    # ── 6체크 종합 판단 (V93m: 6지표 기준) ──────────────────
+    _m2_ok   = (IND_SCORE_100.get("M2",{}).get("score") or 0) >= 60
+    _res_ok  = (IND_SCORE_100.get("Reserves",{}).get("score") or 0) >= 60
+    _rrp_ok  = (IND_SCORE_100.get("RRP",{}).get("score") or 0) >= 50
+    _tga_ok  = (IND_SCORE_100.get("TGA",{}).get("score") or 0) >= 50
+    _rr_ok   = (IND_SCORE_100.get("RealRate",{}).get("score") or 0) >= 50
+    _cs_ok   = (IND_SCORE_100.get("CreditSpread",{}).get("score") or 0) >= 60
+    _yes_cnt = sum([_m2_ok, _res_ok, _rrp_ok, _tga_ok, _rr_ok, _cs_ok])
 
-    # ── A형 5단계 가로 바 생성 ────────────────────────────
-    _stage_segs = [
-        ("🔴", "위험",     "0~19",   "#fee2e2", "#b91c1c", "#ef4444"),
-        ("🟠", "주의",     "20~39",  "#ffedd5", "#c2410c", "#f97316"),
-        ("🟡", "중립",     "40~64",  "#fef9c3", "#a16207", "#f59e0b"),
-        ("🔵", "우호",     "65~79",  "#dbeafe", "#1d4ed8", "#3b82f6"),
-        ("🟢", "강한우호", "80~100", "#dcfce7", "#15803d", "#22c55e"),
+    _chk_data = [
+        ("①", "M2 증가",      "돈이 풀리는 중?",      _m2_ok,  "up"),
+        ("②", "은행 준비금",   "시장 실탄 충분?",      _res_ok, "up"),
+        ("③", "RRP 감소",     "연준 돈 시장 유입?",   _rrp_ok, "dn"),
+        ("④", "TGA 감소",     "정부 지출 중?",        _tga_ok, "dn"),
+        ("⑤", "실질금리",      "금리 안정적?",        _rr_ok,  "dn"),
+        ("⑥", "크레딧 스프레드","기업 부도 걱정 없음?", _cs_ok, "dn"),
     ]
-    _sc_int  = int(_total_sc)
-    _seg_html = ""
-    for _sico, _sname, _srange, _sbg, _stc, _sbc in _stage_segs:
-        _is_cur = (
-            (_sico == "🔴" and _sc_int <  20) or
-            (_sico == "🟠" and 20 <= _sc_int < 40) or
-            (_sico == "🟡" and 40 <= _sc_int < 65) or
-            (_sico == "🔵" and 65 <= _sc_int < 80) or
-            (_sico == "🟢" and _sc_int >= 80)
+
+    # 체크 카드 HTML
+    _chk_cards = ""
+    for _cn, _cl, _cd, _cv, _gd in _chk_data:
+        _ci  = "✅" if _cv else "❌"
+        _cbg = "#F0FDF4" if _cv else "#FEF2F2"
+        _cbc = "#86EFAC" if _cv else "#FECACA"
+        _ctc = "#15803d" if _cv else "#B91C1C"
+        _ans = "YES" if _cv else "NO"
+        _chk_cards += (
+            f"<div style='flex:1;background:{_cbg};border:0.5px solid {_cbc};"
+            f"border-radius:8px;padding:10px 8px;text-align:center'>"
+            f"<div style='font-size:9px;color:{_ctc};opacity:0.7;margin-bottom:3px'>{_cn}</div>"
+            f"<div style='font-size:18px;margin-bottom:4px'>{_ci}</div>"
+            f"<div style='font-size:11px;font-weight:600;color:{_ctc};margin-bottom:3px'>{_cl}</div>"
+            f"<div style='font-size:10px;color:{_ctc};opacity:0.7;margin-bottom:5px'>{_cd}</div>"
+            f"<div style='font-size:12px;font-weight:700;color:{_ctc}'>{_ans}</div>"
+            f"</div>"
         )
-        if _is_cur:
-            # V67: 배경색 제거 → 파란 테두리 + ★ 현재 점수
-            _seg_style = (
-                f"flex:1;background:#FFFFFF;"
-                f"border:2px solid #1D4ED8;border-radius:6px;"
-                f"padding:6px 4px;text-align:center;"
-                f"font-weight:600;color:#1D4ED8;"
-                f"margin:0 1px;position:relative;z-index:1"
-            )
-            _seg_inner = (
-                f"<div style='font-size:10px'>{_sico} {_sname}</div>"
-                f"<div style='font-size:9px;opacity:0.8'>{_srange}점</div>"
-                f"<div style='font-size:9px;font-weight:700;margin-top:2px'>"
-                f"★ 현재 {_sc_int}점</div>"
-            )
+
+    # 종합 결과 메시지
+    if _yes_cnt == 6:
+        _res_bg="#F0FDF4"; _res_bc="#86EFAC"; _res_tc="#15803d"
+        _res_ico="🚀"; _res_title="6개 모두 YES"
+        _res_msg="하락장 걱정 말고 공격적으로 투자할 타이밍!"
+    elif _yes_cnt >= 4:
+        _res_bg="#EFF6FF"; _res_bc="#BFDBFE"; _res_tc="#1D4ED8"
+        _res_ico="✅"; _res_title=f"{_yes_cnt}개 YES"
+        _res_msg="좋은 환경입니다. 9조건 충족 종목 선별 후 분할 매수."
+    elif _yes_cnt == 3:
+        _res_bg="#FFFBEB"; _res_bc="#FDE68A"; _res_tc="#92400E"
+        _res_ico="⚠️"; _res_title="3개 YES"
+        _res_msg="혼조세. 소량만 진입하고 현금 비중을 유지하세요."
+    else:
+        _res_bg="#FEF2F2"; _res_bc="#FECACA"; _res_tc="#B91C1C"
+        _res_ico="🔴"; _res_title=f"{_yes_cnt}개 YES"
+        _res_msg="M2 정체 · 실질금리 고공행진이면 현금 비중 늘리기."
+
+    _score_pct = int(LIQ_SCORE_100)
+    _score_bg  = "#F0FDF4" if _score_pct>=65 else ("#FFFBEB" if _score_pct>=40 else "#FEF2F2")
+    _score_tc  = "#15803d" if _score_pct>=65 else ("#92400E" if _score_pct>=40 else "#B91C1C")
+
+    st.markdown(
+        f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
+        f"border-radius:12px;padding:14px 16px;margin:8px 0'>"
+        # 헤더
+        f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px'>"
+        f"<span style='font-size:13px;font-weight:600;color:#0D1117'>📋 유동성 종합 판단</span>"
+        f"<span style='background:{_score_bg};border:0.5px solid {_score_tc}44;"
+        f"border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;color:{_score_tc}'>"
+        f"종합 {_score_pct}점 · {_yes_cnt}/6 체크</span>"
+        f"</div>"
+        # 4체크 카드
+        f"<div style='display:flex;gap:6px;margin-bottom:12px'>{_chk_cards}</div>"
+        # 결과 메시지
+        f"<div style='background:{_res_bg};border:0.5px solid {_res_bc};"
+        f"border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px'>"
+        f"<span style='font-size:22px'>{_res_ico}</span>"
+        f"<div><div style='font-size:13px;font-weight:600;color:{_res_tc}'>{_res_title}</div>"
+        f"<div style='font-size:11px;color:{_res_tc};opacity:0.85;margin-top:2px'>{_res_msg}</div></div>"
+        f"</div>"
+        f"</div>",
+        unsafe_allow_html=True)
+
+    # ── AI 전문가 코멘트 (V93n) ────────────────────────────
+    try:
+        _rr_val = IND_SCORE_100.get("RealRate",{}).get("val")
+        _tga_val = IND_SCORE_100.get("TGA",{}).get("val")
+        _m2_score = IND_SCORE_100.get("M2",{}).get("score", 0) or 0
+        _rr_score = IND_SCORE_100.get("RealRate",{}).get("score", 0) or 0
+        _rrp_score = IND_SCORE_100.get("RRP",{}).get("score", 0) or 0
+        _tga_score = IND_SCORE_100.get("TGA",{}).get("score", 0) or 0
+        _cs_score  = IND_SCORE_100.get("CreditSpread",{}).get("score", 0) or 0
+
+        # 상황별 동적 코멘트 생성
+        _pos = []  # 긍정
+        _neg = []  # 경고
+        _action = ""
+
+        if _m2_score >= 80:
+            _pos.append("M2가 꾸준히 증가 중 — 시장에 돈이 공급되고 있습니다")
+        if _rrp_score >= 60:
+            _pos.append("RRP 거의 소진 — 연준에 묶인 돈이 시장으로 이동 완료")
+        if IND_SCORE_100.get("Reserves",{}).get("score",0) >= 70:
+            _pos.append("은행 준비금 충분 — 신용 경색 우려 없음")
+        if _cs_score >= 60:
+            _pos.append("크레딧 스프레드 안정 — 기업 부도 공포 없음")
+
+        if _rr_val and _rr_val > 1.5:
+            _neg.append(f"실질금리 {_rr_val:.2f}% — 성장주 밸류에이션 압박. 1.5% 이하 하락 시 랠리 조건")
+        if _tga_score <= 20:
+            _neg.append("TGA 높음 — 지금은 유동성 압박이나, 정부 지출 재개 시 시장 공급 기회")
+        if _rr_val and _rr_val > 2.0:
+            _neg.append("실질금리 2% 초과 — PER 30배 이상 성장주 한 번에 전액 투입 주의")
+
+        # 종합 액션
+        if _yes_cnt >= 5:
+            _action = "9조건 충족 종목 선별 후 분할 매수(40%→35%→25%) 적극 권장"
+        elif _yes_cnt == 4:
+            _action = "9조건 충족 종목 분할 매수. 실질금리 동향 주시하며 포지션 조절"
+        elif _yes_cnt == 3:
+            _action = "소량 선별 진입. 손절(-8%) 반드시 설정. 현금 비중 50% 이상 유지"
         else:
-            # 비활성: 배경 없이 텍스트 색상만
-            _seg_style = (
-                f"flex:1;background:#F9FAFB;color:{_stc};"
-                f"padding:6px 4px;text-align:center"
-            )
-            _seg_inner = (
-                f"<div style='font-size:10px'>{_sico} {_sname}</div>"
-                f"<div style='font-size:9px;opacity:0.7'>{_srange}점</div>"
-            )
-        _seg_html += f"<div style='{_seg_style}'>{_seg_inner}</div>"
+            _action = "신규 매수 보류. 현금 비중 최대화. 실질금리·M2 방향 전환 대기"
 
-    # 행동 지침 + 시장 상태 pill
-    _action_pill = (
-        f"<span style='font-size:11px;font-weight:600;padding:3px 10px;"
-        f"border-radius:20px;background:{_la['bg']};color:{_la['color']};"
-        f"border:1px solid {_la['border']}'>{_la['label']}</span>"
-    )
-    _mkt_pill = (
-        f"<span style='font-size:11px;font-weight:500;padding:3px 9px;"
-        f"border-radius:20px;background:#F3F4F6;color:{_mkt_lbl['color']}'>"
-        f"{_mkt_lbl['label']}</span>"
-    )
-    _tbl_hdr_html = (
-        "<div style='padding:12px 16px 0'>"
-        "<div style='display:flex;justify-content:space-between;"
-        "align-items:center;margin-bottom:8px'>"
-        "<span style='font-size:13px;font-weight:600;color:#0D1117'>"
-        "📋 현재 글로벌 유동성 종합 상태</span>"
-        f"<div style='display:flex;gap:6px;align-items:center'>"
-        f"{_action_pill}{_mkt_pill}</div></div>"
-        f"<div style='display:flex;border-radius:8px;overflow:hidden;"
-        f"border:1px solid #E2E6ED;margin-bottom:12px'>{_seg_html}</div>"
-        "</div>"
-    )
+        # HTML 렌더링
+        _pos_html = "".join(
+            f"<div style='font-size:11px;color:#374151;padding:3px 0;display:flex;gap:6px'>"
+            f"<span style='color:#15803d;flex-shrink:0'>✅</span><span>{p}</span></div>"
+            for p in _pos) if _pos else ""
+        _neg_html = "".join(
+            f"<div style='font-size:11px;color:#374151;padding:3px 0;display:flex;gap:6px'>"
+            f"<span style='color:#B91C1C;flex-shrink:0'>⚠️</span><span>{n}</span></div>"
+            for n in _neg) if _neg else ""
 
-    # ── 테이블 HTML 생성 ──────────────────────────────────
-    _col_hdr = (
-        "<div style='display:grid;grid-template-columns:10px 130px 76px 140px 1fr 72px;"
-        "gap:10px;padding:5px 16px;font-size:10px;color:#9CA3AF;font-weight:500;"
-        "letter-spacing:0.5px;border-bottom:1px solid #E2E6ED;"
-        "background:#F9FAFB'>"
-        "<div></div><div>지표 (FRED 코드)</div>"
-        "<div style='text-align:right'>현재값</div>"
-        "<div style='text-align:center'>추세</div>"
-        "<div>해석</div><div style='text-align:right'>점수</div></div>"
-    )
+        _ai_bg = "#F0FDF4" if _yes_cnt >= 4 else ("#FFFBEB" if _yes_cnt == 3 else "#FEF2F2")
+        _ai_bc = "#86EFAC" if _yes_cnt >= 4 else ("#FDE68A" if _yes_cnt == 3 else "#FECACA")
 
-    _rows_html = ""
-    for _name, _fred, _key, _unit, _gdir, _interp_fn, _val, _series in _rows_def:
-        _info  = IND_SCORE_100.get(_key, {})
-        _score = _info.get("score")
-        _dot, _vc, _sbg, _sfc, _barcol, _tier = _tier5(_score)
-        _val_str  = _fmt_val(_val, _unit)
-        _interp   = _interp_fn(_val)
-        _score_str= f"{_score:.0f}점" if _score is not None else "—"
-
-        # 추세 배지
-        try:
-            _arrow, _streak_lbl, _streak_good = _streak_info(_series, _gdir)
-        except:
-            _arrow, _streak_lbl, _streak_good = "→", "데이터 없음", True
-        _stbg  = _sbg if _streak_good else "#fee2e2"
-        _stfc  = _sfc if _streak_good else "#b91c1c"
-
-        # 점수 게이지 바 (60px)
-        _bar_w = f"{_score:.0f}" if _score is not None else "0"
-        _bar_html = (
-            f"<div style='width:60px;height:5px;border-radius:3px;"
-            f"background:#E5E7EB;margin-top:3px'>"
-            f"<div style='width:{_bar_w}%;height:5px;border-radius:3px;"
-            f"background:{_barcol}'></div></div>"
-        )
-
-        _rows_html += (
-            f"<div style='display:grid;grid-template-columns:10px 130px 76px 140px 1fr 72px;"
-            f"align-items:center;gap:10px;padding:8px 16px;"
-            f"border-bottom:1px solid #F3F4F6;font-size:12px'>"
-            f"<div style='width:8px;height:8px;border-radius:50%;background:{_dot};flex-shrink:0'></div>"
-            f"<div>"
-            f"<div style='font-weight:600;color:#0D1117;font-size:12px'>"
-            f"{ _name.split('|')[0] }</div>"
-            f"<div style='font-size:10px;color:#6B7280'>{ _name.split('|')[1] if '|' in _name else '' }</div>"
-            f"<div style='font-size:9px;color:#C4C9D4'>{_fred}</div>"
+        st.markdown(
+            f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
+            f"border-radius:12px;padding:14px 16px;margin:8px 0'>"
+            f"<div style='display:flex;align-items:center;gap:8px;margin-bottom:12px'>"
+            f"<span style='font-size:16px'>🤖</span>"
+            f"<span style='font-size:13px;font-weight:600;color:#0D1117'>AI 유동성 분석</span>"
+            f"<span style='font-size:10px;color:#9CA3AF;margin-left:auto'>"
+            f"현재 지표 기반 자동 생성</span></div>"
+            + (f"<div style='margin-bottom:10px'>"
+               f"<div style='font-size:10px;font-weight:500;color:#15803d;"
+               f"letter-spacing:1px;margin-bottom:5px'>긍정 신호</div>"
+               f"{_pos_html}</div>" if _pos_html else "")
+            + (f"<div style='margin-bottom:10px'>"
+               f"<div style='font-size:10px;font-weight:500;color:#B91C1C;"
+               f"letter-spacing:1px;margin-bottom:5px'>경고 신호</div>"
+               f"{_neg_html}</div>" if _neg_html else "")
+            + f"<div style='background:{_ai_bg};border:0.5px solid {_ai_bc};"
+            f"border-radius:8px;padding:10px 14px'>"
+            f"<div style='font-size:10px;font-weight:500;color:#374151;"
+            f"letter-spacing:1px;margin-bottom:5px'>전략 판단</div>"
+            f"<div style='font-size:12px;font-weight:600;color:#0D1117'>"
+            f"→ {_action}</div>"
             f"</div>"
-            f"<div style='font-family:Space Mono,monospace;font-size:12px;font-weight:600;"
-            f"color:{_vc};text-align:right'>{_val_str}</div>"
-            f"<div style='font-size:11px;padding:2px 7px;border-radius:4px;"
-            f"background:{_stbg};color:{_stfc};text-align:center;white-space:nowrap'>"
-            f"{_streak_lbl} {_arrow}</div>"
-            f"<div style='font-size:11px;color:#6B7280;line-height:1.5'>{_interp}</div>"
-            f"<div style='display:flex;flex-direction:column;align-items:flex-end'>"
-            f"<span style='font-size:12px;font-weight:600;color:{_vc}'>{_score_str}</span>"
-            f"{_bar_html}</div>"
-            f"</div>"
-        )
-
-    # 하단 행 — 지표 해석 범례 (컴팩트)
-    _leg_html = (
-        "<div style='padding:8px 16px;background:#F9FAFB;"
-        "border-top:1px solid #E2E6ED;display:flex;align-items:center;"
-        "gap:16px;flex-wrap:wrap'>"
-        "<span style='font-size:10px;color:#9CA3AF;font-weight:500'>추세 배지</span>"
-        "<span style='font-size:10px;background:#dcfce7;color:#15803d;"
-        "padding:2px 7px;border-radius:4px'>초록 = 유동성에 긍정</span>"
-        "<span style='font-size:10px;background:#fee2e2;color:#b91c1c;"
-        "padding:2px 7px;border-radius:4px'>빨강 = 유동성에 부정</span>"
-        "<span style='font-size:10px;color:#9CA3AF;margin-left:auto'>"
-        "데이터 출처: FRED (미국 연방준비제도)</span>"
-        "</div>"
-    )
-
-    # 전체 카드 조합
-    _table_html = (
-        "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:12px;overflow:hidden;margin:10px 0'>"
-        + _tbl_hdr_html
-        + _col_hdr
-        + _rows_html
-        + _leg_html
-        + "</div>"
-    )
-    st.markdown(_table_html, unsafe_allow_html=True)
+            f"</div>",
+            unsafe_allow_html=True)
+    except Exception as _ai_err:
+        pass
 
     # ── FRED 확장 데이터 로드 (Core CPI, Median CPI 추가) ──
     EXTENDED_SERIES_V2 = {

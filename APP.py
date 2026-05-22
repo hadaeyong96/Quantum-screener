@@ -1,10 +1,16 @@
 """
-V24 Quantum Institutional OS  |  초보자용 투자 대시보드
+Quantum Institutional OS V102  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V101
-  V101 - STEP5 보유관리 → 💼 내 포트폴리오로 통합
+VERSION : APP_V102
+  V102 - 매수 종목 상세 카드 정리
+         · 비중 바 (보유%·매도%·진행 바) 전체 제거
+         · 익절 단계 텍스트 설명 제거
+         · 4칸 가격 그리드만 깔끔하게 표시
+           (현재가 / ATR손절 / 1차+15% / 2차+25%)
+         · _hold_pct, _sold_pct, _bh, _bs, _stxt 관련 코드 정리
+  V101 - STEP5 보유관리 → 💼 내 포트폴리오 통합
          · 기존 STEP5 삭제, 포트폴리오 탭이 STEP5 자리 차지 (탭 5개)
          · QQQ 비교 차트를 포트폴리오 탭 하단으로 이식
          · 📝 새 종목 추가 폼: expander 글자 겹침 버그 수정
@@ -171,7 +177,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="V101 💻 PC Quantum Institutional OS",
+st.set_page_config(page_title="V102 💻 PC Quantum Institutional OS",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -888,7 +894,7 @@ selected_sectors = set()
 # ── 앱 타이틀 ─────────────────────────────────────────
 sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
-    "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>V101 QUANTUM OS</div>"
+    "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>V102 QUANTUM OS</div>"
     "<div style='display:inline-block;background:#F0FDF4;border:0.5px solid #86EFAC;"
     "border-radius:4px;font-size:9px;font-weight:600;color:#166534;"
     "padding:1px 6px;margin-bottom:2px;letter-spacing:0.5px'>💻 PC VERSION</div>"
@@ -5418,68 +5424,74 @@ with tab3:
                 _stop_lbl = "손절(-8%)"
                 _stop_pct = -8.0
             _rr_ratio  = round(15 / abs(_stop_pct), 1) if _stop_pct != 0 else 2.0
-            _hold_pct  = 100 if _p_stage==0 else (50 if _p_stage==1 else 25)
-            _sold_pct  = 100 - _hold_pct
-            _sc        = "#166534" if _p_stage==0 else ("#0F766E" if _p_stage==1 else "#0369A1")
-            _sbg       = "#F0FDF4" if _p_stage==0 else ("#F0FDFA" if _p_stage==1 else "#EFF6FF")
-            _stxt      = (
-                "진입 후 보유 중 — +15% 달성 시 50% 매도 예정" if _p_stage==0 else
-                f"🎯 1차 달성 ({_p_ret:+.1f}%) — 50% 매도 완료 / 잔여 50% 보유" if _p_stage==1 else
-                f"🎯 2차 달성 ({_p_ret:+.1f}%) — 25% 추가 매도 / 잔여 25% 추세 추종"
-            )
-            _bh = f"<div style='width:{_hold_pct}%;background:{_sc};height:10px;border-radius:{'3px 0 0 3px' if _sold_pct>0 else '3px'}'></div>"
-            _bs = f"<div style='width:{_sold_pct}%;background:#FCA5A5;height:10px;border-radius:0 3px 3px 0'></div>" if _sold_pct>0 else ""
-            _tgt1_pr = _pr*1.15; _tgt2_pr = _pr*1.25
+            _tgt1_pr   = _pr * 1.15
+            _tgt2_pr   = _pr * 1.25
 
             st.markdown(
                 f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
                 f"border-radius:8px;padding:12px 14px;margin-bottom:6px'>"
-                f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'>"
-                f"<span style='font-family:Space Mono,monospace;font-size:15px;font-weight:700;color:#0D1117'>{_r['Ticker']}</span>"
+                # 헤더 — 티커 + 신호 배지
+                f"<div style='display:flex;justify-content:space-between;"
+                f"align-items:center;margin-bottom:10px'>"
+                f"<span style='font-family:Space Mono,monospace;font-size:15px;"
+                f"font-weight:700;color:#0D1117'>{_r['Ticker']}</span>"
                 f"<div style='display:flex;gap:5px;align-items:center;flex-wrap:wrap'>"
-                f"{'<span style="font-size:9px;background:#EFF6FF;color:#1D4ED8;border-radius:4px;padding:1px 5px">🔁회복</span>' if _ma10_rec else ''}"
-                f"{'<span style="font-size:9px;background:#FFFBEB;color:#92400E;border-radius:4px;padding:1px 5px">📉추적</span>' if _trailing else ''}"
-                f"<span style='font-size:12px;font-weight:600;color:#1D4ED8'>{_sig}</span>"
+                f"{'<span style=\"font-size:9px;background:#EFF6FF;color:#1D4ED8;border-radius:4px;padding:1px 6px\">🔁 MA10회복</span>' if _ma10_rec else ''}"
+                f"{'<span style=\"font-size:9px;background:#FFFBEB;color:#92400E;border-radius:4px;padding:1px 6px\">📉 추적손절</span>' if _trailing else ''}"
+                f"<span style='font-size:13px;font-weight:600;color:#1D4ED8'>{_sig}</span>"
                 f"<span style='font-size:10px;color:#B91C1C'>{_wn}</span>"
                 f"</div></div>"
-                f"<div style='background:{_sbg};border-radius:7px;padding:8px 10px;margin-bottom:8px'>"
-                f"<div style='display:flex;justify-content:space-between;margin-bottom:4px'>"
-                f"<span style='font-size:10px;font-weight:600;color:{_sc}'>보유 {_hold_pct}%&nbsp; 매도 {_sold_pct}%</span>"
-                f"<span style='font-size:9px;color:{_sc}'>{'1차완료' if _p_stage==1 else ('2차완료' if _p_stage==2 else '보유중')}</span>"
+                # 가격 4칸 그리드
+                f"<div style='display:grid;grid-template-columns:repeat(4,1fr);"
+                f"gap:6px;margin-bottom:10px'>"
+                f"<div style='background:#F0FDF4;border-radius:7px;"
+                f"padding:8px 10px;text-align:center'>"
+                f"<div style='font-size:9px;color:#15803d;font-weight:500;"
+                f"margin-bottom:3px'>현재가</div>"
+                f"<div style='font-family:Space Mono,monospace;font-size:14px;"
+                f"font-weight:700;color:#0D1117'>${_pr:.2f}</div>"
                 f"</div>"
-                f"<div style='display:flex;width:100%;border-radius:3px;overflow:hidden;margin-bottom:5px'>{_bh}{_bs}</div>"
-                f"<div style='font-size:10px;color:{_sc};line-height:1.5'>{_stxt}</div>"
+                f"<div style='background:#FEF2F2;border-radius:7px;"
+                f"padding:8px 10px;text-align:center'>"
+                f"<div style='font-size:9px;color:#B91C1C;font-weight:500;"
+                f"margin-bottom:3px'>{_stop_lbl}</div>"
+                f"<div style='font-family:Space Mono,monospace;font-size:14px;"
+                f"font-weight:700;color:#B91C1C'>${_stop_pr:.2f}</div>"
+                f"<div style='font-size:10px;color:#B91C1C;margin-top:2px'>"
+                f"{_stop_pct:.1f}%</div>"
                 f"</div>"
-                f"<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px'>"
-                f"<div style='background:#F0FDF4;border-radius:6px;padding:6px 8px;text-align:center'>"
-                f"<div style='font-size:9px;color:#15803d;font-weight:500'>현재가</div>"
-                f"<div style='font-family:Space Mono,monospace;font-size:12px;font-weight:700;color:#0D1117'>${_pr:.2f}</div>"
+                f"<div style='background:#FFFBEB;border-radius:7px;"
+                f"padding:8px 10px;text-align:center'>"
+                f"<div style='font-size:9px;color:#92400E;font-weight:500;"
+                f"margin-bottom:3px'>1차 +15%</div>"
+                f"<div style='font-family:Space Mono,monospace;font-size:14px;"
+                f"font-weight:700;color:#92400E'>${_tgt1_pr:.2f}</div>"
+                f"<div style='font-size:10px;color:#92400E;margin-top:2px'>"
+                f"50% 매도</div>"
                 f"</div>"
-                f"<div style='background:#FEF2F2;border-radius:6px;padding:6px 8px;text-align:center'>"
-                f"<div style='font-size:9px;color:#B91C1C;font-weight:500'>{_stop_lbl}</div>"
-                f"<div style='font-family:Space Mono,monospace;font-size:12px;font-weight:700;color:#B91C1C'>${_stop_pr:.2f}</div>"
-                f"<div style='font-size:9px;color:#B91C1C'>{_stop_pct:.1f}%</div>"
-                f"</div>"
-                f"<div style='background:#FFFBEB;border-radius:6px;padding:6px 8px;text-align:center'>"
-                f"<div style='font-size:9px;color:#92400E;font-weight:500'>1차 +15%</div>"
-                f"<div style='font-family:Space Mono,monospace;font-size:12px;font-weight:700;color:#92400E'>${_tgt1_pr:.2f}</div>"
-                f"<div style='font-size:9px;color:#92400E'>50% 매도</div>"
-                f"</div>"
-                f"<div style='background:#EFF6FF;border-radius:6px;padding:6px 8px;text-align:center'>"
-                f"<div style='font-size:9px;color:#1D4ED8;font-weight:500'>2차 +25%</div>"
-                f"<div style='font-family:Space Mono,monospace;font-size:12px;font-weight:700;color:#1D4ED8'>${_tgt2_pr:.2f}</div>"
-                f"<div style='font-size:9px;color:#1D4ED8'>25% 추가</div>"
+                f"<div style='background:#EFF6FF;border-radius:7px;"
+                f"padding:8px 10px;text-align:center'>"
+                f"<div style='font-size:9px;color:#1D4ED8;font-weight:500;"
+                f"margin-bottom:3px'>2차 +25%</div>"
+                f"<div style='font-family:Space Mono,monospace;font-size:14px;"
+                f"font-weight:700;color:#1D4ED8'>${_tgt2_pr:.2f}</div>"
+                f"<div style='font-size:10px;color:#1D4ED8;margin-top:2px'>"
+                f"25% 추가</div>"
                 f"</div>"
                 f"</div>"
-                f"<div style='display:flex;gap:10px;font-size:11px;color:#6B7280;margin-bottom:5px;flex-wrap:wrap'>"
+                # 지표 요약 한 줄
+                f"<div style='display:flex;gap:12px;font-size:11px;"
+                f"color:#6B7280;margin-bottom:5px;flex-wrap:wrap'>"
                 f"<span>AI <b style='color:#0D1117'>{_ai:.0f}</b></span>"
                 f"<span>RS <b style='color:#0D1117'>{_rs}</b></span>"
                 f"<span>조건 <b style='color:#1D4ED8'>{_cn}/8</b></span>"
                 f"<span>EPS <b style='color:#0D1117'>{_ep:.0f}%</b></span>"
                 f"<span>매출 <b style='color:#0D1117'>{_rv:.0f}%</b></span>"
-                f"{'<span>PEG <b style="color:#0D1117">' + f'{_pg:.1f}' + '</b></span>' if _pg>0 else ''}"
-                f"<span style='margin-left:auto;color:#6D28D9;font-weight:600'>R:R {_rr_ratio}:1</span>"
+                f"{'<span>PEG <b style=\"color:#0D1117\">' + f'{_pg:.1f}' + '</b></span>' if _pg > 0 else ''}"
+                f"<span style='margin-left:auto;color:#6D28D9;font-weight:600'>"
+                f"R:R {_rr_ratio}:1</span>"
                 f"</div>"
+                # 진입 근거
                 f"<div style='font-size:11px;color:#374151'>{_reason_txt}</div>"
                 f"</div>",
                 unsafe_allow_html=True)
@@ -6293,8 +6305,8 @@ with tab4:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>V101 💻 PC QUANTUM INSTITUTIONAL OS</b>"
-        f" &nbsp;|&nbsp; APP_V101 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>V102 💻 PC QUANTUM INSTITUTIONAL OS</b>"
+        f" &nbsp;|&nbsp; APP_V102 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

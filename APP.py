@@ -4999,84 +4999,6 @@ with tab3:
         _buy_df = pd.DataFrame(); _exit_df = pd.DataFrame()
 
     # ════════════════════════════════════════════════════════
-    # 섹션 0 — 즉시 행동 카드 (PC: 3열 레이아웃)
-    # ════════════════════════════════════════════════════════
-    _c0a, _c0b, _c0c = st.columns([1.2, 1.4, 1.4])
-
-    with _c0a:
-        st.markdown(
-            f"<div style='background:{_stage_bg};border:1.5px solid {_stage_col}44;"
-            f"border-radius:10px;padding:16px;text-align:center;height:120px'>"
-            f"<div style='font-size:10px;color:{_stage_col};font-weight:600;"
-            f"letter-spacing:1px;margin-bottom:6px'>현재 투자 환경</div>"
-            f"<div style='font-size:22px;font-weight:700;color:{_stage_col};"
-            f"line-height:1.2'>{_stage_lbl}</div>"
-            f"<div style='font-size:12px;color:{_stage_col};opacity:0.8;margin-top:6px'>"
-            f"유동성 {LIQ_SCORE_100:.0f}점 · {_stage}단계</div>"
-            f"</div>",
-            unsafe_allow_html=True)
-
-    with _c0b:
-        if not _buy_df.empty:
-            _tkr_html = "".join(
-                f"<div style='display:flex;justify-content:space-between;"
-                f"align-items:center;padding:3px 0;border-bottom:0.5px solid #D1FAE5'>"
-                f"<span style='font-family:Space Mono,monospace;font-size:12px;"
-                f"font-weight:600;color:#0D1117'>{r['Ticker']}</span>"
-                f"<span style='font-size:11px;color:#15803d'>"
-                f"AI {float(r.get(_sc_col,0)):.0f} · RS {int(r.get('RS Score',0))} · "
-                f"{int(r['조건수'])}/8</span></div>"
-                for _, r in _buy_df.iterrows()
-            )
-            st.markdown(
-                f"<div style='background:#F0FDF4;border:0.5px solid #86EFAC;"
-                f"border-radius:10px;padding:12px 14px;height:120px;overflow:hidden'>"
-                f"<div style='font-size:10px;font-weight:600;color:#15803d;"
-                f"letter-spacing:1px;margin-bottom:6px'>🟢 매수 검토 종목</div>"
-                f"{_tkr_html}</div>",
-                unsafe_allow_html=True)
-        else:
-            st.markdown(
-                "<div style='background:#FFFBEB;border:0.5px solid #FDE68A;"
-                "border-radius:10px;padding:12px 14px;height:120px;"
-                "display:flex;align-items:center;justify-content:center;text-align:center'>"
-                "<div style='font-size:12px;color:#92400E'>"
-                "⚠️ 6조건 충족 종목 없음<br>"
-                "<span style='font-size:11px'>종목테이블에서 4조건↑ 종목을 WATCH LIST로 관리하세요</span>"
-                "</div></div>",
-                unsafe_allow_html=True)
-
-    with _c0c:
-        if not _exit_df.empty:
-            _ex_tks = _exit_df["Ticker"].tolist()
-            _ex_html = " &nbsp;·&nbsp; ".join(
-                f"<span style='font-family:Space Mono,monospace;font-size:12px;"
-                f"font-weight:600'>{t}</span>" for t in _ex_tks[:8]
-            )
-            _ex_more = f"<span style='font-size:11px;color:#9CA3AF'> 외 {len(_ex_tks)-8}개</span>" if len(_ex_tks)>8 else ""
-            st.markdown(
-                f"<div style='background:#FEF2F2;border:0.5px solid #FECACA;"
-                f"border-radius:10px;padding:12px 14px;height:120px;overflow:hidden'>"
-                f"<div style='font-size:10px;font-weight:600;color:#B91C1C;"
-                f"letter-spacing:1px;margin-bottom:6px'>⚠️ 청산 검토 종목</div>"
-                f"<div style='font-size:12px;color:#B91C1C;line-height:1.8'>"
-                f"{_ex_html}{_ex_more}</div>"
-                f"<div style='font-size:10px;color:#9CA3AF;margin-top:6px'>"
-                f"MA10 이탈 — 보유 중이면 매도 검토</div></div>",
-                unsafe_allow_html=True)
-        else:
-            st.markdown(
-                "<div style='background:#F0FDF4;border:0.5px solid #86EFAC;"
-                "border-radius:10px;padding:12px 14px;height:120px;"
-                "display:flex;align-items:center;justify-content:center;text-align:center'>"
-                "<div style='font-size:12px;color:#15803d'>"
-                "✅ 청산 검토 종목 없음<br>"
-                "<span style='font-size:11px'>MA10 이탈 종목 없음</span>"
-                "</div></div>",
-                unsafe_allow_html=True)
-
-    st.markdown("<hr style='border-color:#E2E6ED;margin:14px 0'>", unsafe_allow_html=True)
-
     # ════════════════════════════════════════════════════════
     # 섹션 1 — 투자금 입력 + 매수 종목 상세
     # ════════════════════════════════════════════════════════
@@ -5087,7 +5009,7 @@ with tab3:
         st.session_state["invest_amount"] = float(
             st.session_state.get("port_invest_amount", 1000))
 
-    _pc1, _pc2 = st.columns([1, 2])
+    _pc1, = st.columns([1])
     with _pc1:
         st.markdown(
             "<div style='font-size:11px;font-weight:500;color:#374151;margin-bottom:4px'>"
@@ -5102,31 +5024,9 @@ with tab3:
             label_visibility="collapsed",
             on_change=_on_invest_change,
             help="투자 예정 금액. 0이면 포트폴리오 계산 생략")
-        # 캐시 클리어 없이 session_state에서 읽기
         _invest = float(st.session_state.get("invest_amount", 1000))
         INVEST_AMOUNT_만원 = _invest
         INVEST_AMOUNT_원   = _invest * 10000
-    with _pc2:
-        if _invest > 0:
-            _ir_preview = {5:0.90,4:0.65,3:0.40,2:0.10,1:0.0}.get(_stage, 0.5)
-            _avail_preview = _invest * _ir_preview
-            st.markdown(
-                f"<div style='background:#EFF6FF;border:0.5px solid #BFDBFE;"
-                f"border-radius:7px;padding:9px 14px;margin-top:2px'>"
-                f"<div style='font-size:11px;color:#1D4ED8;margin-bottom:3px'>"
-                f"유동성 {_stage}단계 기준 투자 가능 금액</div>"
-                f"<div style='font-size:18px;font-weight:600;color:#1D4ED8'>"
-                f"{_avail_preview:,.0f}만원</div>"
-                f"<div style='font-size:10px;color:#9CA3AF;margin-top:2px'>"
-                f"전체 {_invest:,.0f}만원의 {_ir_preview*100:.0f}% · "
-                f"1차 매수 {_avail_preview*0.4:,.0f}만원 (40%)</div>"
-                f"</div>",
-                unsafe_allow_html=True)
-        else:
-            st.markdown(
-                "<div style='font-size:11px;color:#9CA3AF;padding:10px'>"
-                "투자금을 입력하면 종목별 매수 금액과 주수가 자동 계산됩니다</div>",
-                unsafe_allow_html=True)
 
     st.markdown("<div style='margin:10px 0'></div>", unsafe_allow_html=True)
     st.markdown(

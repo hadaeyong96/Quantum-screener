@@ -3,7 +3,16 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V98
+VERSION : APP_V99
+  V99 - 💻 PC 버전 (Desktop-First Layout)
+        V98 전체 로직 유지 + PC 레이아웃 복원
+        · 사이드바 expanded / 탭 이름 풀네임 복원
+        · 지표 카드 좌(설명) + 우(차트) 2열 복원
+        · 차트 height 160→220~280 복원
+        · 데이터프레임 height 340→520 복원
+        · 섹터·시장 3열 카드 복원
+        · 종목 테이블 전체 컬럼 표시
+        · STEP4 3열 행동 카드 복원
   V98 - 7가지 전면 개선 (AI 트레이더 평가 반영)
         1. 백테스트 결과 종목분석 탭 상단 표시 (승률·평균수익·MDD)
         2. trades.json 매수가 저장 → 실제 수익률 기반 익절 판단
@@ -146,146 +155,34 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="V98 📱 Mobile Quantum OS",
-                   layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="V99 💻 PC Quantum Institutional OS",
+                   layout="wide", initial_sidebar_state="expanded")
 
-# ── V95: 모바일 전용 CSS (Mobile-First) ──────────────────
+# ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
 st.markdown("""
 <style>
-/* ═══════════════════════════════════════
-   MOBILE BASE — 전체 패딩/폰트 축소
-═══════════════════════════════════════ */
+/* PC 기본 레이아웃 */
 .main .block-container {
-    padding: 0.4rem 0.6rem 1rem 0.6rem !important;
-    max-width: 100% !important;
+    padding: 0.8rem 1.5rem 2rem 1.5rem !important;
+    max-width: 1400px !important;
 }
-/* 기본 폰트 크기 하향 */
-body, p, span, div, label {
-    font-size: 12px !important;
+/* DATAFRAME */
+.stDataFrame { font-size: 12px !important; overflow-x: auto !important; }
+.stDataFrame th { font-size: 11px !important; padding: 5px 8px !important; }
+.stDataFrame td { font-size: 11px !important; padding: 5px 8px !important; }
+[data-testid="stDataFrameResizable"] { overflow-x: auto !important; }
+/* SIDEBAR */
+[data-testid="stSidebar"] {
+    min-width: 280px !important;
+    max-width: 320px !important;
 }
-h1 { font-size: 16px !important; }
-h2 { font-size: 14px !important; }
-h3 { font-size: 13px !important; }
-
-/* ═══════════════════════════════════════
-   TABS — 폰에서 스크롤 가능하게
-═══════════════════════════════════════ */
-[data-testid="stTabs"] [role="tablist"] {
-    overflow-x: auto !important;
-    flex-wrap: nowrap !important;
-    -webkit-overflow-scrolling: touch !important;
-    scrollbar-width: none !important;
-    padding: 0 2px !important;
-}
-[data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar { display: none; }
+/* TABS */
 [data-testid="stTabs"] button {
-    font-size: 11px !important;
-    padding: 8px 10px !important;
-    white-space: nowrap !important;
-    min-width: fit-content !important;
+    font-size: 13px !important;
+    padding: 10px 20px !important;
 }
 [data-testid="stTabs"] button[aria-selected="true"] {
-    font-size: 11px !important;
     font-weight: 700 !important;
-}
-
-/* ═══════════════════════════════════════
-   COLUMNS → 세로 스택 강제 (핵심!)
-═══════════════════════════════════════ */
-[data-testid="column"] {
-    width: 100% !important;
-    flex: 1 1 100% !important;
-    min-width: 0 !important;
-}
-
-/* ═══════════════════════════════════════
-   DATAFRAME — 모바일 최적화
-═══════════════════════════════════════ */
-.stDataFrame { font-size: 10px !important; overflow-x: auto !important; }
-.stDataFrame th { font-size: 10px !important; padding: 3px 5px !important; }
-.stDataFrame td { font-size: 10px !important; padding: 3px 5px !important; }
-[data-testid="stDataFrameResizable"] { overflow-x: auto !important; }
-
-/* ═══════════════════════════════════════
-   METRIC 카드 — 축소
-═══════════════════════════════════════ */
-[data-testid="metric-container"] {
-    padding: 8px 10px !important;
-}
-[data-testid="stMetricValue"] { font-size: 18px !important; }
-[data-testid="stMetricLabel"] { font-size: 10px !important; }
-
-/* ═══════════════════════════════════════
-   SIDEBAR — 폰에서 최소화
-═══════════════════════════════════════ */
-[data-testid="stSidebar"] {
-    min-width: 220px !important;
-    max-width: 260px !important;
-}
-[data-testid="stSidebar"] * { font-size: 11px !important; }
-
-/* ═══════════════════════════════════════
-   INPUT / SELECT / BUTTON
-═══════════════════════════════════════ */
-[data-testid="stTextInput"] input,
-[data-testid="stTextArea"] textarea {
-    font-size: 13px !important;
-    padding: 6px 8px !important;
-}
-.stButton button {
-    font-size: 12px !important;
-    padding: 6px 12px !important;
-}
-[data-testid="stSelectbox"] > div > div { font-size: 12px !important; }
-
-/* ═══════════════════════════════════════
-   SEC-HEADER / CARDS — 폰 축소
-═══════════════════════════════════════ */
-.sec-header {
-    font-size: 9px !important;
-    padding: 6px 8px !important;
-    letter-spacing: 1px !important;
-    margin: 12px 0 8px 0 !important;
-}
-.indicator-card { padding: 8px 10px !important; margin: 2px 0 !important; }
-.guide-box { font-size: 11px !important; padding: 8px 10px !important; }
-.warn-box, .ok-box, .info-box { font-size: 11px !important; padding: 7px 10px !important; }
-
-/* ═══════════════════════════════════════
-   STAT DISPLAY — 숫자 크기 축소
-═══════════════════════════════════════ */
-.stat-big { font-size: 28px !important; }
-.stat-row { gap: 16px !important; padding: 8px 0 !important; }
-.stat-item .value { font-size: 13px !important; }
-.stat-item .label { font-size: 9px !important; }
-
-/* ═══════════════════════════════════════
-   PLOTLY — 터치 스크롤 허용
-═══════════════════════════════════════ */
-.js-plotly-plot .plotly { touch-action: pan-x pan-y !important; }
-.js-plotly-plot .plotly .main-svg { touch-action: pan-x pan-y !important; }
-
-/* ═══════════════════════════════════════
-   MOBILE GRID — 2열 카드 (배지 등)
-═══════════════════════════════════════ */
-.mobile-grid-2 {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 5px !important;
-}
-.mobile-grid-3 {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr 1fr !important;
-    gap: 4px !important;
-}
-
-/* ═══════════════════════════════════════
-   HR / EXPANDER
-═══════════════════════════════════════ */
-hr { margin: 10px 0 !important; }
-[data-testid="stExpander"] summary {
-    font-size: 11px !important;
-    padding: 6px 8px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -303,7 +200,7 @@ st.markdown("""
 [data-testid="stHeader"]
     { background-color:#FFFFFF !important; border-bottom:1px solid #E2E6ED !important; }
 body,p,span,div,label
-    { color:#1C2330 !important; font-family:'Inter',sans-serif !important; font-size:12px !important; }
+    { color:#1C2330 !important; font-family:'Inter',sans-serif !important; }
 h1,h2,h3 { font-family:'Space Mono',monospace !important; color:#0D1117 !important; }
 
 /* SIDEBAR */
@@ -960,12 +857,12 @@ selected_sectors = set()
 
 # ── 앱 타이틀 ─────────────────────────────────────────
 sb.markdown(
-    "<div style='font-family:Space Mono,monospace;font-size:11px;font-weight:600;"
-    "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>V98 QUANTUM OS</div>"
-    "<div style='display:inline-block;background:#EFF6FF;border:0.5px solid #BFDBFE;"
-    "border-radius:4px;font-size:9px;font-weight:600;color:#1D4ED8;"
-    "padding:1px 6px;margin-bottom:2px;letter-spacing:0.5px'>📱 MOBILE VERSION</div>"
-    "<div style='font-size:9px;color:#9CA3AF;margin-bottom:6px'>"
+    "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
+    "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>V99 QUANTUM OS</div>"
+    "<div style='display:inline-block;background:#F0FDF4;border:0.5px solid #86EFAC;"
+    "border-radius:4px;font-size:9px;font-weight:600;color:#166534;"
+    "padding:1px 6px;margin-bottom:2px;letter-spacing:0.5px'>💻 PC VERSION</div>"
+    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
 sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=True)
@@ -2533,11 +2430,11 @@ except Exception as _ds_err:
 # 탭 정의 (V44)
 # ─────────────────────────────────────────────────────────
 tab0, tab1, tab2, tab3, tab4 = st.tabs([
-    '💧 유동성',
-    '📡 섹터',
-    '📊 종목',
-    '💰 매수',
-    '📋 보유'
+    'STEP1 💧 유동성',
+    'STEP2 📡 섹터 강도',
+    'STEP3 📊 종목 선별',
+    'STEP4 💰 매수 실행',
+    'STEP5 📋 보유 관리'
 ])
 
 # ── V93: 지표 설명 expander 헬퍼 ─────────────────────────
@@ -2842,9 +2739,9 @@ with tab1:
         _fig_sec.add_hline(y=0, line_color="#E5E7EB", line_width=1)
         _fig_sec.update_layout(
             template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
-            height=180, margin=dict(l=2,r=2,t=20,b=2),
+            height=260, margin=dict(l=4,r=4,t=28,b=4),
             title=dict(text="섹터별 1개월 수익률 vs QQQ 기준", font=dict(size=12)),
-            xaxis=dict(gridcolor="#EBEDF0", tickfont=dict(size=8)),
+            xaxis=dict(gridcolor="#EBEDF0", tickfont=dict(size=10)),
             yaxis=dict(gridcolor="#EBEDF0", ticksuffix="%"),
             showlegend=False)
         st.plotly_chart(_fig_sec, use_container_width=True, key="sec_bar_chart")
@@ -2853,30 +2750,34 @@ with tab1:
         _strong = [(nm, d) for nm, d in _sec_df if d["above_ma20"] and d["ret_1m"] > 0]
         _weak   = [(nm, d) for nm, d in _sec_df if not d["above_ma20"] or d["ret_1m"] < -2]
 
-        # 강한/약한 섹터 (모바일: 세로 스택)
-        st.markdown(
-            "<div style='background:#F0FDF4;border:0.5px solid #86EFAC;"
-            "border-radius:8px;padding:10px 14px;margin-bottom:5px'>"
-            "<div style='font-size:11px;font-weight:600;color:#15803d;"
-            "margin-bottom:6px'>💪 강한 섹터</div>" +
-            "".join(f"<div style='font-size:10px;color:#374151;padding:2px 0'>"
-                    f"✅ <b>{nm}</b> ({d['etf']}) &nbsp;"
-                    f"+{d['ret_1m']:.1f}% &nbsp; RS {d['rs_vs_qqq']:+.1f}%</div>"
-                    for nm, d in _strong) +
-            ("<div style='font-size:10px;color:#9CA3AF'>없음</div>" if not _strong else "") +
-            "</div>", unsafe_allow_html=True)
-
-        st.markdown(
-            "<div style='background:#FEF2F2;border:0.5px solid #FECACA;"
-            "border-radius:8px;padding:10px 14px'>"
-            "<div style='font-size:11px;font-weight:600;color:#B91C1C;"
-            "margin-bottom:6px'>📉 약한 섹터</div>" +
-            "".join(f"<div style='font-size:10px;color:#374151;padding:2px 0'>"
-                    f"❌ <b>{nm}</b> ({d['etf']}) &nbsp;"
-                    f"{d['ret_1m']:.1f}%</div>"
-                    for nm, d in _weak) +
-            ("<div style='font-size:10px;color:#9CA3AF'>없음</div>" if not _weak else "") +
-            "</div>", unsafe_allow_html=True)
+        # 강한/약한 섹터 (PC: 2열)
+        _c1, _c2 = st.columns(2)
+        with _c1:
+            st.markdown(
+                "<div style='background:#F0FDF4;border:0.5px solid #86EFAC;"
+                "border-radius:8px;padding:10px 14px'>"
+                "<div style='font-size:11px;font-weight:600;color:#15803d;"
+                "margin-bottom:6px'>💪 강한 섹터</div>" +
+                "".join(f"<div style='font-size:11px;color:#374151;padding:2px 0'>"
+                        f"✅ <b>{nm}</b> ({d['etf']}) &nbsp;"
+                        f"+{d['ret_1m']:.1f}% &nbsp; RS {d['rs_vs_qqq']:+.1f}% &nbsp; "
+                        f"<span style='color:#1D4ED8'>점수 {d.get('sector_score',0):.0f}</span></div>"
+                        for nm, d in _strong) +
+                ("<div style='font-size:11px;color:#9CA3AF'>없음</div>" if not _strong else "") +
+                "</div>", unsafe_allow_html=True)
+        with _c2:
+            st.markdown(
+                "<div style='background:#FEF2F2;border:0.5px solid #FECACA;"
+                "border-radius:8px;padding:10px 14px'>"
+                "<div style='font-size:11px;font-weight:600;color:#B91C1C;"
+                "margin-bottom:6px'>📉 약한 섹터</div>" +
+                "".join(f"<div style='font-size:11px;color:#374151;padding:2px 0'>"
+                        f"❌ <b>{nm}</b> ({d['etf']}) &nbsp;"
+                        f"{d['ret_1m']:.1f}% &nbsp; "
+                        f"<span style='color:#B91C1C'>점수 {d.get('sector_score',0):.0f}</span></div>"
+                        for nm, d in _weak) +
+                ("<div style='font-size:11px;color:#9CA3AF'>없음</div>" if not _weak else "") +
+                "</div>", unsafe_allow_html=True)
 
         # 섹터 RS 상세 테이블
         st.markdown("<div style='margin:10px 0'></div>", unsafe_allow_html=True)
@@ -3516,7 +3417,7 @@ with tab0:
           </div>
         </div>""", unsafe_allow_html=True)
 
-    def _mini_chart(s, color, title, height=160, ref_line=None, ref_label="",
+    def _mini_chart(s, color, title, height=220, ref_line=None, ref_label="",
                     ref_color="#E53E3E", warn_line=None, warn_label="", warn_color="#F6AD55",
                     good_line=None, good_label="", good_color="#38A169",
                     sp500_s=None):
@@ -3697,46 +3598,49 @@ with tab0:
   </div>
 </details>"""
 
-        # ── 모바일: 설명 위 / 차트 아래 (세로 스택) ───────────────
-        st.markdown(f"""
-        <div style="background:#FFFFFF;border:1px solid #E2E6ED;border-radius:10px;
-             padding:12px;margin-bottom:4px">
-          <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px;flex-wrap:wrap">
-            <span style="font-size:12px;font-weight:700;color:#0D1117">{title}</span>
-            {_dir_badge_html}
-          </div>
-          <div style="margin-bottom:6px">
-            <a href="{fred_url}" target="_blank"
-               style="font-size:9px;color:#3B82F6;text-decoration:none;
-                      background:#EFF6FF;border:0.5px solid #BFDBFE;
-                      border-radius:4px;padding:2px 5px">
-              FRED: {fred_code} &#8599;</a>
-          </div>
-          <div style="font-family:'Space Mono',monospace;font-size:22px;
-               font-weight:700;color:{status_color};line-height:1;margin-bottom:4px">
-            {f"{cur_val:.2f}{unit}" if cur_val is not None else "N/A"}</div>
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-            <span style="font-size:16px;font-weight:700;color:{diff_color}">{direction_arrow}</span>
-            <div>
-              <div style="font-size:10px;color:{diff_color};font-weight:500">
-                {direction_label} ({diff_sign}{direction_diff:.2f}{unit})</div>
-              <div style="font-size:9px;color:#9CA3AF">{period_label}</div>
+        # ── PC: 설명(좌) + 차트(우) 2열 레이아웃 복원 ──────────
+        left_col, right_col = st.columns([1, 1.6])
+        with left_col:
+            st.markdown(f"""
+            <div style="background:#FFFFFF;border:1px solid #E2E6ED;border-radius:10px;
+                 padding:16px">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+                <span style="font-size:13px;font-weight:700;color:#0D1117">{title}</span>
+                {_dir_badge_html}
+              </div>
+              <div style="margin-bottom:8px">
+                <a href="{fred_url}" target="_blank"
+                   style="font-size:10px;color:#3B82F6;text-decoration:none;
+                          background:#EFF6FF;border:0.5px solid #BFDBFE;
+                          border-radius:4px;padding:2px 6px">
+                  FRED: {fred_code} &#8599;</a>
+              </div>
+              <div style="font-family:'Space Mono',monospace;font-size:26px;
+                   font-weight:700;color:{status_color};line-height:1;margin-bottom:4px">
+                {f"{cur_val:.2f}{unit}" if cur_val is not None else "N/A"}</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <span style="font-size:20px;font-weight:700;color:{diff_color}">{direction_arrow}</span>
+                <div>
+                  <div style="font-size:11px;color:{diff_color};font-weight:500">
+                    {direction_label} ({diff_sign}{direction_diff:.2f}{unit})</div>
+                  <div style="font-size:10px;color:#9CA3AF">{period_label}</div>
+                </div>
+              </div>
+              <div style="font-size:11px;color:#374151;padding:6px 0;
+                   border-top:0.5px solid #F3F4F6">{desc_short}</div>
+              {_exp_html}
             </div>
-          </div>
-          <div style="font-size:10px;color:#374151;padding:5px 0;
-               border-top:0.5px solid #F3F4F6">{desc_short}</div>
-          {_exp_html}
-        </div>
-        """, unsafe_allow_html=True)
-        if chart_fig is not None:
-            st.plotly_chart(chart_fig, use_container_width=True, key=f"chart_ind_{fred_code}")
-        else:
-            st.markdown("""
-            <div style="background:#F9FAFB;border:1px solid #E2E6ED;border-radius:8px;
-                 height:120px;display:flex;align-items:center;justify-content:center;
-                 color:#9CA3AF;font-size:11px">
-              FRED API Key 입력 시 차트 표시
-            </div>""", unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+        with right_col:
+            if chart_fig is not None:
+                st.plotly_chart(chart_fig, use_container_width=True, key=f"chart_ind_{fred_code}")
+            else:
+                st.markdown("""
+                <div style="background:#F9FAFB;border:1px solid #E2E6ED;border-radius:10px;
+                     height:220px;display:flex;align-items:center;justify-content:center;
+                     color:#9CA3AF;font-size:13px">
+                  FRED API Key를 입력하면 차트가 표시됩니다
+                </div>""", unsafe_allow_html=True)
 
     if is_placeholder(FRED_API_KEY):
         st.markdown('<div class="warn-box">⚠️ FRED API Key 미입력 — 사이드바에서 입력하면 유동성 분석 활성화<br>'
@@ -3850,7 +3754,7 @@ with tab0:
         xanchor="left", yanchor="bottom")
     fig_m2.update_layout(
         template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
-        height=160, margin=dict(l=0,r=50,t=8,b=0),
+        height=220, margin=dict(l=0,r=60,t=10,b=0),
         legend=dict(orientation="h", y=1.12, x=0, font=dict(size=10), bgcolor="rgba(255,255,255,0.8)"),
         xaxis=dict(gridcolor="#EBEDF0", color="#718096", tickformat="%Y"),
         yaxis=dict(gridcolor="#EBEDF0", color="#718096", title="지수(시작=100)"),
@@ -3955,7 +3859,7 @@ with tab0:
             bordercolor=color, borderwidth=1.5, borderpad=3)
         fig.update_layout(
             template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
-            height=160, margin=dict(l=0,r=70,t=6,b=0), showlegend=True,
+            height=220, margin=dict(l=0,r=90,t=8,b=0), showlegend=True,
             legend=dict(orientation="h", y=1.08, x=0, font=dict(size=10),
                         bgcolor="rgba(255,255,255,0.8)"),
             xaxis=dict(gridcolor="#EBEDF0", color="#718096", tickformat="%Y-%m",
@@ -4088,7 +3992,7 @@ with tab0:
         borderwidth=1, borderpad=2, xanchor="left", yanchor="bottom")
     fig_cpi.update_layout(
         template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
-        height=160, margin=dict(l=0,r=55,t=8,b=0),
+        height=220, margin=dict(l=0,r=70,t=10,b=0),
         legend=dict(orientation="h", y=1.08, x=0, font=dict(size=11), bgcolor="rgba(0,0,0,0)"),
         xaxis=dict(gridcolor="#EBEDF0", color="#718096", tickformat="%Y"),
         yaxis=dict(gridcolor="#EBEDF0", color="#718096", title="전년비 (%)"),
@@ -4210,7 +4114,7 @@ with tab0:
 
     fig_t10.update_layout(
         template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
-        height=170, margin=dict(l=0,r=80,t=8,b=0),
+        height=280, margin=dict(l=0, r=120, t=10, b=0),
         legend=dict(orientation="h", y=1.08, x=0,
                     font=dict(size=11), bgcolor="rgba(0,0,0,0)"),
         xaxis=dict(gridcolor="#EBEDF0", color="#718096", tickformat="%Y-%m",
@@ -4229,7 +4133,7 @@ with tab0:
         _sp_color = "#9CA3AF"; _sp_msg = "스프레드 계산 중"
 
     # 현재값 카드 + 차트
-    _tv_cols = [st.container(), st.container()]  # 모바일: 세로 스택
+    _tv_cols = st.columns([1, 1.6])
     with _tv_cols[0]:
         t2_disp  = f"{t2_val:.2f}%"  if t2_val  else "N/A"
         t10_disp = f"{t10_val:.2f}%" if t10_val else "N/A"
@@ -4340,7 +4244,7 @@ with tab0:
     st.markdown("<div style='font-family:Space Mono,monospace;font-size:11px;color:#3B5BA5;letter-spacing:1px;margin:8px 0'>📊 유동성 나머지 지표 — 은행준비금 · 실질금리 · 크레딧 스프레드</div>",
                 unsafe_allow_html=True)
 
-    _rem_cols = [st.container(), st.container(), st.container()]  # 모바일: 세로 스택
+    _rem_cols = st.columns(3)
     _rem_good_dirs = {"Reserves":"up", "RealRate":"dn", "CreditSpread":"dn"}
     for _rcol, _rkey, _rnum, _rlabel in [
         (_rem_cols[0], "Reserves",     "8️⃣", "은행 준비금"),
@@ -5194,13 +5098,17 @@ with tab2:
                 unsafe_allow_html=True)
 
         # ── ③ 정렬 + 테이블 ─────────────────────────────────
-        st.markdown(
-            "<span style='font-family:Space Mono,monospace;font-size:9px;"
-            "color:#3B5BA5;letter-spacing:1px'>📋 종목 분석 테이블</span>",
-            unsafe_allow_html=True)
-        _sort_opt = st.selectbox(
-            "정렬", ["조건수","섹터 AI Score","RS Score","52주 고점%","EPS Growth%","PEG"],
-            key="t1_sort", label_visibility="collapsed")
+        _c1, _c2 = st.columns([3, 1])
+        with _c1:
+            st.markdown(
+                "<span style='font-family:Space Mono,monospace;font-size:10px;"
+                "color:#3B5BA5;letter-spacing:1px'>📋 종목 분석 테이블</span>"
+                " <span style='font-size:10px;color:#9CA3AF'>— 조건/9 = 9가지 선별조건 충족 수</span>",
+                unsafe_allow_html=True)
+        with _c2:
+            _sort_opt = st.selectbox(
+                "정렬", ["조건수","섹터 AI Score","RS Score","52주 고점%","EPS Growth%","PEG"],
+                key="t1_sort", label_visibility="collapsed")
 
         _disp_df = (
             _df.sort_values(["조건수", _sc_col], ascending=[False,False], na_position="last")
@@ -5208,18 +5116,19 @@ with tab2:
             else _df.sort_values(_sort_opt, ascending=(_sort_opt=="PEG"), na_position="last")
         )
 
-        # 모바일: 핵심 컬럼만 (가로 스크롤 최소화)
+        # PC: 전체 컬럼 표시
         _showcols = [c for c in [
-            "Ticker","조건/9","Signal",
-            "RS✅","AI✅","EPS✅",
-            "Breakout","3연상","MA10회복",
-            "Price","ATR손절","실적경고"
+            "Ticker","섹터","조건/9","Signal",
+            "RS✅","AI✅","EPS✅","RSI✅","신고가✅",
+            "Breakout","Vol Surge","3연상","MA10회복","갭업",
+            "Price","ATR손절","PEG","Rev Growth%",
+            "실적예정","실적경고"
         ] if c in _disp_df.columns]
 
         st.dataframe(
             _disp_df[_showcols],
             use_container_width=True,
-            height=340,
+            height=520,
             column_config={
                 "조건/9":  st.column_config.TextColumn("조건/9",  width="small"),
                 "RS✅":    st.column_config.TextColumn("RS",     width="small"),
@@ -5309,78 +5218,81 @@ with tab3:
         _buy_df = pd.DataFrame(); _exit_df = pd.DataFrame()
 
     # ════════════════════════════════════════════════════════
-    # 섹션 0 — 즉시 행동 카드 (모바일: 세로 스택)
+    # 섹션 0 — 즉시 행동 카드 (PC: 3열 레이아웃)
     # ════════════════════════════════════════════════════════
+    _c0a, _c0b, _c0c = st.columns([1.2, 1.4, 1.4])
 
-    # 현재 투자 단계 카드
-    st.markdown(
-        f"<div style='background:{_stage_bg};border:1.5px solid {_stage_col}44;"
-        f"border-radius:10px;padding:12px 14px;text-align:center;margin-bottom:6px'>"
-        f"<div style='font-size:9px;color:{_stage_col};font-weight:600;"
-        f"letter-spacing:1px;margin-bottom:4px'>현재 투자 환경</div>"
-        f"<div style='font-size:20px;font-weight:700;color:{_stage_col};"
-        f"line-height:1.2'>{_stage_lbl}</div>"
-        f"<div style='font-size:11px;color:{_stage_col};opacity:0.8;margin-top:4px'>"
-        f"유동성 {LIQ_SCORE_100:.0f}점 · {_stage}단계</div>"
-        f"</div>",
-        unsafe_allow_html=True)
+    with _c0a:
+        st.markdown(
+            f"<div style='background:{_stage_bg};border:1.5px solid {_stage_col}44;"
+            f"border-radius:10px;padding:16px;text-align:center;height:120px'>"
+            f"<div style='font-size:10px;color:{_stage_col};font-weight:600;"
+            f"letter-spacing:1px;margin-bottom:6px'>현재 투자 환경</div>"
+            f"<div style='font-size:22px;font-weight:700;color:{_stage_col};"
+            f"line-height:1.2'>{_stage_lbl}</div>"
+            f"<div style='font-size:12px;color:{_stage_col};opacity:0.8;margin-top:6px'>"
+            f"유동성 {LIQ_SCORE_100:.0f}점 · {_stage}단계</div>"
+            f"</div>",
+            unsafe_allow_html=True)
 
-    # 매수 검토 종목 카드 (세로)
-    if True:  # 모바일 세로 스택
+    with _c0b:
         if not _buy_df.empty:
             _tkr_html = "".join(
                 f"<div style='display:flex;justify-content:space-between;"
                 f"align-items:center;padding:3px 0;border-bottom:0.5px solid #D1FAE5'>"
                 f"<span style='font-family:Space Mono,monospace;font-size:12px;"
                 f"font-weight:600;color:#0D1117'>{r['Ticker']}</span>"
-                f"<span style='font-size:10px;color:#15803d'>"
+                f"<span style='font-size:11px;color:#15803d'>"
                 f"AI {float(r.get(_sc_col,0)):.0f} · RS {int(r.get('RS Score',0))} · "
                 f"{int(r['조건수'])}/8</span></div>"
                 for _, r in _buy_df.iterrows()
             )
             st.markdown(
                 f"<div style='background:#F0FDF4;border:0.5px solid #86EFAC;"
-                f"border-radius:10px;padding:10px 12px;margin-bottom:6px'>"
-                f"<div style='font-size:9px;font-weight:600;color:#15803d;"
-                f"letter-spacing:1px;margin-bottom:5px'>🟢 매수 검토 종목</div>"
+                f"border-radius:10px;padding:12px 14px;height:120px;overflow:hidden'>"
+                f"<div style='font-size:10px;font-weight:600;color:#15803d;"
+                f"letter-spacing:1px;margin-bottom:6px'>🟢 매수 검토 종목</div>"
                 f"{_tkr_html}</div>",
                 unsafe_allow_html=True)
         else:
             st.markdown(
                 "<div style='background:#FFFBEB;border:0.5px solid #FDE68A;"
-                "border-radius:10px;padding:10px 12px;margin-bottom:6px;text-align:center'>"
-                "<div style='font-size:11px;color:#92400E'>"
+                "border-radius:10px;padding:12px 14px;height:120px;"
+                "display:flex;align-items:center;justify-content:center;text-align:center'>"
+                "<div style='font-size:12px;color:#92400E'>"
                 "⚠️ 6조건 충족 종목 없음<br>"
-                "<span style='font-size:10px'>4조건↑ 종목을 WATCH LIST로 관리하세요</span>"
+                "<span style='font-size:11px'>종목테이블에서 4조건↑ 종목을 WATCH LIST로 관리하세요</span>"
                 "</div></div>",
                 unsafe_allow_html=True)
 
-    # 청산 검토 종목 카드 (세로)
-    if not _exit_df.empty:
-        _ex_tks = _exit_df["Ticker"].tolist()
-        _ex_html = " &nbsp;·&nbsp; ".join(
-            f"<span style='font-family:Space Mono,monospace;font-size:12px;"
-            f"font-weight:600'>{t}</span>" for t in _ex_tks[:8]
-        )
-        _ex_more = f"<span style='font-size:10px;color:#9CA3AF'> 외 {len(_ex_tks)-8}개</span>" if len(_ex_tks)>8 else ""
-        st.markdown(
-            f"<div style='background:#FEF2F2;border:0.5px solid #FECACA;"
-            f"border-radius:10px;padding:10px 12px;margin-bottom:6px'>"
-            f"<div style='font-size:9px;font-weight:600;color:#B91C1C;"
-            f"letter-spacing:1px;margin-bottom:5px'>⚠️ 청산 검토 종목</div>"
-            f"<div style='font-size:12px;color:#B91C1C;line-height:1.8'>"
-            f"{_ex_html}{_ex_more}</div>"
-            f"<div style='font-size:9px;color:#9CA3AF;margin-top:4px'>"
-            f"MA10 이탈 — 보유 중이면 매도 검토</div></div>",
-            unsafe_allow_html=True)
-    else:
-        st.markdown(
-            "<div style='background:#F0FDF4;border:0.5px solid #86EFAC;"
-            "border-radius:10px;padding:10px 12px;margin-bottom:6px;text-align:center'>"
-            "<div style='font-size:11px;color:#15803d'>"
-            "✅ 청산 검토 종목 없음 — MA10 이탈 없음"
-            "</div></div>",
-            unsafe_allow_html=True)
+    with _c0c:
+        if not _exit_df.empty:
+            _ex_tks = _exit_df["Ticker"].tolist()
+            _ex_html = " &nbsp;·&nbsp; ".join(
+                f"<span style='font-family:Space Mono,monospace;font-size:12px;"
+                f"font-weight:600'>{t}</span>" for t in _ex_tks[:8]
+            )
+            _ex_more = f"<span style='font-size:11px;color:#9CA3AF'> 외 {len(_ex_tks)-8}개</span>" if len(_ex_tks)>8 else ""
+            st.markdown(
+                f"<div style='background:#FEF2F2;border:0.5px solid #FECACA;"
+                f"border-radius:10px;padding:12px 14px;height:120px;overflow:hidden'>"
+                f"<div style='font-size:10px;font-weight:600;color:#B91C1C;"
+                f"letter-spacing:1px;margin-bottom:6px'>⚠️ 청산 검토 종목</div>"
+                f"<div style='font-size:12px;color:#B91C1C;line-height:1.8'>"
+                f"{_ex_html}{_ex_more}</div>"
+                f"<div style='font-size:10px;color:#9CA3AF;margin-top:6px'>"
+                f"MA10 이탈 — 보유 중이면 매도 검토</div></div>",
+                unsafe_allow_html=True)
+        else:
+            st.markdown(
+                "<div style='background:#F0FDF4;border:0.5px solid #86EFAC;"
+                "border-radius:10px;padding:12px 14px;height:120px;"
+                "display:flex;align-items:center;justify-content:center;text-align:center'>"
+                "<div style='font-size:12px;color:#15803d'>"
+                "✅ 청산 검토 종목 없음<br>"
+                "<span style='font-size:11px'>MA10 이탈 종목 없음</span>"
+                "</div></div>",
+                unsafe_allow_html=True)
 
     st.markdown("<hr style='border-color:#E2E6ED;margin:14px 0'>", unsafe_allow_html=True)
 
@@ -5394,7 +5306,7 @@ with tab3:
         st.session_state["invest_amount"] = float(
             st.session_state.get("port_invest_amount", 1000))
 
-    _pc1, _pc2 = st.columns([1, 1])  # 모바일: CSS가 세로 스택으로 강제
+    _pc1, _pc2 = st.columns([1, 2])
     with _pc1:
         st.markdown(
             "<div style='font-size:11px;font-weight:500;color:#374151;margin-bottom:4px'>"
@@ -5710,7 +5622,7 @@ with tab3:
         "color:#3B5BA5;letter-spacing:1px;margin-bottom:8px'>③ 왜 이 판단인가 — 근거 요약</div>",
         unsafe_allow_html=True)
 
-    _ev1, _ev2 = st.container(), st.container()  # 모바일: 세로 스택
+    _ev1, _ev2 = st.columns(2)
     with _ev1:
         # 유동성 핵심 지표
         _ev_rows = [
@@ -5906,11 +5818,11 @@ with tab3:
             _fig_cmp.add_hline(y=0, line_color="#E5E7EB", line_width=1)
             _fig_cmp.update_layout(
                 template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
-                height=180, margin=dict(l=2,r=2,t=6,b=2),
+                height=280, margin=dict(l=4,r=4,t=8,b=4),
                 legend=dict(font=dict(size=10), orientation="h",
                             yanchor="bottom", y=1.02, bgcolor="rgba(255,255,255,0.85)"),
-                xaxis=dict(gridcolor="#EBEDF0", tickformat="%y.%m", tickfont=dict(size=8)),
-                yaxis=dict(gridcolor="#EBEDF0", ticksuffix="%", tickfont=dict(size=8)),
+                xaxis=dict(gridcolor="#EBEDF0", tickformat="%y.%m", tickfont=dict(size=10)),
+                yaxis=dict(gridcolor="#EBEDF0", ticksuffix="%", tickfont=dict(size=10)),
                 hovermode="x unified")
             st.plotly_chart(_fig_cmp, use_container_width=True, key="rpt_qqq_cmp")
 
@@ -5985,8 +5897,8 @@ with tab4:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>V98 📱 MOBILE QUANTUM OS</b>"
-        f" &nbsp;|&nbsp; APP_V98 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>V99 💻 PC QUANTUM INSTITUTIONAL OS</b>"
+        f" &nbsp;|&nbsp; APP_V99 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

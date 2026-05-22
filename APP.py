@@ -5340,6 +5340,148 @@ with tab3:
             "목표1: +15% (50% 매도) &nbsp;·&nbsp; 목표2: +25% (25% 추가 매도)</div>",
             unsafe_allow_html=True)
 
+        # ── QQQ 대비 수익률 비교 차트 ────────────────────────
+        st.markdown("<div style='margin:14px 0 6px 0'></div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div style='font-family:Space Mono,monospace;font-size:11px;"
+            "color:#3B5BA5;letter-spacing:1px;margin-bottom:8px'>"
+            "📈 QQQ 대비 수익률 비교 (최근 3개월 · 정규화)</div>",
+            unsafe_allow_html=True)
+
+        try:
+            import plotly.graph_objects as go
+
+            # 비교 종목: 매수 추천 종목 (최대 5개) + QQQ
+            _cmp_tickers = ["QQQ"] + _buy_df["Ticker"].tolist()[:5]
+            _period = "3mo"
+
+            # 색상 팔레트 — 주황·노랑·초록·파랑·남색·보라 (눈에 잘 띄는 순)
+            _colors = [
+                "#FF6B00",  # 주황
+                "#F5C400",  # 노랑
+                "#00B050",  # 초록
+                "#1565C0",  # 파랑
+                "#1A237E",  # 남색
+                "#6A0DAD",  # 보라
+            ]
+
+            # 데이터 수집
+            _price_data = {}
+            for _tk in _cmp_tickers:
+                try:
+                    _s = get_close(_tk, _period)
+                    if _s is not None and len(_s) >= 10:
+                        _price_data[_tk] = _s
+                except: pass
+
+            if "QQQ" in _price_data and len(_price_data) > 1:
+                # 공통 시작일 기준 정규화 (100 = 시작점)
+                _common_idx = _price_data["QQQ"].index
+                for _tk in list(_price_data.keys()):
+                    _price_data[_tk] = _price_data[_tk].reindex(
+                        _common_idx, method="ffill").dropna()
+
+                # 공통 첫 날 기준
+                _start_idx = max(s.index[0] for s in _price_data.values())
+                _norm = {}
+                for _tk, _s in _price_data.items():
+                    _s2 = _s[_s.index >= _start_idx]
+                    if len(_s2) > 0 and float(_s2.iloc[0]) > 0:
+                        _norm[_tk] = (_s2 / float(_s2.iloc[0]) * 100).round(2)
+
+                fig_cmp = go.Figure()
+
+                # QQQ 먼저 (회색 기준선)
+                if "QQQ" in _norm:
+                    _qqq_last = float(_norm["QQQ"].iloc[-1])
+                    _qqq_ret  = _qqq_last - 100
+                    fig_cmp.add_trace(go.Scatter(
+                        x=_norm["QQQ"].index,
+                        y=_norm["QQQ"].values,
+                        name=f"QQQ ({_qqq_ret:+.1f}%)",
+                        line=dict(color="#E53E3E", width=2.5),
+                        hovertemplate="%{y:.1f}<extra>QQQ</extra>"
+                    ))
+
+                # 추천 종목 오버레이
+                _ci = 0
+                for _tk in _cmp_tickers[1:]:
+                    if _tk not in _norm: continue
+                    _last = float(_norm[_tk].iloc[-1])
+                    _ret  = _last - 100
+                    _vs   = _ret - _qqq_ret
+                    _col  = _colors[_ci % len(_colors)]
+                    # QQQ 초과 여부로 선 굵기 구분
+                    _lw   = 2.5 if _vs > 0 else 1.5
+                    fig_cmp.add_trace(go.Scatter(
+                        x=_norm[_tk].index,
+                        y=_norm[_tk].values,
+                        name=f"{_tk} ({_ret:+.1f}% / QQQ대비 {_vs:+.1f}%)",
+                        line=dict(color=_col, width=_lw),
+                        hovertemplate=f"%{{y:.1f}}<extra>{_tk}</extra>"
+                    ))
+                    # 끝점 라벨
+                    fig_cmp.add_annotation(
+                        x=_norm[_tk].index[-1],
+                        y=float(_norm[_tk].iloc[-1]),
+                        text=f"{_tk}<br>{_vs:+.1f}%",
+                        font=dict(size=9, color=_col),
+                        showarrow=False, xanchor="left",
+                        xshift=4, bgcolor="rgba(255,255,255,0.8)"
+                    )
+                    _ci += 1
+
+                # 기준선 (100)
+                fig_cmp.add_hline(y=100, line_color="#E2E6ED", line_width=1)
+
+                fig_cmp.update_layout(
+                    template="plotly_white",
+                    height=300,
+                    margin=dict(l=0, r=90, t=10, b=0),
+                    legend=dict(
+                        orientation="h", yanchor="bottom", y=1.01,
+                        xanchor="left", x=0, font=dict(size=10)),
+                    xaxis=dict(showgrid=False),
+                    yaxis=dict(
+                        title="수익률 (시작=100)",
+                        tickformat=".0f",
+                        gridcolor="#EBEDF0",
+                        title_font=dict(size=10)),
+                    plot_bgcolor="#FFFFFF",
+                    paper_bgcolor="#FAFBFC",
+                    hovermode="x unified",
+                )
+                st.plotly_chart(fig_cmp, use_container_width=True,
+                                key="step4_qqq_cmp_chart")
+
+                # 수익률 요약 한 줄
+                _sum_parts = []
+                for _tk in _cmp_tickers[1:]:
+                    if _tk not in _norm: continue
+                    _vs = float(_norm[_tk].iloc[-1]) - _qqq_last
+                    _icon = "🟢" if _vs > 0 else "🔴"
+                    _sum_parts.append(
+                        f"<span style='margin-right:10px'>{_icon} <b>{_tk}</b> "
+                        f"QQQ대비 <b style='color:{'#15803d' if _vs>0 else '#B91C1C'}'>"
+                        f"{_vs:+.1f}%</b></span>")
+                if _sum_parts:
+                    st.markdown(
+                        "<div style='font-size:11px;color:#374151;"
+                        "background:#F9FAFB;border:0.5px solid #E2E6ED;"
+                        "border-radius:6px;padding:8px 12px;margin-top:4px'>"
+                        + "".join(_sum_parts) + "</div>",
+                        unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    "<div style='font-size:11px;color:#9CA3AF;padding:10px'>"
+                    "차트 데이터 준비 중…</div>",
+                    unsafe_allow_html=True)
+        except Exception as _e_chart:
+            st.markdown(
+                f"<div style='font-size:11px;color:#9CA3AF'>차트 로드 실패</div>",
+                unsafe_allow_html=True)
+
+
         # 투자금 기반 포트폴리오 (V98: ATR 사이징 + GLD 헤지 표시)
         if _invest > 0:
             st.markdown("<div style='margin:8px 0'></div>", unsafe_allow_html=True)

@@ -3,7 +3,14 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V100
+VERSION : APP_V101
+  V101 - STEP5 보유관리 → 💼 내 포트폴리오로 통합
+         · 기존 STEP5 삭제, 포트폴리오 탭이 STEP5 자리 차지 (탭 5개)
+         · QQQ 비교 차트를 포트폴리오 탭 하단으로 이식
+         · 📝 새 종목 추가 폼: expander 글자 겹침 버그 수정
+           → st.expander 제거, st.form() 으로 교체 (재렌더링 없이 안정적)
+         · ＋ 다른 구매 기록하기: expander 제거, container 인라인 폼으로 교체
+         · 앞으로 펼치기 기능은 expander 대신 st.form / container 사용 원칙 적용
   V100 - 💼 내 포트폴리오 탭 신규 추가
          Google Finance 스타일 포트폴리오 UI
          · 종목별 매수 기록 직접 입력 (티커·수량·매수가·날짜)
@@ -164,7 +171,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="V100 💻 PC Quantum Institutional OS",
+st.set_page_config(page_title="V101 💻 PC Quantum Institutional OS",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -881,7 +888,7 @@ selected_sectors = set()
 # ── 앱 타이틀 ─────────────────────────────────────────
 sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
-    "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>V100 QUANTUM OS</div>"
+    "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>V101 QUANTUM OS</div>"
     "<div style='display:inline-block;background:#F0FDF4;border:0.5px solid #86EFAC;"
     "border-radius:4px;font-size:9px;font-weight:600;color:#166534;"
     "padding:1px 6px;margin-bottom:2px;letter-spacing:0.5px'>💻 PC VERSION</div>"
@@ -2452,12 +2459,11 @@ except Exception as _ds_err:
 # ─────────────────────────────────────────────────────────
 # 탭 정의 (V44)
 # ─────────────────────────────────────────────────────────
-tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab0, tab1, tab2, tab3, tab4 = st.tabs([
     'STEP1 💧 유동성',
     'STEP2 📡 섹터 강도',
     'STEP3 📊 종목 선별',
     'STEP4 💰 매수 실행',
-    'STEP5 📋 보유 관리',
     '💼 내 포트폴리오',
 ])
 
@@ -5726,201 +5732,11 @@ with tab3:
             f"border-radius:8px;padding:12px 14px'>{_mk_html}</div>",
             unsafe_allow_html=True)
 
-    # ── QQQ 비교 차트 + 매도기준 시각화 (V92) ──────────────
-    st.markdown(
-        "<div style='font-family:Space Mono,monospace;font-size:11px;"
-        "color:#3B5BA5;letter-spacing:1px;margin:10px 0 4px 0'>"
-        "📈 보유 종목 vs QQQ — 수익률 + 매도 기준</div>",
-        unsafe_allow_html=True)
-    try:
-        _qqq_s = mkt.get("QQQ")
-        if _qqq_s is not None and len(_qqq_s) >= 20:
-            _qqq_1y  = _qqq_s[_qqq_s.index >= pd.Timestamp.now() - pd.DateOffset(years=1)]
-            _base    = float(_qqq_1y.iloc[0])
-            _qqq_ret = (_qqq_1y / _base - 1) * 100
-            _qqq_ma10 = (_qqq_1y.rolling(10).mean() / _base - 1) * 100
-            _qqq_ma20 = (_qqq_1y.rolling(20).mean() / _base - 1) * 100
-
-            # ── 종목별 상태 카드 (차트 위) ────────────────────
-            _colors     = ["#2563EB","#059669","#7C3AED","#D97706","#DC2626"]
-            _tk_results = []  # (ticker, ret, vs_qqq, exit_now, color, ma10_series, price_series)
-            for _ci, (_, _br) in enumerate(_buy_df.head(4).iterrows()):
-                _tk = _br["Ticker"]
-                try:
-                    _tk_close = get_close(_tk, period="1y")
-                    if _tk_close is None or len(_tk_close) < 20: continue
-                    _tk_1y   = _tk_close[_tk_close.index >= pd.Timestamp.now() - pd.DateOffset(years=1)]
-                    if len(_tk_1y) < 10: continue
-                    _tk_base  = float(_tk_1y.iloc[0])
-                    _tk_ret   = (_tk_1y / _tk_base - 1) * 100
-                    _tk_ma10s = (_tk_1y.rolling(10).mean() / _tk_base - 1) * 100
-                    _cur_p    = float(_tk_1y.iloc[-1])
-                    _cur_ma   = float(_tk_1y.rolling(10).mean().dropna().iloc[-1])
-                    _exit_now = _cur_p < _cur_ma
-                    _final    = float(_tk_ret.iloc[-1])
-                    _vs_qqq   = _final - float(_qqq_ret.iloc[-1])
-                    _tk_results.append((_tk, _final, _vs_qqq, _exit_now,
-                                        _colors[_ci % len(_colors)], _tk_ma10s, _tk_ret))
-                except: pass
-
-            # 상태 카드 HTML
-            if _tk_results:
-                _card_html = "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:7px;margin-bottom:10px'>"
-                for _tk, _final, _vs, _ex, _col, _, _ in _tk_results:
-                    _bg  = "#FEF2F2" if _ex else "#F0FDF4"
-                    _bc  = "#FECACA" if _ex else "#86EFAC"
-                    _tc  = "#B91C1C" if _ex else "#15803d"
-                    _ico = "⚠️" if _ex else "✅"
-                    _st  = "MA10 이탈 — 청산 검토" if _ex else "MA10 위 — 유지"
-                    _vs_s = f"+{_vs:.1f}%" if _vs>=0 else f"{_vs:.1f}%"
-                    _vc  = "#15803d" if _vs>=0 else "#B91C1C"
-                    _pr_col = "#15803d" if _final>=0 else "#B91C1C"
-                    _card_html += (
-                        f"<div style='background:{_bg};border:0.5px solid {_bc};"
-                        f"border-radius:8px;padding:9px 12px'>"
-                        f"<div style='font-size:10px;color:#9CA3AF;margin-bottom:3px'>{_tk}</div>"
-                        f"<div style='font-size:13px;font-weight:500;color:{_tc}'>{_ico} {_st}</div>"
-                        f"<div style='font-size:11px;margin-top:3px'>"
-                        f"<span style='color:#374151'>수익 <b style='color:{_pr_col}'>{_final:+.1f}%</b></span>"
-                        f"&nbsp;&nbsp;<span style='color:{_vc}'>vs QQQ {_vs_s}</span></div>"
-                        f"</div>"
-                    )
-                _card_html += "</div>"
-                st.markdown(_card_html, unsafe_allow_html=True)
-
-            # ── 차트 ─────────────────────────────────────────
-            _fig_cmp = go.Figure()
-            # QQQ
-            _fig_cmp.add_trace(go.Scatter(
-                x=_qqq_ret.index, y=_qqq_ret.values, name="QQQ (기준)",
-                line=dict(color="#9CA3AF", width=2),
-                hovertemplate="QQQ: %{y:.1f}%<extra></extra>"))
-            _fig_cmp.add_trace(go.Scatter(
-                x=_qqq_ma10.index, y=_qqq_ma10.values, name="QQQ MA10",
-                line=dict(color="#EF4444", width=1.2, dash="dot"), showlegend=False,
-                hovertemplate="QQQ MA10: %{y:.1f}%<extra></extra>"))
-
-            # 종목별 선 + MA10 + 이탈 구간 음영
-            for _tk, _final, _vs, _ex, _col, _tk_ma10s, _tk_ret in _tk_results:
-                # 가격선
-                _fig_cmp.add_trace(go.Scatter(
-                    x=_tk_ret.index, y=_tk_ret.values,
-                    name=f"{_tk} ({_final:+.1f}%)",
-                    line=dict(color=_col, width=2.5),
-                    hovertemplate=f"{_tk}: %{{y:.1f}}%<extra></extra>"))
-                # MA10 점선 (같은 색)
-                _fig_cmp.add_trace(go.Scatter(
-                    x=_tk_ma10s.index, y=_tk_ma10s.values,
-                    name=f"{_tk} MA10",
-                    line=dict(color=_col, width=1, dash="dot"),
-                    showlegend=False,
-                    hovertemplate=f"{_tk} MA10: %{{y:.1f}}%<extra></extra>"))
-                # MA10 이탈 구간 빨간 음영
-                if _ex:
-                    try:
-                        _breach = _tk_ret.index[
-                            (_tk_ret.values < _tk_ma10s.values) &
-                            ~pd.isna(_tk_ma10s.values)]
-                        if len(_breach) > 0:
-                            _breach_start = _breach[0]
-                            _fig_cmp.add_vrect(
-                                x0=_breach_start, x1=_tk_ret.index[-1],
-                                fillcolor="#EF4444", opacity=0.07,
-                                layer="below", line_width=0,
-                                annotation_text="⚠️ 이탈",
-                                annotation_position="top left",
-                                annotation=dict(font=dict(size=9, color="#EF4444")))
-                    except: pass
-                    _fig_cmp.add_annotation(
-                        x=_tk_ret.index[-1], y=float(_tk_ret.iloc[-1]),
-                        text=f"⚠️ {_tk} 청산",
-                        showarrow=True, arrowhead=2, ax=55, ay=-20,
-                        font=dict(size=9, color="#EF4444"),
-                        bgcolor="rgba(255,255,255,0.95)",
-                        bordercolor="#EF4444", borderwidth=1, borderpad=2)
-
-            _fig_cmp.add_hline(y=0, line_color="#E5E7EB", line_width=1)
-            _fig_cmp.update_layout(
-                template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
-                height=280, margin=dict(l=4,r=4,t=8,b=4),
-                legend=dict(font=dict(size=10), orientation="h",
-                            yanchor="bottom", y=1.02, bgcolor="rgba(255,255,255,0.85)"),
-                xaxis=dict(gridcolor="#EBEDF0", tickformat="%y.%m", tickfont=dict(size=10)),
-                yaxis=dict(gridcolor="#EBEDF0", ticksuffix="%", tickfont=dict(size=10)),
-                hovermode="x unified")
-            st.plotly_chart(_fig_cmp, use_container_width=True, key="rpt_qqq_cmp")
-
-            # ── 판독 가이드 ──────────────────────────────────
-            st.markdown("""
-<div style='background:var(--color-background-secondary);border-radius:8px;
-     padding:10px 14px;font-size:11px;color:#374151;line-height:1.9;margin-top:4px'>
-  <b style='color:#0D1117'>차트 읽는 법</b><br>
-  <span style='color:#EF4444'>빨간 점선 (MA10)</span> 이 선 아래로 종목 가격이 내려가면 → 청산 검토<br>
-  <span style='background:#FEE2E2;padding:1px 5px;border-radius:3px;color:#B91C1C'>분홍 구간</span>
-  MA10 이탈이 지속 중인 구간 · <b>⚠️ 표시</b> 종목 즉시 뉴스 확인 후 매도 결정<br>
-  종목 가격이 빨간선 <b>위</b> = ✅ 추세 유지 → 보유 &nbsp;|&nbsp;
-  <b>아래</b> = ⚠️ 이탈 → 청산 검토
-</div>""", unsafe_allow_html=True)
-
-        else:
-            st.caption("QQQ 데이터 없음")
-    except Exception as _qe:
-        st.caption(f"비교 차트 오류: {_qe}")
-
-    st.markdown("<hr style='border-color:#E2E6ED;margin:14px 0'>", unsafe_allow_html=True)
-
-    # ════════════════════════════════════════════════════════
-    # 섹션 3.5 — 보유 종목 하락 점검 체크리스트 (V84)
-    # ════════════════════════════════════════════════════════
-
-# ── STEP5 보유 관리 탭 시작 ─────────────────────────────
+# ════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════
+# TAB 4 — 💼 내 포트폴리오 (V101)
+# ════════════════════════════════════════════════════════
 with tab4:
-    _render_stepbar(5, LIQ_ACTION.get("stage", 0), 0)
-    st.markdown('<div class="sec-header">📋 보유 관리 (STEP 5)</div>',
-                unsafe_allow_html=True)
-
-    st.markdown(
-        "<div style='font-family:Space Mono,monospace;font-size:11px;"
-        "color:#B91C1C;letter-spacing:1px;margin:10px 0 8px 0'>"
-        "🔍 보유 종목 하락 시 점검 체크리스트</div>",
-        unsafe_allow_html=True)
-
-    _chk_items = [
-        ("#F59E0B", "체크 1 — 거래량 확인",
-         "Vol Ratio 1.5배 이상?",
-         "✅ 이상 = 기관 매수 신호 → 일시 조정 가능, 유지",
-         "❌ 미만 = 거짓 브레이크아웃 → 손절 전 먼저 매도 검토"),
-        ("#EF4444", "체크 2 — 손절가 확인",
-         "매수가 × 0.92 = 손절가",
-         "✅ 손절가 이상 = 포지션 유지, 2~3일 관찰",
-         "❌ 손절가 도달 = 이유 불문 즉시 청산"),
-        ("#3B82F6", "체크 3 — 시장 vs 종목",
-         "당일 QQQ와 비교",
-         "✅ QQQ도 하락 = 시장 전체 문제 → 유동성 단계 재확인",
-         "❌ QQQ 상승인데 내 종목만 하락 = 개별 악재 → 뉴스 확인 후 매도"),
-    ]
-    for _bc, _title, _sub, _ok_txt, _bad_txt in _chk_items:
-        st.markdown(
-            f"<div style='background:#FFFFFF;border-radius:7px;padding:10px 14px;"
-            f"border-left:3px solid {_bc};margin-bottom:8px'>"
-            f"<div style='font-size:12px;font-weight:600;color:#374151;margin-bottom:5px'>"
-            f"✅ {_title}</div>"
-            f"<div style='font-size:11px;color:#6B7280;margin-bottom:4px'><b>{_sub}</b></div>"
-            f"<div style='font-size:11px;color:#15803d;margin-bottom:2px'>{_ok_txt}</div>"
-            f"<div style='font-size:11px;color:#B91C1C'>{_bad_txt}</div>"
-            f"</div>",
-            unsafe_allow_html=True)
-
-    # ════════════════════════════════════════════════════════
-    # 섹션 4 — 유동성 7지표 상세 (접기)
-    # ════════════════════════════════════════════════════════
-
-
-
-# ════════════════════════════════════════════════════════
-# TAB 5 — 💼 내 포트폴리오 (V100: Google Finance 스타일)
-# ════════════════════════════════════════════════════════
-with tab5:
     st.markdown('<div class="sec-header">💼 내 포트폴리오</div>', unsafe_allow_html=True)
 
     # ── 포트폴리오 전용 CSS ─────────────────────────────
@@ -6052,40 +5868,65 @@ with tab5:
 
     st.markdown("<div style='margin:10px 0'></div>", unsafe_allow_html=True)
 
-    # ── 종목 추가 폼 ────────────────────────────────────
+    # ── 종목 추가 폼 — st.form 사용 (expander 글자 겹침 방지) ─
+    # ✅ 원칙: 펼치기 입력폼은 st.expander 금지, st.form 사용
     if st.session_state.get("pf_add_modal"):
-        with st.expander("📝 새 종목 매수 기록 추가", expanded=True):
-            _fa, _fb, _fc, _fd, _fe = st.columns([2,2,2,2,1])
-            with _fa: _new_tk  = st.text_input("티커 (예: NVDA)", key="pf_new_tk",
-                                                placeholder="AAPL").upper().strip()
-            with _fb: _new_qty = st.number_input("수량 (주)", min_value=1, value=1,
-                                                  key="pf_new_qty")
-            with _fc: _new_pr  = st.number_input("매수가 ($)", min_value=0.01,
-                                                   value=100.0, step=0.01,
-                                                   key="pf_new_pr")
-            with _fd: _new_dt  = st.date_input("매수 날짜", key="pf_new_dt",
-                                                value=datetime.now().date())
-            with _fe:
-                st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-                if st.button("저장", key="pf_save_new", type="primary"):
-                    if _new_tk:
-                        _existing = next((t for t in trades
-                                          if t.get("ticker")==_new_tk), None)
-                        if _existing:
-                            _existing["lots"].append({
-                                "date":  str(_new_dt),
-                                "qty":   _new_qty,
-                                "price": _new_pr})
-                        else:
-                            trades.append({
-                                "ticker": _new_tk,
-                                "lots":   [{"date":  str(_new_dt),
-                                            "qty":   _new_qty,
-                                            "price": _new_pr}]})
-                        _trades_save(trades)
-                        st.session_state["pf_trades"]    = trades
-                        st.session_state["pf_add_modal"] = False
-                        st.rerun()
+        st.markdown(
+            "<div style='background:#EFF6FF;border:1px solid #BFDBFE;"
+            "border-radius:10px;padding:14px 18px;margin-bottom:10px'>"
+            "<div style='font-size:12px;font-weight:600;color:#1D4ED8;margin-bottom:10px'>"
+            "📝 새 종목 매수 기록 추가</div>",
+            unsafe_allow_html=True)
+        with st.form("pf_add_form", clear_on_submit=True):
+            _fa, _fb, _fc, _fd = st.columns([2, 2, 2, 2])
+            with _fa:
+                _new_tk = st.text_input("티커 (예: NVDA)",
+                                        placeholder="AAPL",
+                                        key="pf_new_tk_f")
+            with _fb:
+                _new_qty = st.number_input("수량 (주)",
+                                           min_value=1, value=1,
+                                           key="pf_new_qty_f")
+            with _fc:
+                _new_pr = st.number_input("매수가 ($)",
+                                          min_value=0.01, value=100.0,
+                                          step=0.01, key="pf_new_pr_f")
+            with _fd:
+                _new_dt = st.date_input("매수 날짜",
+                                        value=datetime.now().date(),
+                                        key="pf_new_dt_f")
+            _fs1, _fs2, _fs3 = st.columns([3, 1, 1])
+            with _fs2:
+                _submitted = st.form_submit_button("✅ 저장",
+                                                   use_container_width=True,
+                                                   type="primary")
+            with _fs3:
+                _cancelled = st.form_submit_button("취소",
+                                                   use_container_width=True)
+            if _submitted:
+                _tk_clean = _new_tk.upper().strip()
+                if _tk_clean:
+                    _existing = next((t for t in trades
+                                      if t.get("ticker") == _tk_clean), None)
+                    if _existing:
+                        _existing["lots"].append({
+                            "date":  str(_new_dt),
+                            "qty":   _new_qty,
+                            "price": _new_pr})
+                    else:
+                        trades.append({
+                            "ticker": _tk_clean,
+                            "lots":   [{"date":  str(_new_dt),
+                                        "qty":   _new_qty,
+                                        "price": _new_pr}]})
+                    _trades_save(trades)
+                    st.session_state["pf_trades"]    = trades
+                    st.session_state["pf_add_modal"] = False
+                    st.rerun()
+            if _cancelled:
+                st.session_state["pf_add_modal"] = False
+                st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # ── 정렬 ────────────────────────────────────────────
     def _sort_key(t):
@@ -6233,27 +6074,39 @@ with tab5:
                             st.session_state["pf_trades"] = trades
                             st.rerun()
 
-            # 분할 매수 추가 버튼
+            # ＋ 다른 구매 기록하기 — st.form 사용 (글자 겹침 방지)
             _add_lot_key = f"pf_addlot_{tk}"
             if st.session_state["pf_add_lot"].get(tk):
-                st.markdown("<div style='background:#F9FAFB;padding:8px 0 12px'></div>",
-                            unsafe_allow_html=True)
-                _la, _lb, _lc_col, _ld = st.columns([2,2,2,1])
-                with _la:
-                    _lot_qty = st.number_input("추가 수량", min_value=1, value=1,
-                                               key=f"lot_qty_{tk}")
-                with _lb:
-                    _lot_pr  = st.number_input("매수가 ($)", min_value=0.01,
-                                               value=cur_p, step=0.01,
-                                               key=f"lot_pr_{tk}")
-                with _lc_col:
-                    _lot_dt  = st.date_input("날짜",
-                                             value=datetime.now().date(),
-                                             key=f"lot_dt_{tk}")
-                with _ld:
-                    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-                    if st.button("저장", key=f"lot_save_{tk}", type="primary"):
-                        _t_ref = next((x for x in trades if x.get("ticker")==tk), None)
+                st.markdown(
+                    "<div style='background:#F9FAFB;border-top:0.5px solid #E2E6ED;"
+                    "padding:10px 0 4px'>",
+                    unsafe_allow_html=True)
+                with st.form(f"lot_form_{tk}", clear_on_submit=True):
+                    _la, _lb, _lc_col = st.columns([2, 2, 2])
+                    with _la:
+                        _lot_qty = st.number_input("추가 수량",
+                                                   min_value=1, value=1,
+                                                   key=f"lf_qty_{tk}")
+                    with _lb:
+                        _lot_pr = st.number_input("매수가 ($)",
+                                                  min_value=0.01,
+                                                  value=float(cur_p) if cur_p else 100.0,
+                                                  step=0.01,
+                                                  key=f"lf_pr_{tk}")
+                    with _lc_col:
+                        _lot_dt = st.date_input("날짜",
+                                                value=datetime.now().date(),
+                                                key=f"lf_dt_{tk}")
+                    _lfs1, _lfs2, _lfs3 = st.columns([3, 1, 1])
+                    with _lfs2:
+                        _lot_submitted = st.form_submit_button(
+                            "✅ 저장", use_container_width=True, type="primary")
+                    with _lfs3:
+                        _lot_cancel = st.form_submit_button(
+                            "취소", use_container_width=True)
+                    if _lot_submitted:
+                        _t_ref = next((x for x in trades
+                                       if x.get("ticker") == tk), None)
                         if _t_ref:
                             _t_ref["lots"].append({
                                 "date":  str(_lot_dt),
@@ -6263,8 +6116,12 @@ with tab5:
                             st.session_state["pf_trades"] = trades
                             st.session_state["pf_add_lot"][tk] = False
                             st.rerun()
+                    if _lot_cancel:
+                        st.session_state["pf_add_lot"][tk] = False
+                        st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
             else:
-                if st.button(f"＋ 다른 구매 기록하기",
+                if st.button("＋ 다른 구매 기록하기",
                              key=_add_lot_key):
                     st.session_state["pf_add_lot"][tk] = True
                     st.rerun()
@@ -6293,11 +6150,151 @@ with tab5:
                 st.session_state["pf_trades"]    = []
                 st.session_state["pf_expanded"]  = set()
                 st.rerun()
+
+    # ── QQQ 비교 차트 (STEP5에서 이식 — V101) ───────────
+    if trades_sorted:
+        st.markdown("<hr style='border-color:#E2E6ED;margin:16px 0'>",
+                    unsafe_allow_html=True)
+        st.markdown(
+            "<div style='font-family:Space Mono,monospace;font-size:11px;"
+            "color:#3B5BA5;letter-spacing:1px;margin:10px 0 6px 0'>"
+            "📈 내 종목 vs QQQ — 수익률 비교</div>",
+            unsafe_allow_html=True)
+        try:
+            _qqq_s = mkt.get("QQQ")
+            if _qqq_s is not None and len(_qqq_s) >= 20:
+                _qqq_1y   = _qqq_s[_qqq_s.index >= pd.Timestamp.now() - pd.DateOffset(years=1)]
+                _base_qqq = float(_qqq_1y.iloc[0])
+                _qqq_ret  = (_qqq_1y / _base_qqq - 1) * 100
+                _qqq_ma10 = (_qqq_1y.rolling(10).mean() / _base_qqq - 1) * 100
+
+                _colors     = ["#2563EB","#059669","#7C3AED","#D97706","#DC2626"]
+                _tk_results = []
+                # 내 포트폴리오 종목 사용 (최대 5개)
+                _my_tickers = [t["ticker"] for t in trades_sorted[:5]]
+                for _ci, _tk in enumerate(_my_tickers):
+                    try:
+                        _tk_close = get_close(_tk, period="1y")
+                        if _tk_close is None or len(_tk_close) < 20: continue
+                        _tk_1y    = _tk_close[_tk_close.index >= pd.Timestamp.now() - pd.DateOffset(years=1)]
+                        if len(_tk_1y) < 10: continue
+                        _tk_base  = float(_tk_1y.iloc[0])
+                        _tk_ret   = (_tk_1y / _tk_base - 1) * 100
+                        _tk_ma10s = (_tk_1y.rolling(10).mean() / _tk_base - 1) * 100
+                        _cur_p2   = float(_tk_1y.iloc[-1])
+                        _cur_ma2  = float(_tk_1y.rolling(10).mean().dropna().iloc[-1])
+                        _exit_now = _cur_p2 < _cur_ma2
+                        _final    = float(_tk_ret.iloc[-1])
+                        _vs_qqq   = _final - float(_qqq_ret.iloc[-1])
+                        _tk_results.append((_tk, _final, _vs_qqq, _exit_now,
+                                            _colors[_ci % len(_colors)],
+                                            _tk_ma10s, _tk_ret))
+                    except: pass
+
+                # 상태 카드
+                if _tk_results:
+                    _card_html = "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:7px;margin-bottom:10px'>"
+                    for _tk, _final, _vs, _ex, _col, _, _ in _tk_results:
+                        _bg2 = "#FEF2F2" if _ex else "#F0FDF4"
+                        _bc2 = "#FECACA" if _ex else "#86EFAC"
+                        _tc2 = "#B91C1C" if _ex else "#15803d"
+                        _ico = "⚠️" if _ex else "✅"
+                        _st2 = "MA10 이탈 — 청산 검토" if _ex else "MA10 위 — 유지"
+                        _vs_s = f"+{_vs:.1f}%" if _vs>=0 else f"{_vs:.1f}%"
+                        _vc2  = "#15803d" if _vs>=0 else "#B91C1C"
+                        _pr_col = "#15803d" if _final>=0 else "#B91C1C"
+                        _card_html += (
+                            f"<div style='background:{_bg2};border:0.5px solid {_bc2};"
+                            f"border-radius:8px;padding:9px 12px'>"
+                            f"<div style='font-size:10px;color:#9CA3AF;margin-bottom:3px'>{_tk}</div>"
+                            f"<div style='font-size:13px;font-weight:500;color:{_tc2}'>{_ico} {_st2}</div>"
+                            f"<div style='font-size:11px;margin-top:3px'>"
+                            f"<span>수익 <b style='color:{_pr_col}'>{_final:+.1f}%</b></span>"
+                            f"&nbsp;&nbsp;<span style='color:{_vc2}'>vs QQQ {_vs_s}</span></div>"
+                            f"</div>"
+                        )
+                    _card_html += "</div>"
+                    st.markdown(_card_html, unsafe_allow_html=True)
+
+                # 차트
+                _fig_pf = go.Figure()
+                _fig_pf.add_trace(go.Scatter(
+                    x=_qqq_ret.index, y=_qqq_ret.values, name="QQQ (기준)",
+                    line=dict(color="#9CA3AF", width=2),
+                    hovertemplate="QQQ: %{y:.1f}%<extra></extra>"))
+                _fig_pf.add_trace(go.Scatter(
+                    x=_qqq_ma10.index, y=_qqq_ma10.values, name="QQQ MA10",
+                    line=dict(color="#EF4444", width=1.2, dash="dot"),
+                    showlegend=False,
+                    hovertemplate="QQQ MA10: %{y:.1f}%<extra></extra>"))
+
+                for _tk, _final, _vs, _ex, _col, _tk_ma10s, _tk_ret in _tk_results:
+                    _fig_pf.add_trace(go.Scatter(
+                        x=_tk_ret.index, y=_tk_ret.values,
+                        name=f"{_tk} ({_final:+.1f}%)",
+                        line=dict(color=_col, width=2.5),
+                        hovertemplate=f"{_tk}: %{{y:.1f}}%<extra></extra>"))
+                    _fig_pf.add_trace(go.Scatter(
+                        x=_tk_ma10s.index, y=_tk_ma10s.values,
+                        name=f"{_tk} MA10",
+                        line=dict(color=_col, width=1, dash="dot"),
+                        showlegend=False,
+                        hovertemplate=f"{_tk} MA10: %{{y:.1f}}%<extra></extra>"))
+                    if _ex:
+                        try:
+                            _breach = _tk_ret.index[
+                                (_tk_ret.values < _tk_ma10s.values) &
+                                ~pd.isna(_tk_ma10s.values)]
+                            if len(_breach) > 0:
+                                _fig_pf.add_vrect(
+                                    x0=_breach[0], x1=_tk_ret.index[-1],
+                                    fillcolor="#EF4444", opacity=0.07,
+                                    layer="below", line_width=0)
+                        except: pass
+                        # ✅ 기준선과 어노테이션 분리 (지침서 규칙)
+                        _fig_pf.add_annotation(
+                            x=_tk_ret.index[-1], y=float(_tk_ret.iloc[-1]),
+                            text=f"⚠️ {_tk}",
+                            showarrow=True, arrowhead=2, ax=40, ay=-18,
+                            font=dict(size=9, color="#EF4444"),
+                            bgcolor="rgba(255,255,255,0.95)",
+                            bordercolor="#EF4444", borderwidth=1, borderpad=2,
+                            xref="x", yref="y")
+
+                # ✅ add_hline 단독 사용 (annotation_text 없이) — 지침서 규칙
+                _fig_pf.add_hline(y=0, line_color="#E5E7EB", line_width=1)
+                _fig_pf.update_layout(
+                    template="plotly_white",
+                    paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
+                    height=280, margin=dict(l=4, r=4, t=8, b=4),
+                    legend=dict(font=dict(size=10), orientation="h",
+                                yanchor="bottom", y=1.02,
+                                bgcolor="rgba(255,255,255,0.85)"),
+                    xaxis=dict(gridcolor="#EBEDF0", tickformat="%y.%m",
+                               tickfont=dict(size=10)),
+                    yaxis=dict(gridcolor="#EBEDF0", ticksuffix="%",
+                               tickfont=dict(size=10)),
+                    hovermode="x unified")
+                st.plotly_chart(_fig_pf, use_container_width=True,
+                                key="pf_qqq_cmp_chart")
+
+                st.markdown("""
+<div style='background:#F9FAFB;border-radius:8px;padding:10px 14px;
+     font-size:11px;color:#374151;line-height:1.9;margin-top:4px'>
+  <b style='color:#0D1117'>차트 읽는 법</b><br>
+  <span style='color:#EF4444'>빨간 점선 (MA10)</span> 이 선 아래로 내려가면 → 청산 검토<br>
+  <span style='background:#FEE2E2;padding:1px 5px;border-radius:3px;color:#B91C1C'>분홍 구간</span>
+  MA10 이탈 지속 중 — 즉시 뉴스 확인 후 매도 결정
+</div>""", unsafe_allow_html=True)
+            else:
+                st.caption("QQQ 데이터 없음")
+        except Exception as _pf_qe:
+            st.caption(f"비교 차트 오류: {_pf_qe}")
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>V100 💻 PC QUANTUM INSTITUTIONAL OS</b>"
-        f" &nbsp;|&nbsp; APP_V100 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>V101 💻 PC QUANTUM INSTITUTIONAL OS</b>"
+        f" &nbsp;|&nbsp; APP_V101 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

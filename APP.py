@@ -5159,7 +5159,7 @@ with tab2:
 
         # PC: 전체 컬럼 표시
         _showcols = [c for c in [
-            "Ticker","섹터","조건/9","Signal",
+            "Ticker","섹터","조건/9",
             "RS✅","AI✅","EPS✅","RSI✅","신고가✅",
             "Breakout","Vol Surge","3연상","MA10회복","갭업",
             "Price","ATR손절","PEG","Rev Growth%",
@@ -5190,7 +5190,6 @@ with tab2:
                 "실적경고":    st.column_config.TextColumn("실적",    width="small"),
                 "실적예정":    st.column_config.TextColumn("발표일",  width="small"),
                 "섹터":        st.column_config.TextColumn("섹터",    width="medium"),
-                "Signal":      st.column_config.TextColumn("신호",    width="medium"),
                 "Rev Growth%": st.column_config.NumberColumn("매출성장%", format="%.0f%%", width="small"),
             },
             key="t1_df"

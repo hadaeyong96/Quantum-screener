@@ -3316,79 +3316,6 @@ with tab0:
         if score >= 35: return "🟠 주  의"
         return "🔴 위  험"
 
-    def _render_score_card(key):
-        """지표 차트 아래에 100점 점수 카드 렌더링"""
-        info   = IND_SCORE_100.get(key, {})
-        score  = info.get("score")
-        val    = info.get("val")
-        meta   = info.get("meta", {})
-        danger = INDICATOR_DANGER.get(key, 25)
-        warn   = INDICATOR_WARN.get(key, 50)
-        color  = _score_color(score)
-        slabel = _score_label(score)
-        unit   = meta.get("unit", "")
-        better = meta.get("better", "")
-        good_d = meta.get("good_desc", "")
-        bad_d  = meta.get("bad_desc", "")
-        fred_url = FRED_SCORE_URLS.get(key, "https://fred.stlouisfed.org")
-
-        val_str = (f"{val/1e9:.2f}T{unit}" if (unit == "B$" and val and abs(val) > 500)
-                   else (f"{val:.2f}{unit}" if val is not None else "N/A"))
-        score_disp = f"{score:.0f}" if score is not None else "—"
-
-        # 게이지 바 with 역사적 이벤트 레이블 (V81)
-        _hist_evt = INDICATOR_HIST_EVENTS.get(key, ("위험기준", "주의기준"))
-        _danger_evt_lbl = f"▲{danger}점 {_hist_evt[0]}"
-        _warn_evt_lbl   = f"▲{warn}점 {_hist_evt[1]}"
-        bar_html = (
-            f"<div style='position:relative;background:#F3F4F6;border-radius:5px;"
-            f"height:12px;margin:6px 0;overflow:visible'>"
-            f"<div style='background:{color};width:{score if score else 0:.0f}%;"
-            f"height:100%;border-radius:5px'></div>"
-            f"<div style='position:absolute;left:{danger}%;top:-2px;bottom:-2px;"
-            f"width:2px;background:#B91C1C;border-radius:1px'></div>"
-            f"<div style='position:absolute;left:{warn}%;top:-1px;bottom:-1px;"
-            f"width:1px;background:#D97706;border-radius:1px'></div>"
-            f"</div>"
-            f"<div style='display:flex;justify-content:space-between;"
-            f"font-size:9px;color:#9CA3AF;margin-top:1px'>"
-            f"<span>0점</span>"
-            f"<span style='color:#B91C1C'>{_danger_evt_lbl}</span>"
-            f"<span style='color:#D97706'>{_warn_evt_lbl}</span>"
-            f"<span>100점</span></div>"
-        ) if score is not None else ""
-
-        st.markdown(f"""
-        <div style="background:#F9FAFB;border:1px solid #E2E6ED;border-radius:8px;
-             padding:10px 14px;margin:4px 0 12px 0">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <div>
-              <span style="font-size:11px;font-weight:700;color:#374151">{meta.get('label','')} 점수</span>
-              <span style="font-size:10px;color:#9CA3AF;margin-left:6px">{better}</span>
-            </div>
-            <div style="text-align:right">
-              <span style="font-family:'Space Mono',monospace;font-size:20px;
-                   font-weight:700;color:{color}">{score_disp}</span>
-              <span style="font-size:10px;color:#9CA3AF">/100</span>
-              <span style="font-size:10px;font-weight:600;color:{color};margin-left:6px">{slabel}</span>
-            </div>
-          </div>
-          <div style="font-size:10px;color:#6B7280;margin-bottom:3px">
-            현재값: <b style="color:#0D1117">{val_str}</b>
-          </div>
-          {bar_html}
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
-            <div style="font-size:10px;line-height:1.5">
-              <span style="color:#16A34A">✅ {good_d}</span> &nbsp;
-              <span style="color:#B91C1C">⚠️ {bad_d}</span>
-            </div>
-            <a href="{fred_url}" target="_blank"
-               style="font-size:10px;color:#3B5BA5;text-decoration:none;white-space:nowrap">
-              FRED ↗
-            </a>
-          </div>
-        </div>""", unsafe_allow_html=True)
-
     def _mini_chart(s, color, title, height=220, ref_line=None, ref_label="",
                     ref_color="#E53E3E", warn_line=None, warn_label="", warn_color="#F6AD55",
                     good_line=None, good_label="", good_color="#38A169",
@@ -3752,7 +3679,6 @@ with tab0:
         direction_label=m2_dir, period_label="전월 대비 (조달러)",
         explain_key="M2", good_dir="up"
     )
-    _render_score_card("M2")
 
     st.markdown("---")
 
@@ -3890,7 +3816,6 @@ with tab0:
 ,
         explain_key="RRP", good_dir="dn"
     )
-    _render_score_card("RRP")
 
     st.markdown("---")
 
@@ -3920,7 +3845,6 @@ with tab0:
 ,
         explain_key="TGA", good_dir="dn"
     )
-    _render_score_card("TGA")
 
     st.markdown("---")
 
@@ -4217,20 +4141,19 @@ with tab0:
     st.markdown("---")
 
     # ════════════════════════════════════════════════════
-    # 지표 8·9·10 — 은행 준비금 · 실질금리 · 크레딧 스프레드 (점수 카드)
+    # 지표 8·9·10 — 은행 준비금 · 실질금리 · 크레딧 스프레드
+    # ✅ 바 제거 → 깔끔한 3열 요약 카드
     # ════════════════════════════════════════════════════
     st.markdown("---")
     st.markdown("<div style='font-family:Space Mono,monospace;font-size:11px;color:#3B5BA5;letter-spacing:1px;margin:8px 0'>📊 유동성 나머지 지표 — 은행준비금 · 실질금리 · 크레딧 스프레드</div>",
                 unsafe_allow_html=True)
 
     _rem_cols = st.columns(3)
-    _rem_good_dirs = {"Reserves":"up", "RealRate":"dn", "CreditSpread":"dn"}
     for _rcol, _rkey, _rnum, _rlabel in [
         (_rem_cols[0], "Reserves",     "8️⃣", "은행 준비금"),
         (_rem_cols[1], "RealRate",     "9️⃣", "실질금리"),
         (_rem_cols[2], "CreditSpread", "🔟", "크레딧 스프레드"),
     ]:
-        _good_dir = _rem_good_dirs.get(_rkey, "dn")
         _rinfo  = IND_SCORE_100.get(_rkey, {})
         _rscore = _rinfo.get("score")
         _rval   = _rinfo.get("val")
@@ -4241,55 +4164,36 @@ with tab0:
         _rbetter= _rmeta.get("better","")
         _rgood  = _rmeta.get("good_desc","")
         _rbad   = _rmeta.get("bad_desc","")
-        _rdanger= INDICATOR_DANGER.get(_rkey, 25)
-        _rwarn  = INDICATOR_WARN.get(_rkey, 50)
         _rvstr  = (f"{_rval/1e9:.2f}T{_runit}" if (_runit=="B$" and _rval and abs(_rval)>500)
                    else (f"{_rval:.2f}{_runit}" if _rval is not None else "N/A"))
         _rsdisp = f"{_rscore:.0f}" if _rscore is not None else "—"
         _fred_u = FRED_SCORE_URLS.get(_rkey, "https://fred.stlouisfed.org")
-
-        # 기타 지표 막대 — 역사적 이벤트 레이블 (V81)
-        _r_hist = INDICATOR_HIST_EVENTS.get(_rkey, ("위험기준", "주의기준"))
-        _r_d_lbl = f"▲{_rdanger}점 {_r_hist[0]}"
-        _r_w_lbl = f"▲{_rwarn}점 {_r_hist[1]}"
-        _bar = (
-            f"<div style='position:relative;background:#F3F4F6;border-radius:5px;"
-            f"height:12px;margin:6px 0;overflow:visible'>"
-            f"<div style='background:{_rcolor};width:{_rscore if _rscore else 0:.0f}%;"
-            f"height:100%;border-radius:5px'></div>"
-            f"<div style='position:absolute;left:{_rdanger}%;top:-2px;bottom:-2px;"
-            f"width:2px;background:#B91C1C;border-radius:1px'></div>"
-            f"<div style='position:absolute;left:{_rwarn}%;top:-1px;bottom:-1px;"
-            f"width:1px;background:#D97706;border-radius:1px'></div>"
-            f"</div>"
-            f"<div style='display:flex;justify-content:space-between;font-size:9px;color:#9CA3AF'>"
-            f"<span>0점</span>"
-            f"<span style='color:#B91C1C'>{_r_d_lbl}</span>"
-            f"<span style='color:#D97706'>{_r_w_lbl}</span>"
-            f"<span>100점</span></div>"
-        ) if _rscore is not None else ""
+        _bg     = "#F0FDF4" if (_rscore or 0)>=60 else ("#FFFBEB" if (_rscore or 0)>=35 else "#FEF2F2")
+        _bc     = "#86EFAC" if (_rscore or 0)>=60 else ("#FDE68A" if (_rscore or 0)>=35 else "#FECACA")
 
         _rcol.markdown(f"""
-        <div style="background:#FFFFFF;border:1px solid #E2E6ED;border-radius:10px;
-             padding:14px 16px;margin:4px 0">
-          <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">
-            {_rnum} {_rlabel}</div>
-          <div style="font-size:10px;color:#9CA3AF;margin-bottom:6px">{_rbetter}</div>
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div style="font-size:11px;color:#6B7280">현재: <b>{_rvstr}</b></div>
+        <div style="background:{_bg};border:1px solid {_bc};border-radius:10px;
+             padding:14px 16px;margin:4px 0;min-height:110px;box-sizing:border-box">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
             <div>
-              <span style="font-family:'Space Mono',monospace;font-size:24px;
+              <div style="font-size:12px;font-weight:700;color:#374151">{_rnum} {_rlabel}</div>
+              <div style="font-size:10px;color:#9CA3AF;margin-top:2px">{_rbetter}</div>
+            </div>
+            <div style="text-align:right">
+              <span style="font-family:'Space Mono',monospace;font-size:22px;
                    font-weight:700;color:{_rcolor}">{_rsdisp}</span>
               <span style="font-size:10px;color:#9CA3AF">/100</span>
             </div>
           </div>
-          {_bar}
-          <div style="font-size:10px;font-weight:600;color:{_rcolor};margin:4px 0">{_rslbl}</div>
-          <div style="font-size:10px;color:#6B7280;line-height:1.5">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:11px;color:#374151">현재: <b>{_rvstr}</b></div>
+            <div style="font-size:11px;font-weight:600;color:{_rcolor}">{_rslbl}</div>
+          </div>
+          <div style="font-size:10px;color:#6B7280;margin-top:6px;line-height:1.5">
             <span style="color:#16A34A">✅ {_rgood}</span><br>
             <span style="color:#B91C1C">⚠️ {_rbad}</span>
           </div>
-          <div style="text-align:right;margin-top:6px">
+          <div style="text-align:right;margin-top:4px">
             <a href="{_fred_u}" target="_blank"
                style="font-size:10px;color:#3B5BA5;text-decoration:none">FRED ↗</a>
           </div>

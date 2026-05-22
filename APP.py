@@ -993,14 +993,7 @@ status_placeholder.markdown(
 
 sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=True)
 
-# ── ⑥ 새로고침 버튼 ─────────────────────────────────
-auto_refresh = sb.checkbox("5분 자동 새로고침", value=False)
-if auto_refresh: st.markdown('<meta http-equiv="refresh" content="300">', unsafe_allow_html=True)
-if sb.button("🔄 데이터 새로고침", use_container_width=True):
-    st.session_state.cache_key += 1
-    st.cache_data.clear(); st.rerun()
 
-sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────
 # TITLE
@@ -2005,56 +1998,10 @@ if sb.button("🔄 데이터 새로고침", use_container_width=True, key="sb_re
 sb.markdown(f"<div style='font-size:9px;color:#9CA3AF;margin-top:4px'>"
             f"🕐 {datetime.now().strftime('%H:%M:%S')}</div>", unsafe_allow_html=True)
 
-sb.markdown("<hr style='border-color:#E2E6ED;margin:10px 0'>", unsafe_allow_html=True)
-sb.markdown("""
-<div style='font-size:9px;color:#9CA3AF;line-height:1.8;padding:0 2px'>
-  <b style='color:#6B7280;font-size:10px'>데이터 출처</b><br>
-  · FRED — 미국 연방준비제도<br>
-  · Yahoo Finance — 주가 데이터<br>
-  · multpl.com — S&P500 PER<br><br>
-  <b style='color:#B91C1C'>⚠️ 투자 권유 아님</b><br>
-  교육 목적. 투자 손익 책임은 본인에게 있습니다.
-</div>
-""", unsafe_allow_html=True)
+
 
 # ── API 키 설정 (사이드바 맨 하단) ───────────────────────
-# ── 투자 전략 가이드 (V91: 탭→사이드바 이동) ──────────
-sb.markdown("""
-<details style='margin:2px 0;border:0.5px solid #E2E6ED;border-radius:6px;overflow:hidden'>
-<summary style='cursor:pointer;padding:6px 10px;background:#F9FAFB;
-  font-size:11px;color:#374151;list-style:none'>투자 전략 가이드</summary>
-<div style='padding:10px 12px;font-size:11px;color:#374151;line-height:1.9'>
-<b style='color:#1D4ED8'>"유동성 흐름을 먼저 읽고, 강한 섹터에서 강한 종목을 산다"</b><br><br>
-<b>판단 순서:</b><br>
-1 유동성 탭 - 단계 확인<br>
-2 종목테이블 - RS80+ AI70+ 브레이크아웃<br>
-3 포트폴리오 - 투자금 기반 매수 계획<br><br>
-<b>신호 의미:</b><br>
-STRONG BUY — AI80+ 브레이크아웃 거래량 급증<br>
-BUY — AI70+ 브레이크아웃 확인<br>
-과열주의 — 브레이크아웃 RSI70+ 과매수<br>
-WATCH — AI55+ 돌파 대기<br>
-EXIT — MA10 이탈 청산 검토<br><br>
-<b>매도 기준:</b><br>
-손절가 = 매수가 x 0.92 (-8%)<br>
-MA10 이탈 Exit 신호<br>
-유동성 1-2단계 하락 전량 청산 검토
-</div></details>
-""", unsafe_allow_html=True)
 
-sb.markdown("""
-<details style='margin:2px 0;border:0.5px solid #E2E6ED;border-radius:6px;overflow:hidden'>
-<summary style='cursor:pointer;padding:6px 10px;background:#F9FAFB;
-  font-size:11px;color:#374151;list-style:none'>FOMC CPI 2026 일정</summary>
-<div style='padding:10px 12px;font-size:10px;color:#374151;line-height:1.9'>
-<b>FOMC 금리 결정</b><br>
-1/28 3/18 5/6 6/17 7/29 9/16 10/28 12/9<br>
-<span style='color:#9CA3AF'>한국 새벽 3-4시 발표</span><br><br>
-<b>CPI 물가</b><br>
-1/14 2/11 3/11 4/10 5/12 6/10 7/14 8/12 9/9<br>
-<span style='color:#9CA3AF'>이벤트 3일 전 신규 매수 자제</span>
-</div></details>
-""", unsafe_allow_html=True)
 
 # 투자금 — 포트폴리오 탭에서 관리 (사이드바 제거)
 
@@ -2402,11 +2349,12 @@ except Exception as _ds_err:
 # ─────────────────────────────────────────────────────────
 # 탭 정의 (V44)
 # ─────────────────────────────────────────────────────────
-tab0, tab1, tab2, tab3 = st.tabs([
+tab0, tab1, tab2, tab3, tab4 = st.tabs([
     'STEP1 💧 유동성',
     'STEP2 📡 섹터 강도',
     'STEP3 📊 종목 선별',
     'STEP4 💰 매수 실행',
+    '📅 기타',
 ])
 
 # ── V93: 지표 설명 expander 헬퍼 ─────────────────────────
@@ -5480,6 +5428,123 @@ with tab3:
             f"<div style='background:#F9FAFB;border:0.5px solid #E2E6ED;"
             f"border-radius:8px;padding:12px 14px'>{_mk_html}</div>",
             unsafe_allow_html=True)
+
+
+# ════════════════════════════════════════════════════════
+# TAB 4 — 📅 기타 (FOMC·CPI 일정)
+# ════════════════════════════════════════════════════════
+with tab4:
+    st.markdown('<div class="sec-header">📅 기타</div>', unsafe_allow_html=True)
+
+    # ── FOMC · CPI 2026 일정 ────────────────────────────
+    st.markdown(
+        "<div style='font-family:Space Mono,monospace;font-size:11px;"
+        "color:#3B5BA5;letter-spacing:1px;margin-bottom:12px'>"
+        "📆 2026 주요 경제 이벤트 일정</div>",
+        unsafe_allow_html=True)
+
+    _ev_c1, _ev_c2 = st.columns(2)
+
+    with _ev_c1:
+        st.markdown("""
+        <div style='background:#FFFFFF;border:1px solid #E2E6ED;border-radius:10px;padding:16px'>
+          <div style='font-size:13px;font-weight:700;color:#0D1117;margin-bottom:4px'>
+            🏦 FOMC 금리 결정</div>
+          <div style='font-size:10px;color:#9CA3AF;margin-bottom:12px'>
+            한국 시간 새벽 3~4시 발표</div>
+          <div style='display:grid;grid-template-columns:repeat(2,1fr);gap:6px'>
+            <div style='background:#EFF6FF;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>1월</div>
+              <div style='font-size:13px;font-weight:600;color:#1D4ED8'>1/28</div>
+            </div>
+            <div style='background:#EFF6FF;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>3월</div>
+              <div style='font-size:13px;font-weight:600;color:#1D4ED8'>3/18</div>
+            </div>
+            <div style='background:#EFF6FF;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>5월</div>
+              <div style='font-size:13px;font-weight:600;color:#1D4ED8'>5/6</div>
+            </div>
+            <div style='background:#EFF6FF;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>6월</div>
+              <div style='font-size:13px;font-weight:600;color:#1D4ED8'>6/17</div>
+            </div>
+            <div style='background:#EFF6FF;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>7월</div>
+              <div style='font-size:13px;font-weight:600;color:#1D4ED8'>7/29</div>
+            </div>
+            <div style='background:#EFF6FF;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>9월</div>
+              <div style='font-size:13px;font-weight:600;color:#1D4ED8'>9/16</div>
+            </div>
+            <div style='background:#EFF6FF;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>10월</div>
+              <div style='font-size:13px;font-weight:600;color:#1D4ED8'>10/28</div>
+            </div>
+            <div style='background:#EFF6FF;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>12월</div>
+              <div style='font-size:13px;font-weight:600;color:#1D4ED8'>12/9</div>
+            </div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with _ev_c2:
+        st.markdown("""
+        <div style='background:#FFFFFF;border:1px solid #E2E6ED;border-radius:10px;padding:16px'>
+          <div style='font-size:13px;font-weight:700;color:#0D1117;margin-bottom:4px'>
+            📊 CPI 물가 발표</div>
+          <div style='font-size:10px;color:#9CA3AF;margin-bottom:12px'>
+            ⚠️ 발표 3일 전 신규 매수 자제</div>
+          <div style='display:grid;grid-template-columns:repeat(3,1fr);gap:6px'>
+            <div style='background:#FFF7ED;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>1월</div>
+              <div style='font-size:13px;font-weight:600;color:#D97706'>1/14</div>
+            </div>
+            <div style='background:#FFF7ED;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>2월</div>
+              <div style='font-size:13px;font-weight:600;color:#D97706'>2/11</div>
+            </div>
+            <div style='background:#FFF7ED;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>3월</div>
+              <div style='font-size:13px;font-weight:600;color:#D97706'>3/11</div>
+            </div>
+            <div style='background:#FFF7ED;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>4월</div>
+              <div style='font-size:13px;font-weight:600;color:#D97706'>4/10</div>
+            </div>
+            <div style='background:#FFF7ED;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>5월</div>
+              <div style='font-size:13px;font-weight:600;color:#D97706'>5/12</div>
+            </div>
+            <div style='background:#FFF7ED;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>6월</div>
+              <div style='font-size:13px;font-weight:600;color:#D97706'>6/10</div>
+            </div>
+            <div style='background:#FFF7ED;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>7월</div>
+              <div style='font-size:13px;font-weight:600;color:#D97706'>7/14</div>
+            </div>
+            <div style='background:#FFF7ED;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>8월</div>
+              <div style='font-size:13px;font-weight:600;color:#D97706'>8/12</div>
+            </div>
+            <div style='background:#FFF7ED;border-radius:6px;padding:8px 10px;text-align:center'>
+              <div style='font-size:10px;color:#9CA3AF'>9월</div>
+              <div style='font-size:13px;font-weight:600;color:#D97706'>9/9</div>
+            </div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<div style='margin:16px 0'></div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div style='background:#FEF2F2;border:0.5px solid #FECACA;border-radius:8px;"
+        "padding:12px 16px;font-size:12px;color:#B91C1C'>"
+        "⚠️ <b>이벤트 매매 주의</b> — FOMC·CPI 발표 전후 변동성 급증. "
+        "발표 3일 전 신규 진입 자제, 기존 포지션 손절선 재확인 권장."
+        "</div>",
+        unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════
 # ════════════════════════════════════════════════════════

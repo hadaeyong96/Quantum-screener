@@ -5413,7 +5413,7 @@ with tab3:
         _tbl["목표2$"]  = (_tbl["Price"] * 1.25).round(2)
 
         _buy_cols = [c for c in [
-            "Ticker", "섹터", "Signal", "Price",
+            "Ticker", "섹터", "Price",
             _sc_col, "RS Score", "조건수", "EPS Growth%",
             "손절가$", "목표1$", "목표2$", "52주 고점%"
         ] if c in _tbl.columns]
@@ -5432,7 +5432,6 @@ with tab3:
                 "목표1$":      st.column_config.NumberColumn("목표1$",  format="$%.2f",  width="small"),
                 "목표2$":      st.column_config.NumberColumn("목표2$",  format="$%.2f",  width="small"),
                 "52주 고점%":  st.column_config.NumberColumn("신고가%", format="%.0f%%", width="small"),
-                "Signal":      st.column_config.TextColumn("신호",                      width="small"),
             },
             key="rpt_buy_tbl"
         )

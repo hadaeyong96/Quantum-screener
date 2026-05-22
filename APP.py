@@ -3,7 +3,9 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V105
+VERSION : APP_V106
+  V106 - ① 매수 종목 상세 카드 → st.dataframe 표 형식 통일
+         → ② 청산 검토와 동일한 방식: 손절가/목표1/목표2 컬럼 추가
   V105 - 💼 내 포트폴리오 탭 완전 삭제 (구글 시트로 이관)
          → 앱 핵심: 유동성 읽기 + 종목 추천에 집중
          → _trades_load/save 의존성 제거, 약 600줄 감소
@@ -189,7 +191,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V105",
+st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V106",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -908,7 +910,7 @@ sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
     "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>"
     "QUANTUM INSTITUTIONAL OS</div>"
-    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V105 &nbsp;·&nbsp; 💻 PC VERSION</div>"
+    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V106 &nbsp;·&nbsp; 💻 PC VERSION</div>"
     "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
@@ -1003,7 +1005,7 @@ sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=
 # ─────────────────────────────────────────────────────────
 # TITLE
 # ─────────────────────────────────────────────────────────
-APP_VERSION = "V105"
+APP_VERSION = "V106"
 st.markdown(f"""
 <div style="padding:16px 0 8px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
   <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px">
@@ -1013,7 +1015,7 @@ st.markdown(f"""
         QUANTUM INSTITUTIONAL OS
       </span><br>
       <span style="font-size:11px;color:#6B7280;letter-spacing:2px">
-        V105  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
+        V106  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
       </span>
     </div>
     <div style="text-align:right">
@@ -4867,7 +4869,7 @@ def build_full_report():
         )
 
     report = f"""{SEP}
-  QUANTUM INSTITUTIONAL OS  |  투자 지침서  |  V105
+  QUANTUM INSTITUTIONAL OS  |  투자 지침서  |  V106
   {now_str}
 {SEP}
 
@@ -4966,7 +4968,7 @@ def build_full_report():
   실적 주의: {", ".join(warn_list)+" — 발표 전 신규 매수 보류" if warn_list else "없음"}
 
 {SEP}
-  QUANTUM INSTITUTIONAL OS V105  |  교육 목적
+  QUANTUM INSTITUTIONAL OS V106  |  교육 목적
   본 자료는 투자 권유가 아닙니다. 결과 책임은 본인에게 있습니다.
 {SEP}"""
 
@@ -5393,111 +5395,52 @@ with tab3:
         unsafe_allow_html=True)
 
     if not _buy_df.empty:
-        for _, _r in _buy_df.iterrows():
-            _ai = float(_r.get(_sc_col, 0))
-            _rs = int(_r.get("RS Score", 0))
-            _pr = float(_r.get("Price", 0))
-            _cn = int(_r.get("조건수", 0))
-            _ep = float(_r.get("EPS Growth%", 0))
-            _rv = float(_r.get("Rev Growth%", 0))
-            _pg = float(_r.get("PEG", 0)) if _r.get("PEG") else 0
-            _wn = "⚠️ 실적임박" if _r.get("실적경고","—")=="⚠️" else ""
-            _bk = "✅ 브레이크아웃" if _r.get("Breakout","—")=="✅" else "대기중"
-            _vs = "✅ 거래량급증" if _r.get("Vol Surge","—")=="✅" else "—"
-            _sig      = _r.get("Signal","—")
-            _ma10_rec  = _r.get("MA10회복","—") == "✅"
-            _trailing  = _r.get("추적손절","—") == "✅"
-            _atr_stop  = _r.get("ATR손절", None)
-            _p_stage   = int(_r.get("익절단계", 0) or 0)
-            _p_ret     = float(_r.get("수익률20d", 0) or 0)
-            _reasons = []
-            if _cn >= 6:   _reasons.append("6조건 이상 충족 — 최우선 진입 검토")
-            if _ma10_rec:  _reasons.append("🔁 MA10 재돌파 — 손절 물량 소화, 재진입 검토")
-            if _trailing:  _reasons.append("📉 추적손절 — 20일 고점 대비 -10% 이탈")
-            if _rs >= 90:  _reasons.append(f"RS {_rs}점 — 나스닥 상위 10% 주도주")
-            if _ai >= 80:  _reasons.append(f"AI {_ai:.0f}점 — 실적·밸류에이션 강함")
-            if _ep >= 15:  _reasons.append(f"EPS 성장 {_ep:.0f}% — 이익 성장 중")
-            _reason_txt = " &nbsp;|&nbsp; ".join(_reasons) if _reasons else "조건 충족"
-            if _atr_stop and _atr_stop > 0:
-                _stop_pr  = _atr_stop
-                _stop_lbl = "ATR손절(×2)"
-                _stop_pct = round((_stop_pr/_pr-1)*100,1)
-            else:
-                _stop_pr  = _pr * 0.92
-                _stop_lbl = "손절(-8%)"
-                _stop_pct = -8.0
-            _rr_ratio  = round(15 / abs(_stop_pct), 1) if _stop_pct != 0 else 2.0
-            _tgt1_pr   = _pr * 1.15
-            _tgt2_pr   = _pr * 1.25
+        # ── 매수 종목 표 (st.dataframe — ② 청산 검토와 동일 방식) ──
+        _tbl = _buy_df.copy()
 
-            st.markdown(
-                f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
-                f"border-radius:8px;padding:12px 14px;margin-bottom:6px'>"
-                # 헤더 — 티커 + 신호 배지
-                f"<div style='display:flex;justify-content:space-between;"
-                f"align-items:center;margin-bottom:10px'>"
-                f"<span style='font-family:Space Mono,monospace;font-size:15px;"
-                f"font-weight:700;color:#0D1117'>{_r['Ticker']}</span>"
-                f"<div style='display:flex;gap:5px;align-items:center;flex-wrap:wrap'>"
-                f"{'<span style=\"font-size:9px;background:#EFF6FF;color:#1D4ED8;border-radius:4px;padding:1px 6px\">🔁 MA10회복</span>' if _ma10_rec else ''}"
-                f"{'<span style=\"font-size:9px;background:#FFFBEB;color:#92400E;border-radius:4px;padding:1px 6px\">📉 추적손절</span>' if _trailing else ''}"
-                f"<span style='font-size:13px;font-weight:600;color:#1D4ED8'>{_sig}</span>"
-                f"<span style='font-size:10px;color:#B91C1C'>{_wn}</span>"
-                f"</div></div>"
-                # 가격 4칸 그리드
-                f"<div style='display:grid;grid-template-columns:repeat(4,1fr);"
-                f"gap:6px;margin-bottom:10px'>"
-                f"<div style='background:#F0FDF4;border-radius:7px;"
-                f"padding:8px 10px;text-align:center'>"
-                f"<div style='font-size:9px;color:#15803d;font-weight:500;"
-                f"margin-bottom:3px'>현재가</div>"
-                f"<div style='font-family:Space Mono,monospace;font-size:14px;"
-                f"font-weight:700;color:#0D1117'>${_pr:.2f}</div>"
-                f"</div>"
-                f"<div style='background:#FEF2F2;border-radius:7px;"
-                f"padding:8px 10px;text-align:center'>"
-                f"<div style='font-size:9px;color:#B91C1C;font-weight:500;"
-                f"margin-bottom:3px'>{_stop_lbl}</div>"
-                f"<div style='font-family:Space Mono,monospace;font-size:14px;"
-                f"font-weight:700;color:#B91C1C'>${_stop_pr:.2f}</div>"
-                f"<div style='font-size:10px;color:#B91C1C;margin-top:2px'>"
-                f"{_stop_pct:.1f}%</div>"
-                f"</div>"
-                f"<div style='background:#FFFBEB;border-radius:7px;"
-                f"padding:8px 10px;text-align:center'>"
-                f"<div style='font-size:9px;color:#92400E;font-weight:500;"
-                f"margin-bottom:3px'>1차 +15%</div>"
-                f"<div style='font-family:Space Mono,monospace;font-size:14px;"
-                f"font-weight:700;color:#92400E'>${_tgt1_pr:.2f}</div>"
-                f"<div style='font-size:10px;color:#92400E;margin-top:2px'>"
-                f"50% 매도</div>"
-                f"</div>"
-                f"<div style='background:#EFF6FF;border-radius:7px;"
-                f"padding:8px 10px;text-align:center'>"
-                f"<div style='font-size:9px;color:#1D4ED8;font-weight:500;"
-                f"margin-bottom:3px'>2차 +25%</div>"
-                f"<div style='font-family:Space Mono,monospace;font-size:14px;"
-                f"font-weight:700;color:#1D4ED8'>${_tgt2_pr:.2f}</div>"
-                f"<div style='font-size:10px;color:#1D4ED8;margin-top:2px'>"
-                f"25% 추가</div>"
-                f"</div>"
-                f"</div>"
-                # 지표 요약 한 줄
-                f"<div style='display:flex;gap:12px;font-size:11px;"
-                f"color:#6B7280;margin-bottom:5px;flex-wrap:wrap'>"
-                f"<span>AI <b style='color:#0D1117'>{_ai:.0f}</b></span>"
-                f"<span>RS <b style='color:#0D1117'>{_rs}</b></span>"
-                f"<span>조건 <b style='color:#1D4ED8'>{_cn}/8</b></span>"
-                f"<span>EPS <b style='color:#0D1117'>{_ep:.0f}%</b></span>"
-                f"<span>매출 <b style='color:#0D1117'>{_rv:.0f}%</b></span>"
-                f"{'<span>PEG <b style=\"color:#0D1117\">' + f'{_pg:.1f}' + '</b></span>' if _pg > 0 else ''}"
-                f"<span style='margin-left:auto;color:#6D28D9;font-weight:600'>"
-                f"R:R {_rr_ratio}:1</span>"
-                f"</div>"
-                # 진입 근거
-                f"<div style='font-size:11px;color:#374151'>{_reason_txt}</div>"
-                f"</div>",
-                unsafe_allow_html=True)
+        # 손절가 / 목표1 / 목표2 컬럼 추가
+        def _atr_stop_val(row):
+            _atr = row.get("ATR손절", None)
+            _p   = float(row.get("Price", 0))
+            try:
+                if _atr and float(_atr) > 0:
+                    return round(float(_atr), 2)
+            except: pass
+            return round(_p * 0.92, 2) if _p > 0 else 0.0
+
+        _tbl["손절가$"] = _tbl.apply(_atr_stop_val, axis=1)
+        _tbl["목표1$"]  = (_tbl["Price"] * 1.15).round(2)
+        _tbl["목표2$"]  = (_tbl["Price"] * 1.25).round(2)
+
+        _buy_cols = [c for c in [
+            "Ticker", "섹터", "Signal", "Price",
+            _sc_col, "RS Score", "조건수", "EPS Growth%",
+            "손절가$", "목표1$", "목표2$", "52주 고점%"
+        ] if c in _tbl.columns]
+
+        st.dataframe(
+            _tbl[_buy_cols].sort_values(_sc_col, ascending=False),
+            use_container_width=True,
+            height=min(80 + len(_tbl) * 36, 400),
+            column_config={
+                _sc_col:       st.column_config.NumberColumn("AI점수", format="%.0f",   width="small"),
+                "RS Score":    st.column_config.NumberColumn("RS",     format="%d",     width="small"),
+                "조건수":       st.column_config.NumberColumn("조건/8", format="%d",     width="small"),
+                "EPS Growth%": st.column_config.NumberColumn("EPS%",   format="%.0f%%", width="small"),
+                "Price":       st.column_config.NumberColumn("현재가$", format="$%.2f",  width="small"),
+                "손절가$":     st.column_config.NumberColumn("손절가$", format="$%.2f",  width="small"),
+                "목표1$":      st.column_config.NumberColumn("목표1$",  format="$%.2f",  width="small"),
+                "목표2$":      st.column_config.NumberColumn("목표2$",  format="$%.2f",  width="small"),
+                "52주 고점%":  st.column_config.NumberColumn("신고가%", format="%.0f%%", width="small"),
+                "Signal":      st.column_config.TextColumn("신호",                      width="small"),
+            },
+            key="rpt_buy_tbl"
+        )
+        st.markdown(
+            "<div style='font-size:11px;color:#9CA3AF;margin-top:4px'>"
+            "손절가: ATR×2 기준 (없으면 현재가 -8%) &nbsp;·&nbsp; "
+            "목표1: +15% (50% 매도) &nbsp;·&nbsp; 목표2: +25% (25% 추가 매도)</div>",
+            unsafe_allow_html=True)
 
         # 투자금 기반 포트폴리오 (V98: ATR 사이징 + GLD 헤지 표시)
         if _invest > 0:
@@ -5752,8 +5695,8 @@ with tab3:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V105</b>"
-        f" &nbsp;|&nbsp; APP_V105 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V106</b>"
+        f" &nbsp;|&nbsp; APP_V106 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

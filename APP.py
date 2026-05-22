@@ -1,9 +1,16 @@
 """
-Quantum Institutional OS V102  |  초보자용 투자 대시보드
+V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V102
+VERSION : APP_V103
+  V103 - 포트폴리오 ↔ 알고리즘 연동 강화
+         · 포트폴리오 탭 각 행에 매수·매도 신호 배지 직접 표시
+           (💰익절 / 📉추적손절 / ⚠️EXIT / 🔁MA10회복 / 🚀강매수)
+         · 분할매수 lots 가중평균가로 익절 계산 (단일 buy_price 오류 수정)
+         · 버전명 전체 통일: QUANTUM INSTITUTIONAL OS V103
+           (APP_VERSION, 타이틀, 사이드바, 헤더, 리포트, 푸터 6곳 동시)
+         ✅ 앞으로 버전 수정 시 6곳 동시 체크 의무화
   V102 - 매수 종목 상세 카드 정리
          · 비중 바 (보유%·매도%·진행 바) 전체 제거
          · 익절 단계 텍스트 설명 제거
@@ -177,7 +184,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="V102 💻 PC Quantum Institutional OS",
+st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V103",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -894,10 +901,9 @@ selected_sectors = set()
 # ── 앱 타이틀 ─────────────────────────────────────────
 sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
-    "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>V102 QUANTUM OS</div>"
-    "<div style='display:inline-block;background:#F0FDF4;border:0.5px solid #86EFAC;"
-    "border-radius:4px;font-size:9px;font-weight:600;color:#166534;"
-    "padding:1px 6px;margin-bottom:2px;letter-spacing:0.5px'>💻 PC VERSION</div>"
+    "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>"
+    "QUANTUM INSTITUTIONAL OS</div>"
+    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V103 &nbsp;·&nbsp; 💻 PC VERSION</div>"
     "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
@@ -992,17 +998,17 @@ sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=
 # ─────────────────────────────────────────────────────────
 # TITLE
 # ─────────────────────────────────────────────────────────
-APP_VERSION = "V93"
+APP_VERSION = "V103"
 st.markdown(f"""
 <div style="padding:16px 0 8px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
   <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px">
     <div>
       <span style="font-family:'Space Mono',monospace;font-size:20px;
             color:#3B5BA5;letter-spacing:3px;font-weight:700">
-        V93 QUANTUM INSTITUTIONAL OS
+        QUANTUM INSTITUTIONAL OS
       </span><br>
       <span style="font-size:11px;color:#6B7280;letter-spacing:2px">
-        유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
+        V103  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
       </span>
     </div>
     <div style="text-align:right">
@@ -1376,16 +1382,26 @@ def load_stocks(tickers, _bust=0):
                 _roll_high = float(close.tail(20).max())
                 trailing_stop = float(close.iloc[-1]) < _roll_high * 0.90
             # ── 단계별 익절 계산 (V97): 20일/60일 수익률 기반
-            # ── V98: trades.json 매수가 있으면 실제 수익률 우선 사용
+            # ── V103: lots 가중평균가로 익절 계산 (분할매수 정확도 개선)
             profit_stage = 0
             profit_ret   = 0.0
             _trades_now  = _trades_load()
-            _my_trade    = next((t for t in _trades_now if t.get("ticker")==tk), None)
-            if _my_trade and _my_trade.get("buy_price",0) > 0:
-                _bp       = float(_my_trade["buy_price"])
-                _actual_r = float(close.iloc[-1]) / _bp - 1
-                if _actual_r >= 0.25:   profit_stage = 2; profit_ret = _actual_r
-                elif _actual_r >= 0.15: profit_stage = 1; profit_ret = _actual_r
+            _my_trade    = next((t for t in _trades_now
+                                 if t.get("ticker") == tk), None)
+            if _my_trade:
+                _lots  = _my_trade.get("lots", [])
+                _avg_bp = 0.0
+                if _lots:
+                    _tot_q = sum(float(l.get("qty", 0)) for l in _lots)
+                    _tot_c = sum(float(l.get("qty", 0)) * float(l.get("price", 0))
+                                 for l in _lots)
+                    _avg_bp = _tot_c / _tot_q if _tot_q > 0 else 0.0
+                elif _my_trade.get("buy_price", 0) > 0:
+                    _avg_bp = float(_my_trade["buy_price"])
+                if _avg_bp > 0:
+                    _actual_r = float(close.iloc[-1]) / _avg_bp - 1
+                    if _actual_r >= 0.25:   profit_stage = 2; profit_ret = _actual_r
+                    elif _actual_r >= 0.15: profit_stage = 1; profit_ret = _actual_r
             elif len(close) >= 21:
                 _ret_20d = float(close.iloc[-1] / close.iloc[-21] - 1)
                 if _ret_20d >= 0.25:   profit_stage = 2; profit_ret = _ret_20d
@@ -1544,6 +1560,7 @@ def load_stocks(tickers, _bust=0):
                 "ATR":atr_val,"ATR손절":atr_stop,
                 "수익률20d":round(profit_ret*100,1),
                 "익절단계":profit_stage,
+                "평균매수가":round(_avg_bp, 2) if '_avg_bp' in dir() and _avg_bp > 0 else 0,
                 "추적손절":"✅" if trailing_stop else "—",
                 "Breakout":"✅" if breakout else "—","Vol Surge":"✅" if vol_surge else "—",
                 "3연상":"✅" if consecutive_rise else "—",
@@ -4864,7 +4881,7 @@ def build_full_report():
         )
 
     report = f"""{SEP}
-  QUANTUM OS  |  투자 지침서  |  V93
+  QUANTUM INSTITUTIONAL OS  |  투자 지침서  |  V103
   {now_str}
 {SEP}
 
@@ -4963,7 +4980,7 @@ def build_full_report():
   실적 주의: {", ".join(warn_list)+" — 발표 전 신규 매수 보류" if warn_list else "없음"}
 
 {SEP}
-  Quantum Institutional OS V93  |  교육 목적
+  QUANTUM INSTITUTIONAL OS V103  |  교육 목적
   본 자료는 투자 권유가 아닙니다. 결과 책임은 본인에게 있습니다.
 {SEP}"""
 
@@ -5990,6 +6007,17 @@ with tab4:
         tot_prf_pct = (tot_prf/tot_cost*100) if tot_cost>0 else 0
         daily_pnl   = (cur_p - prev_p) * tot_qty
 
+        # ── V103: df_all에서 해당 종목 신호 조회 ────────────
+        _pf_sig  = "—"
+        _pf_sc   = "#9CA3AF"
+        _pf_sbg  = "transparent"
+        if not df_all.empty and tk in df_all["Ticker"].values:
+            _pf_row  = df_all[df_all["Ticker"] == tk].iloc[0]
+            _pf_sig  = _pf_row.get("Signal", "—")
+            _sig_cfg = ACTION_GUIDE.get(_pf_sig, {})
+            _pf_sc   = _sig_cfg.get("color", "#9CA3AF")
+            _pf_sbg  = _sig_cfg.get("bg",    "#F9FAFB")
+
         # 색상
         _dc  = "#D93025" if daily    >= 0 else "#1A73E8"
         _pc  = "#D93025" if tot_prf  >= 0 else "#1A73E8"
@@ -6003,7 +6031,12 @@ with tab4:
             f"<div class='pf-row' id='{_row_key}'>"
             f"<div class='pf-main'>"
             f"<div class='pf-badge' style='background:{_bc}'>{tk[:4]}</div>"
+            f"<div>"
             f"<div class='pf-name'>{tk}</div>"
+            f"<div style='display:inline-block;background:{_pf_sbg};"
+            f"border-radius:4px;padding:1px 6px;font-size:10px;"
+            f"color:{_pf_sc};font-weight:500;margin-top:2px'>{_pf_sig}</div>"
+            f"</div>"
             f"<div class='pf-price'>${cur_p:,.2f}</div>"
             f"<div class='pf-qty'>{tot_qty:.0f}</div>"
             f"<div class='pf-daily'>"
@@ -6029,19 +6062,29 @@ with tab4:
 
         # 상세 펼침
         if _exp:
-            # 상세 헤더
             st.markdown(
-                "<div style='background:#F9FAFB;border:0.5px solid #E2E6ED;"
-                "border-radius:0 0 10px 10px;padding:0 16px;margin-top:-6px;"
-                "margin-bottom:6px'>"
-                "<div style='display:grid;"
-                "grid-template-columns:140px 130px 80px 130px 150px;"
-                "padding:6px 0 4px;font-size:10px;color:#9CA3AF;font-weight:500;gap:8px'>"
-                "<div>매수 날짜</div><div style='text-align:right'>구매 금액</div>"
-                "<div style='text-align:right'>수량</div>"
-                "<div style='text-align:right'>총수익</div>"
-                "<div style='text-align:right'>금액 (₩)</div>"
-                "</div>",
+                f"<div style='background:#F9FAFB;border:0.5px solid #E2E6ED;"
+                f"border-radius:0 0 10px 10px;padding:0 16px;margin-top:-6px;"
+                f"margin-bottom:6px'>"
+                f"<div style='display:flex;gap:20px;padding:8px 0 6px;"
+                f"border-bottom:0.5px solid #F3F4F6;font-size:11px;flex-wrap:wrap'>"
+                f"<span style='color:#6B7280'>평균매수가 "
+                f"<b style='color:#0D1117'>${avg_cost:,.2f}</b></span>"
+                f"<span style='color:#6B7280'>총 수익 "
+                f"<b style='color:{_pc}'>{'+' if tot_prf>=0 else ''}${tot_prf:,.2f} "
+                f"({'+' if tot_prf_pct>=0 else ''}{tot_prf_pct:.2f}%)</b></span>"
+                f"<span style='color:#6B7280'>현재 신호 "
+                f"<b style='background:{_pf_sbg};color:{_pf_sc};"
+                f"border-radius:4px;padding:1px 6px'>{_pf_sig}</b></span>"
+                f"</div>"
+                f"<div style='display:grid;"
+                f"grid-template-columns:140px 130px 80px 130px 150px;"
+                f"padding:6px 0 4px;font-size:10px;color:#9CA3AF;font-weight:500;gap:8px'>"
+                f"<div>매수 날짜</div><div style='text-align:right'>구매 금액</div>"
+                f"<div style='text-align:right'>수량</div>"
+                f"<div style='text-align:right'>총수익</div>"
+                f"<div style='text-align:right'>금액 (₩)</div>"
+                f"</div>",
                 unsafe_allow_html=True)
 
             for idx, lot in enumerate(lots):
@@ -6305,8 +6348,8 @@ with tab4:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>V102 💻 PC QUANTUM INSTITUTIONAL OS</b>"
-        f" &nbsp;|&nbsp; APP_V102 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V103</b>"
+        f" &nbsp;|&nbsp; APP_V103 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

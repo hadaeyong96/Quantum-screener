@@ -3,11 +3,35 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V94
-  V94 - 매수 조건 현실화: 브레이크아웃 5일 확장 / EPS 30→15% / 신고가 -10→-20%
-        3일 연속 소폭 상승(📈 꾸준상승) 신호 추가 — OR 게이트로 브레이크아웃 보완
-        경고 발동 기준 7→6조건 완화
-UPDATED : 2026-05-21
+VERSION : APP_V98
+  V98 - 7가지 전면 개선 (AI 트레이더 평가 반영)
+        1. 백테스트 결과 종목분석 탭 상단 표시 (승률·평균수익·MDD)
+        2. trades.json 매수가 저장 → 실제 수익률 기반 익절 판단
+        3. ATR 기반 포지션 사이징 (종목당 총자산 1% 리스크 룰)
+        4. 실적 서프라이즈 갭업 진입 신호 (당일 +5%↑ + 거래량 3배↑)
+        5. 섹터 강도 0~100점 정량화 (RS+1M+3M+MA 합산)
+        6. RS Score 단기 가중치 재조정 (1M:0.25 3M:0.30 6M:0.25 12M:0.20)
+        7. GLD 헤지 자산 추가 (유동성 2단계 이하 자동 비중 상향)
+  V97 - 수익 확보 시스템
+        · 추적 손절 (Trailing Stop): 20일 고점 -10% 이탈 → 📉 추적손절
+        · 단계별 익절 신호: +15% → 💰 1차익절 (50% 매도), +25% → 💰 2차익절 (잔여 50% 절반)
+        · 실적발표 3일 전 보유 시 ⚠️ 실적전축소 신호 자동 표시
+        · VIX 단계별 포지션 축소 (20→경계 / 25→축소 / 28→금지)
+        · MA10 이탈 2일 연속 확인 후 EXIT 확정 (횡보 손절 반복 방지)
+        · 일평균 거래량 100만주 미만 자동 필터
+        · get_invest_ratio VIX 단계 반영
+  V96 - 🔁 MA10 재돌파 신호 추가
+        3연상 거래량 최소 조건 추가 (평균 × 0.8)
+        거래량 가중치 10%→15% / EPS 가중치 20%→15%
+        ROE 20%↑ 보너스 +5점 밸류에이션에 반영
+        ATR(14) 기반 동적 손절 컬럼 추가
+  V95 - 📱 모바일 전용 버전 (Mobile-First)
+        사이드바 → collapsed / 탭 이름 아이콘+단어로 축약
+        모든 st.columns → 세로 스택 (모바일 1열)
+        차트 height: 220→160 / 폰트 전체 -2px / 패딩 축소
+        데이터프레임 height: 520→340 / 핵심 컬럼만 표시
+        3열 카드 → CSS grid 2열 자동 wrap
+UPDATED : 2026-05-22
 CHANGES :
   V01 - 원본 기본 대시보드 (yfinance)
   V02 - FRED 연동 / 다크테마 / RS 버그 수정
@@ -122,21 +146,147 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="V94 Quantum Institutional OS",
-                   layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="V98 📱 Mobile Quantum OS",
+                   layout="wide", initial_sidebar_state="collapsed")
 
-# ── V79: 모바일 최적화 CSS ─────────────────────────────
+# ── V95: 모바일 전용 CSS (Mobile-First) ──────────────────
 st.markdown("""
 <style>
-@media (max-width: 768px) {
-    .stDataFrame { font-size:11px !important; }
-    .stDataFrame th, .stDataFrame td { padding:3px 5px !important; }
-    .main .block-container { padding:0.5rem 0.7rem !important; }
-    .sec-header { font-size:13px !important; padding:7px 10px !important; }
-    h3 { font-size:13px !important; }
-    [data-testid="stSidebar"] { min-width:200px !important; }
+/* ═══════════════════════════════════════
+   MOBILE BASE — 전체 패딩/폰트 축소
+═══════════════════════════════════════ */
+.main .block-container {
+    padding: 0.4rem 0.6rem 1rem 0.6rem !important;
+    max-width: 100% !important;
 }
-.stDataFrame [data-testid="stDataFrameResizable"] { overflow-x:auto !important; }
+/* 기본 폰트 크기 하향 */
+body, p, span, div, label {
+    font-size: 12px !important;
+}
+h1 { font-size: 16px !important; }
+h2 { font-size: 14px !important; }
+h3 { font-size: 13px !important; }
+
+/* ═══════════════════════════════════════
+   TABS — 폰에서 스크롤 가능하게
+═══════════════════════════════════════ */
+[data-testid="stTabs"] [role="tablist"] {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding: 0 2px !important;
+}
+[data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar { display: none; }
+[data-testid="stTabs"] button {
+    font-size: 11px !important;
+    padding: 8px 10px !important;
+    white-space: nowrap !important;
+    min-width: fit-content !important;
+}
+[data-testid="stTabs"] button[aria-selected="true"] {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+}
+
+/* ═══════════════════════════════════════
+   COLUMNS → 세로 스택 강제 (핵심!)
+═══════════════════════════════════════ */
+[data-testid="column"] {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+}
+
+/* ═══════════════════════════════════════
+   DATAFRAME — 모바일 최적화
+═══════════════════════════════════════ */
+.stDataFrame { font-size: 10px !important; overflow-x: auto !important; }
+.stDataFrame th { font-size: 10px !important; padding: 3px 5px !important; }
+.stDataFrame td { font-size: 10px !important; padding: 3px 5px !important; }
+[data-testid="stDataFrameResizable"] { overflow-x: auto !important; }
+
+/* ═══════════════════════════════════════
+   METRIC 카드 — 축소
+═══════════════════════════════════════ */
+[data-testid="metric-container"] {
+    padding: 8px 10px !important;
+}
+[data-testid="stMetricValue"] { font-size: 18px !important; }
+[data-testid="stMetricLabel"] { font-size: 10px !important; }
+
+/* ═══════════════════════════════════════
+   SIDEBAR — 폰에서 최소화
+═══════════════════════════════════════ */
+[data-testid="stSidebar"] {
+    min-width: 220px !important;
+    max-width: 260px !important;
+}
+[data-testid="stSidebar"] * { font-size: 11px !important; }
+
+/* ═══════════════════════════════════════
+   INPUT / SELECT / BUTTON
+═══════════════════════════════════════ */
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea {
+    font-size: 13px !important;
+    padding: 6px 8px !important;
+}
+.stButton button {
+    font-size: 12px !important;
+    padding: 6px 12px !important;
+}
+[data-testid="stSelectbox"] > div > div { font-size: 12px !important; }
+
+/* ═══════════════════════════════════════
+   SEC-HEADER / CARDS — 폰 축소
+═══════════════════════════════════════ */
+.sec-header {
+    font-size: 9px !important;
+    padding: 6px 8px !important;
+    letter-spacing: 1px !important;
+    margin: 12px 0 8px 0 !important;
+}
+.indicator-card { padding: 8px 10px !important; margin: 2px 0 !important; }
+.guide-box { font-size: 11px !important; padding: 8px 10px !important; }
+.warn-box, .ok-box, .info-box { font-size: 11px !important; padding: 7px 10px !important; }
+
+/* ═══════════════════════════════════════
+   STAT DISPLAY — 숫자 크기 축소
+═══════════════════════════════════════ */
+.stat-big { font-size: 28px !important; }
+.stat-row { gap: 16px !important; padding: 8px 0 !important; }
+.stat-item .value { font-size: 13px !important; }
+.stat-item .label { font-size: 9px !important; }
+
+/* ═══════════════════════════════════════
+   PLOTLY — 터치 스크롤 허용
+═══════════════════════════════════════ */
+.js-plotly-plot .plotly { touch-action: pan-x pan-y !important; }
+.js-plotly-plot .plotly .main-svg { touch-action: pan-x pan-y !important; }
+
+/* ═══════════════════════════════════════
+   MOBILE GRID — 2열 카드 (배지 등)
+═══════════════════════════════════════ */
+.mobile-grid-2 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 5px !important;
+}
+.mobile-grid-3 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 4px !important;
+}
+
+/* ═══════════════════════════════════════
+   HR / EXPANDER
+═══════════════════════════════════════ */
+hr { margin: 10px 0 !important; }
+[data-testid="stExpander"] summary {
+    font-size: 11px !important;
+    padding: 6px 8px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -153,7 +303,7 @@ st.markdown("""
 [data-testid="stHeader"]
     { background-color:#FFFFFF !important; border-bottom:1px solid #E2E6ED !important; }
 body,p,span,div,label
-    { color:#1C2330 !important; font-family:'Inter',sans-serif !important; }
+    { color:#1C2330 !important; font-family:'Inter',sans-serif !important; font-size:12px !important; }
 h1,h2,h3 { font-family:'Space Mono',monospace !important; color:#0D1117 !important; }
 
 /* SIDEBAR */
@@ -540,6 +690,24 @@ INDICATOR_HELP = {
 }
 
 ACTION_GUIDE = {
+    "🚀 실적갭업":   {"text":"실적 서프라이즈 갭업 — 강력 진입 신호",
+        "sub":"갭업 +5%↑ + 거래량 3배↑ = 기관 대량 매집. 당일 종가 부근 분할 진입",
+        "color":"#166534","bg":"#F0FDF4"},
+    "💰 1차익절":    {"text":"목표 +15% 달성 — 보유량 50% 매도",
+        "sub":"절반 매도로 원금 회수 구간 진입. 나머지 절반은 +25% 목표로 계속 보유",
+        "color":"#166534","bg":"#F0FDF4"},
+    "💰 2차익절":    {"text":"목표 +25% 달성 — 잔여분 50% 추가 매도",
+        "sub":"잔여 25%만 보유하며 추세 추종. MA10 이탈 시 전량 청산",
+        "color":"#0F766E","bg":"#F0FDFA"},
+    "📉 추적손절":   {"text":"고점 대비 -10% 이탈 — 이익 보호 청산",
+        "sub":"상승분을 지키기 위한 청산. 일반 손절과 다르게 수익권에서 발생",
+        "color":"#92400E","bg":"#FFFBEB"},
+    "⚡ 실적전축소":  {"text":"실적 발표 3일 이내 — 비중 50% 축소 권고",
+        "sub":"갭다운 위험 구간. 실적 확인 후 재진입이 더 안전합니다",
+        "color":"#7C3AED","bg":"#F5F3FF"},
+    "🔁 MA10 회복":  {"text":"MA10 재돌파 — 재진입 검토 구간",
+        "sub":"EXIT 후 MA10 위로 복귀. 손절 물량 소화 완료 신호 — 소량 분할 진입 고려",
+        "color":"#1D4ED8","bg":"#EFF6FF"},
     "🚀 STRONG BUY": {"text":"지금 분할 매수 가능 구간",
         "sub":"모멘텀 강함 + 거래량 확인 → 3~5회 나눠서 진입 권장",
         "color":"#166534","bg":"#F0FDF4"},
@@ -638,7 +806,10 @@ DEFAULT_TICKERS = [
     "CMCSA", "TMUS", "CHTR", "FAST",
     # 에너지 / 기타 (3)
     "FANG", "CEG", "SMCI",
-]  # 총 68개 — 나스닥100 주요 종목 기준 (V82)
+    # 헤지 자산 (V98: 나스닥 폭락 방어)
+    "GLD",   # 금 ETF — 위기 시 반등
+    "TLT",   # 장기채 ETF — 금리 하락 시 반등
+]  # 총 70개 — 나스닥100 + 헤지 2종 (V98)
 
 FRED_META = {
     "M2":           ("M2SL",         "M2 통화량",       "B$", 30),
@@ -789,9 +960,12 @@ selected_sectors = set()
 
 # ── 앱 타이틀 ─────────────────────────────────────────
 sb.markdown(
-    "<div style='font-family:Space Mono,monospace;font-size:12px;font-weight:600;"
-    "color:#3B5BA5;letter-spacing:1px;padding:6px 0 2px'>V93 QUANTUM OS</div>"
-    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
+    "<div style='font-family:Space Mono,monospace;font-size:11px;font-weight:600;"
+    "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>V98 QUANTUM OS</div>"
+    "<div style='display:inline-block;background:#EFF6FF;border:0.5px solid #BFDBFE;"
+    "border-radius:4px;font-size:9px;font-weight:600;color:#1D4ED8;"
+    "padding:1px 6px;margin-bottom:2px;letter-spacing:0.5px'>📱 MOBILE VERSION</div>"
+    "<div style='font-size:9px;color:#9CA3AF;margin-bottom:6px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
 sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=True)
@@ -1012,16 +1186,42 @@ def load_market(_bust=0):
 
 @st.cache_data(ttl=300, show_spinner=False)
 def load_sectors(_bust=0):
+    """섹터 ETF → 강도 0~100점 정량화 (V98)
+    RS(QQQ 대비) + 1M수익 + 3M수익 + MA위치 합산"""
     SECTORS = {"반도체":"SOXX","AI·클라우드":"SKYY","바이오":"XBI",
                "소비재":"XLY","금융":"XLF","에너지":"XLE","인프라":"PAVE"}
+    qqq_s = get_close("QQQ","6mo")
     res = {}
     for name, etf in SECTORS.items():
         s = get_close(etf, "6mo")
-        if s is not None and len(s) >= 21:
-            r1m  = float(s.iloc[-1]/s.iloc[-21]-1)*100
+        if s is None or len(s) < 63: continue
+        try:
+            r1m  = float(s.iloc[-1]/s.iloc[-21]-1)*100 if len(s)>=21 else 0.0
+            r3m  = float(s.iloc[-1]/s.iloc[-63]-1)*100 if len(s)>=63 else 0.0
             ma20 = float(s.rolling(20).mean().iloc[-1])
-            res[name] = {"etf":etf,"ret_1m":round(r1m,2),
-                          "above_ma20":float(s.iloc[-1])>ma20,"price":float(s.iloc[-1])}
+            ma50 = float(s.rolling(50).mean().iloc[-1]) if len(s)>=50 else ma20
+            above_ma20 = float(s.iloc[-1]) > ma20
+            above_ma50 = float(s.iloc[-1]) > ma50
+            # QQQ 대비 초과수익 (RS)
+            rs_vs_qqq = 0.0
+            if qqq_s is not None and len(qqq_s)>=21:
+                _qqq1m = float(qqq_s.iloc[-1]/qqq_s.iloc[-21]-1)*100
+                rs_vs_qqq = r1m - _qqq1m
+            # 점수 합산 (0~100)
+            sc  = 50.0  # 기본
+            sc += min(20, max(-20, r1m * 1.5))   # 1M 수익률 ±20점
+            sc += min(15, max(-15, r3m * 0.8))   # 3M 수익률 ±15점
+            sc += min(10, max(-10, rs_vs_qqq * 2)) # RS ±10점
+            sc += 5 if above_ma20 else -5          # MA20 ±5점
+            sc += 5 if above_ma50 else -5          # MA50 ±5점 (V98)
+            sc  = max(0, min(100, round(sc, 1)))
+            res[name] = {
+                "etf": etf, "ret_1m": round(r1m,2), "ret_3m": round(r3m,2),
+                "rs_vs_qqq": round(rs_vs_qqq,2), "above_ma20": above_ma20,
+                "above_ma50": above_ma50, "price": float(s.iloc[-1]),
+                "sector_score": sc   # V98: 0~100 정량화
+            }
+        except: continue
     return res
 
 with st.spinner("📡 FRED 데이터 로드 중..."):
@@ -1185,7 +1385,8 @@ def load_stocks(tickers, _bust=0):
                             sr=float(sc_s.iloc[-1]/sc_s.iloc[-days]-1)
                             qr=float(qc_s.iloc[-1]/qc_s.iloc[-days]-1)
                             rs_vals[vk]=round((sr-qr)*100,2)
-            rs_raw=rs_vals["rs_1m"]*0.15+rs_vals["rs_3m"]*0.25+rs_vals["rs_6m"]*0.35+rs_vals["rs_12m"]*0.25
+            # V98: RS 가중치 단기 강화 (1M:0.25 3M:0.30 6M:0.25 12M:0.20)
+            rs_raw=rs_vals["rs_1m"]*0.25+rs_vals["rs_3m"]*0.30+rs_vals["rs_6m"]*0.25+rs_vals["rs_12m"]*0.20
             breakout=vol_surge=consecutive_rise=False
             if len(close)>=27:
                 # ── 브레이크아웃: 최근 5일 내 고점이 이전 20일 고점 돌파 (V94)
@@ -1198,15 +1399,97 @@ def load_stocks(tickers, _bust=0):
                 avg_vol=float(volume.tail(20).mean())
                 # ── 거래량 급증: 최근 5일 내 1회 이상 1.5배 초과 (V94)
                 vol_surge=bool((volume.tail(5)>avg_vol*1.5).any()) if avg_vol>0 else False
-            # ── 3일 연속 소폭 상승: 3일 모두 양봉 + 각 일 상승폭 0~5% (V94)
+            # ── 3일 연속 소폭 상승: 3일 모두 양봉 + 각 일 0~5% + 거래량 평균 이상 (V96)
             if len(close)>=4:
                 try:
                     _c_gains=[(float(close.iloc[-i])/float(close.iloc[-i-1])-1) for i in range(1,4)]
-                    consecutive_rise=all(0<g<0.05 for g in _c_gains)
+                    _vol_ok_3c = True
+                    if len(volume)>=21:
+                        _avg_v3 = float(volume.tail(20).mean())
+                        _vol_3d = float(volume.tail(3).mean())
+                        _vol_ok_3c = (_avg_v3 > 0) and (_vol_3d >= _avg_v3 * 0.8)
+                    consecutive_rise = all(0<g<0.05 for g in _c_gains) and _vol_ok_3c
                 except: consecutive_rise=False
-            exit_signal=False
-            if len(close)>=11:
-                exit_signal=float(close.iloc[-1])<float(close.rolling(10).mean().iloc[-1])
+            # ── 일평균 거래량 필터: 100만주 미만 제외 (V97)
+            if len(volume) >= 20:
+                _avg_vol_filter = float(volume.tail(20).mean())
+                if _avg_vol_filter < 1_000_000:
+                    failed.append(tk); continue
+            # ── EXIT 신호: MA10 이탈 2일 연속 확인 (V97 — 횡보 손절 반복 방지)
+            exit_signal = False
+            ma10_recovery = False
+            if len(close) >= 13:
+                _ma10 = close.rolling(10).mean()
+                _ma10_t  = float(_ma10.iloc[-1])
+                _ma10_y  = float(_ma10.iloc[-2])
+                _ma10_y2 = float(_ma10.iloc[-3])
+                _c_t  = float(close.iloc[-1])
+                _c_y  = float(close.iloc[-2])
+                _c_y2 = float(close.iloc[-3])
+                # 2일 연속 이탈 확인
+                exit_signal   = (_c_t < _ma10_t) and (_c_y < _ma10_y)
+                ma10_recovery = (_c_y < _ma10_y) and (_c_t > _ma10_t)
+            elif len(close) >= 12:
+                _ma10 = close.rolling(10).mean()
+                _ma10_t = float(_ma10.iloc[-1]); _ma10_y = float(_ma10.iloc[-2])
+                _c_t = float(close.iloc[-1]);    _c_y  = float(close.iloc[-2])
+                exit_signal   = (_c_t < _ma10_t) and (_c_y < _ma10_y)
+                ma10_recovery = (_c_y < _ma10_y) and (_c_t > _ma10_t)
+            elif len(close) >= 11:
+                exit_signal = float(close.iloc[-1]) < float(close.rolling(10).mean().iloc[-1])
+            # ── 추적 손절: 20일 고점 대비 -10% 이탈 (V97)
+            trailing_stop = False
+            if len(close) >= 21:
+                _roll_high = float(close.tail(20).max())
+                trailing_stop = float(close.iloc[-1]) < _roll_high * 0.90
+            # ── 단계별 익절 계산 (V97): 20일/60일 수익률 기반
+            # ── V98: trades.json 매수가 있으면 실제 수익률 우선 사용
+            profit_stage = 0
+            profit_ret   = 0.0
+            _trades_now  = _trades_load()
+            _my_trade    = next((t for t in _trades_now if t.get("ticker")==tk), None)
+            if _my_trade and _my_trade.get("buy_price",0) > 0:
+                _bp       = float(_my_trade["buy_price"])
+                _actual_r = float(close.iloc[-1]) / _bp - 1
+                if _actual_r >= 0.25:   profit_stage = 2; profit_ret = _actual_r
+                elif _actual_r >= 0.15: profit_stage = 1; profit_ret = _actual_r
+            elif len(close) >= 21:
+                _ret_20d = float(close.iloc[-1] / close.iloc[-21] - 1)
+                if _ret_20d >= 0.25:   profit_stage = 2; profit_ret = _ret_20d
+                elif _ret_20d >= 0.15: profit_stage = 1; profit_ret = _ret_20d
+            # ── 실적 서프라이즈 갭업: 당일 +5%↑ + 거래량 3배↑ (V98)
+            earnings_gap_up = False
+            if len(close) >= 3 and len(volume) >= 21:
+                try:
+                    _gap = float(close.iloc[-1]) / float(close.iloc[-2]) - 1
+                    _avg_v_gap = float(volume.tail(20).mean())
+                    _vol_today = float(volume.iloc[-1])
+                    earnings_gap_up = (_gap >= 0.05) and (_avg_v_gap > 0) and (_vol_today >= _avg_v_gap * 3)
+                except: earnings_gap_up = False
+            # ── ATR(14) 기반 동적 손절 가격 계산 (V96)
+            atr_val = None
+            atr_stop = None
+            try:
+                if len(close)>=16:
+                    _raw_full = raw_dl
+                    if isinstance(_raw_full.columns, pd.MultiIndex):
+                        _hi = _raw_full["High"].iloc[:,0]
+                        _lo = _raw_full["Low"].iloc[:,0]
+                    else:
+                        _hi = _raw_full["High"] if "High" in _raw_full.columns else close
+                        _lo = _raw_full["Low"]  if "Low"  in _raw_full.columns else close
+                    _hi = _hi.squeeze().dropna()
+                    _lo = _lo.squeeze().dropna()
+                    _cl_prev = close.shift(1)
+                    _tr = pd.concat([
+                        _hi - _lo,
+                        (_hi - _cl_prev).abs(),
+                        (_lo - _cl_prev).abs()
+                    ], axis=1).max(axis=1).dropna()
+                    if len(_tr) >= 14:
+                        atr_val  = round(float(_tr.rolling(14).mean().iloc[-1]), 2)
+                        atr_stop = round(float(close.iloc[-1]) - atr_val * 2, 2)
+            except: atr_val = None; atr_stop = None
             # ── RSI(14) 계산 (V84) ──────────────────────────
             rsi_val = None
             try:
@@ -1236,16 +1519,46 @@ def load_stocks(tickers, _bust=0):
             if peg>0: val_sc+=min(40,(1/peg)*20)
             if eveb>0: val_sc+=max(0,20-eveb)
             if ps>0:   val_sc+=max(0,15-ps)
-            val_sc=min(40,val_sc)
+            if roe>=20: val_sc+=5.0   # ROE 20%↑ 보너스 (V96)
+            val_sc=min(45,val_sc)     # 상한 40→45 (ROE 보너스 반영)
             avg_v=float(volume.tail(20).mean()) if len(volume)>=21 else 1.0
             vol_ratio=float(volume.iloc[-1])/avg_v if avg_v>0 else 1.0
             _liq_pct_safe = liq_pct if 'liq_pct' in dir() and isinstance(liq_pct, (int,float)) else 0.5
-            ai=round(max(0,min(100,max(rs_raw,0)*0.30+max(eps,0)*0.20+max(rev,0)*0.15+val_sc*0.15+(vol_ratio*5)*0.10+(_liq_pct_safe*50)*0.10)),1)
+            # V96: 거래량 가중치 0.10→0.15 / EPS 0.20→0.15
+            ai=round(max(0,min(100,
+                max(rs_raw,0)*0.30 +
+                max(eps,0)*0.15 +
+                max(rev,0)*0.15 +
+                val_sc*0.15 +
+                (vol_ratio*5)*0.15 +
+                (_liq_pct_safe*50)*0.10
+            )),1)
             _rsi_overbought = rsi_val is not None and rsi_val >= 70
             _rsi_ok         = rsi_val is None or rsi_val < 70
-            _entry_ok       = breakout or consecutive_rise   # OR 게이트 (V94)
-            if exit_signal:
+            _entry_ok       = breakout or consecutive_rise
+
+            # ── V98 신호 우선순위 ─────────────────────────────
+            # 1순위: 익절
+            if profit_stage == 2:
+                signal = "💰 2차익절"
+            elif profit_stage == 1:
+                signal = "💰 1차익절"
+            # 2순위: 추적 손절
+            elif trailing_stop and not exit_signal:
+                signal = "📉 추적손절"
+            # 3순위: MA10 재돌파
+            elif ma10_recovery and rs_raw > 0 and not _rsi_overbought:
+                signal = "🔁 MA10 회복"
+            # 4순위: EXIT
+            elif exit_signal:
                 signal = "⚠️ EXIT"
+            # 5순위: 실적 갭업 (V98)
+            elif earnings_gap_up and _rsi_ok:
+                signal = "🚀 실적갭업"
+            # 6순위: 실적 발표 임박
+            elif earnings_warn:
+                signal = "⚡ 실적전축소"
+            # 7순위: 일반 진입 신호
             elif _rsi_overbought and _entry_ok:
                 signal = "🔥 과열주의"
             elif ai>=80 and breakout and vol_surge and _rsi_ok:
@@ -1295,8 +1608,14 @@ def load_stocks(tickers, _bust=0):
                 "EPS Growth%":round(eps,1),"Rev Growth%":round(rev,1),"ROE%":round(roe,1),
                 "Vol Ratio":round(vol_ratio,2),
                 "RSI":rsi_val,
+                "ATR":atr_val,"ATR손절":atr_stop,
+                "수익률20d":round(profit_ret*100,1),
+                "익절단계":profit_stage,
+                "추적손절":"✅" if trailing_stop else "—",
                 "Breakout":"✅" if breakout else "—","Vol Surge":"✅" if vol_surge else "—",
                 "3연상":"✅" if consecutive_rise else "—",
+                "MA10회복":"✅" if ma10_recovery else "—",
+                "갭업":"✅" if earnings_gap_up else "—",
                 "Exit Signal":"⚠️" if exit_signal else "—","Signal":signal,
                 "실적예정":earnings_date_str,"실적경고":"⚠️" if earnings_warn else "—"})
         except: failed.append(tk)
@@ -1305,7 +1624,9 @@ def load_stocks(tickers, _bust=0):
     df["RS Score"]=df["RS Raw"].rank(pct=True).mul(100).round(0).astype(int)
     df["RS Rank"]=df["RS Raw"].rank(ascending=False).astype(int)
     df=df.sort_values("AI Score",ascending=False).reset_index(drop=True); df.index=df.index+1
-    port=df[(df["RS Score"]>=80)&((df["Breakout"]=="✅")|(df.get("3연상","—")=="✅"))&(df["Exit Signal"]=="—")&(df["PEG"].fillna(2.9)<3.0)].head(5).copy()
+    port=df[(df["RS Score"]>=80)&(
+        (df["Breakout"]=="✅")|(df.get("3연상","—")=="✅")|(df.get("MA10회복","—")=="✅")
+    )&(df["Exit Signal"]=="—")&(df["PEG"].fillna(2.9)<3.0)].head(5).copy()
     if not port.empty:
         total=port["AI Score"].sum()
         port["비중%"]=(port["AI Score"]/total*100).clip(upper=30)
@@ -1333,9 +1654,10 @@ try:
             sec = _smap.get(tk)
             if not sec or sec not in sector_data: return 0.0
             sd  = sector_data[sec]
-            if sd.get("above_ma20") and sd.get("ret_1m", 0) > 3: return 5.0
-            if not sd.get("above_ma20"): return -5.0
-            return 0.0
+            sc  = sd.get("sector_score", 50)  # V98: 0~100점 기반
+            if sc >= 70: return 8.0    # 강한 섹터
+            if sc >= 45: return 0.0    # 중립
+            return -8.0                # 약한 섹터
         df_all["섹터 AI Score"] = df_all.apply(
             lambda r: min(100, max(0, r["AI Score"] + _sec_bonus(r["Ticker"]))), axis=1
         ).round(1)
@@ -1566,8 +1888,9 @@ vix_s=mkt.get("VIX"); vix_val=None
 if vix_s is not None and not vix_s.empty:
     mkt_avail+=1; vix_val=float(vix_s.iloc[-1])
     if vix_val<20:   mkt_score+=1; mkt_reasons.append(("✅",f"VIX {vix_val:.1f} — 공포 없음, 안정적"))
-    elif vix_val<28: mkt_reasons.append(("⚠️",f"VIX {vix_val:.1f} — 공포 시작. EPS 정상이면 저가 기회"))
-    else:            mkt_reasons.append(("❌",f"VIX {vix_val:.1f} — 패닉 구간, 매수 금지"))
+    elif vix_val<25: mkt_reasons.append(("⚠️",f"VIX {vix_val:.1f} — 경계 구간. 신규 진입 시 비중 70% 이하 유지"))
+    elif vix_val<28: mkt_reasons.append(("❌",f"VIX {vix_val:.1f} — 공포 구간. 투자 40% 상한 / 방어 자산 확대"))
+    else:            mkt_reasons.append(("❌",f"VIX {vix_val:.1f} — 패닉 구간, 매수 전면 금지"))
 tnx_s=mkt.get("TNX")
 if tnx_s is not None and len(tnx_s)>=21:
     mkt_avail+=1; tnx_now=float(tnx_s.iloc[-1]); tnx_prev=float(tnx_s.iloc[-21])
@@ -1692,17 +2015,50 @@ SCALE_CONFIG = {
     "XL": {"name":"멀티팩터 분산",   "emoji":"🌐", "core_ratio":0.45,"defense_ratio":0.35,"hedge_ratio":0.20},
 }
 
-def get_invest_ratio(liq_stage, mkt_status, hard_stops):
-    """유동성 단계(5=최적, 1=최악) → 투자 가능 비율"""
-    if hard_stops:                                   return 0.00, "🔴 매수 금지 — 현금 100%"
-    if liq_stage == 5 and mkt_status == "RISK ON":   return 0.90, "🚀 최적 환경 — 90% 투자"
-    if liq_stage == 5:                               return 0.70, "🟢 유동성 최고 — 70% 투자"
-    if liq_stage == 4 and mkt_status == "RISK ON":   return 0.65, "🟢 회복 초기 — 65% 투자"
-    if liq_stage == 4:                               return 0.50, "🟢 회복 초기 — 50% 투자"
-    if liq_stage == 3 and mkt_status == "RISK ON":   return 0.40, "🟡 혼조 구간 — 40% 투자"
-    if liq_stage == 3:                               return 0.25, "🟡 혼조 구간 — 25% 투자"
-    if liq_stage == 2:                               return 0.10, "🔴 수축 구간 — 10% 이하"
-    return 0.00, "🚨 위기 — 현금 전액 보유"
+def get_atr_position_size(total_capital_만원, atr_val, price, risk_pct=0.01):
+    """ATR 기반 포지션 사이징 (V98)
+    총자산의 risk_pct(기본 1%) 리스크를 각 종목에 동일하게 배분
+    포지션크기 = (총자산 × 리스크%) / (ATR × 2)
+    """
+    if not atr_val or atr_val <= 0 or price <= 0:
+        return None, None
+    total_capital_원 = total_capital_만원 * 10000
+    risk_amount_원   = total_capital_원 * risk_pct
+    atr_stop_range   = atr_val * 2      # ATR × 2 = 손절 거리
+    shares           = risk_amount_원 / (atr_stop_range * 1400)  # 환율 약 1400 적용
+    position_value_만원 = round(shares * price * 1400 / 10000, 0)
+    position_pct     = round(position_value_만원 / total_capital_만원 * 100, 1) if total_capital_만원 > 0 else 0
+    return position_value_만원, position_pct
+
+
+def get_invest_ratio(liq_stage, mkt_status, hard_stops, vix=None):
+    """유동성 단계 + VIX 단계 → 투자 가능 비율 + GLD 헤지 비중 (V98)"""
+    if hard_stops:                                   return 0.00, "🔴 매수 금지 — 현금 100%", 0.15
+    vix_cap = 1.0; vix_msg = ""
+    if vix is not None:
+        if vix >= 28:   vix_cap = 0.00; vix_msg = f" (VIX {vix:.0f} — 매수 금지)"
+        elif vix >= 25: vix_cap = 0.40; vix_msg = f" (VIX {vix:.0f} — 40% 상한)"
+        elif vix >= 20: vix_cap = 0.70; vix_msg = f" (VIX {vix:.0f} — 70% 상한)"
+    if vix_cap == 0.0: return 0.00, f"🔴 VIX 패닉{vix_msg} — 현금 100%", 0.20
+    if liq_stage == 5 and mkt_status == "RISK ON":   base = 0.90
+    elif liq_stage == 5:                             base = 0.70
+    elif liq_stage == 4 and mkt_status == "RISK ON": base = 0.65
+    elif liq_stage == 4:                             base = 0.50
+    elif liq_stage == 3 and mkt_status == "RISK ON": base = 0.40
+    elif liq_stage == 3:                             base = 0.25
+    elif liq_stage == 2:                             base = 0.10
+    else:                                            base = 0.00
+    ratio = min(base, vix_cap)
+    gld_ratio = {5:0.00, 4:0.03, 3:0.07, 2:0.15, 1:0.20}.get(liq_stage, 0.05)
+    if vix and vix >= 25: gld_ratio = max(gld_ratio, 0.12)
+    label_map = {
+        0.90:"🚀 최적 환경", 0.70:"🟢 유동성 최고", 0.65:"🟢 회복 초기",
+        0.50:"🟢 회복 중",   0.40:"🟡 혼조 구간",   0.25:"🟡 주의 구간",
+        0.10:"🔴 수축 구간", 0.00:"🚨 현금 보유"
+    }
+    lbl = label_map.get(ratio, f"{ratio*100:.0f}% 투자")
+    return ratio, f"{lbl} — {ratio*100:.0f}% 투자{vix_msg}", gld_ratio
+
 
 
 
@@ -2177,11 +2533,11 @@ except Exception as _ds_err:
 # 탭 정의 (V44)
 # ─────────────────────────────────────────────────────────
 tab0, tab1, tab2, tab3, tab4 = st.tabs([
-    'STEP1 💧 유동성',
-    'STEP2 📡 섹터 강도',
-    'STEP3 📊 종목 선별',
-    'STEP4 💰 매수 실행',
-    'STEP5 📋 보유 관리'
+    '💧 유동성',
+    '📡 섹터',
+    '📊 종목',
+    '💰 매수',
+    '📋 보유'
 ])
 
 # ── V93: 지표 설명 expander 헬퍼 ─────────────────────────
@@ -2486,9 +2842,9 @@ with tab1:
         _fig_sec.add_hline(y=0, line_color="#E5E7EB", line_width=1)
         _fig_sec.update_layout(
             template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
-            height=260, margin=dict(l=4,r=4,t=28,b=4),
+            height=180, margin=dict(l=2,r=2,t=20,b=2),
             title=dict(text="섹터별 1개월 수익률 vs QQQ 기준", font=dict(size=12)),
-            xaxis=dict(gridcolor="#EBEDF0", tickfont=dict(size=11)),
+            xaxis=dict(gridcolor="#EBEDF0", tickfont=dict(size=8)),
             yaxis=dict(gridcolor="#EBEDF0", ticksuffix="%"),
             showlegend=False)
         st.plotly_chart(_fig_sec, use_container_width=True, key="sec_bar_chart")
@@ -2497,32 +2853,30 @@ with tab1:
         _strong = [(nm, d) for nm, d in _sec_df if d["above_ma20"] and d["ret_1m"] > 0]
         _weak   = [(nm, d) for nm, d in _sec_df if not d["above_ma20"] or d["ret_1m"] < -2]
 
-        _c1, _c2 = st.columns(2)
-        with _c1:
-            st.markdown(
-                "<div style='background:#F0FDF4;border:0.5px solid #86EFAC;"
-                "border-radius:8px;padding:10px 14px'>"
-                "<div style='font-size:11px;font-weight:600;color:#15803d;"
-                "margin-bottom:6px'>💪 강한 섹터</div>" +
-                "".join(f"<div style='font-size:11px;color:#374151;padding:2px 0'>"
-                        f"✅ <b>{nm}</b> ({d['etf']}) &nbsp;"
-                        f"+{d['ret_1m']:.1f}% &nbsp; RS {d['rs_vs_qqq']:+.1f}%</div>"
-                        for nm, d in _strong) +
-                ("<div style='font-size:11px;color:#9CA3AF'>없음</div>" if not _strong else "") +
-                "</div>", unsafe_allow_html=True)
+        # 강한/약한 섹터 (모바일: 세로 스택)
+        st.markdown(
+            "<div style='background:#F0FDF4;border:0.5px solid #86EFAC;"
+            "border-radius:8px;padding:10px 14px;margin-bottom:5px'>"
+            "<div style='font-size:11px;font-weight:600;color:#15803d;"
+            "margin-bottom:6px'>💪 강한 섹터</div>" +
+            "".join(f"<div style='font-size:10px;color:#374151;padding:2px 0'>"
+                    f"✅ <b>{nm}</b> ({d['etf']}) &nbsp;"
+                    f"+{d['ret_1m']:.1f}% &nbsp; RS {d['rs_vs_qqq']:+.1f}%</div>"
+                    for nm, d in _strong) +
+            ("<div style='font-size:10px;color:#9CA3AF'>없음</div>" if not _strong else "") +
+            "</div>", unsafe_allow_html=True)
 
-        with _c2:
-            st.markdown(
-                "<div style='background:#FEF2F2;border:0.5px solid #FECACA;"
-                "border-radius:8px;padding:10px 14px'>"
-                "<div style='font-size:11px;font-weight:600;color:#B91C1C;"
-                "margin-bottom:6px'>📉 약한 섹터</div>" +
-                "".join(f"<div style='font-size:11px;color:#374151;padding:2px 0'>"
-                        f"❌ <b>{nm}</b> ({d['etf']}) &nbsp;"
-                        f"{d['ret_1m']:.1f}%</div>"
-                        for nm, d in _weak) +
-                ("<div style='font-size:11px;color:#9CA3AF'>없음</div>" if not _weak else "") +
-                "</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div style='background:#FEF2F2;border:0.5px solid #FECACA;"
+            "border-radius:8px;padding:10px 14px'>"
+            "<div style='font-size:11px;font-weight:600;color:#B91C1C;"
+            "margin-bottom:6px'>📉 약한 섹터</div>" +
+            "".join(f"<div style='font-size:10px;color:#374151;padding:2px 0'>"
+                    f"❌ <b>{nm}</b> ({d['etf']}) &nbsp;"
+                    f"{d['ret_1m']:.1f}%</div>"
+                    for nm, d in _weak) +
+            ("<div style='font-size:10px;color:#9CA3AF'>없음</div>" if not _weak else "") +
+            "</div>", unsafe_allow_html=True)
 
         # 섹터 RS 상세 테이블
         st.markdown("<div style='margin:10px 0'></div>", unsafe_allow_html=True)
@@ -3162,7 +3516,7 @@ with tab0:
           </div>
         </div>""", unsafe_allow_html=True)
 
-    def _mini_chart(s, color, title, height=220, ref_line=None, ref_label="",
+    def _mini_chart(s, color, title, height=160, ref_line=None, ref_label="",
                     ref_color="#E53E3E", warn_line=None, warn_label="", warn_color="#F6AD55",
                     good_line=None, good_label="", good_color="#38A169",
                     sp500_s=None):
@@ -3343,48 +3697,46 @@ with tab0:
   </div>
 </details>"""
 
-        left_col, right_col = st.columns([1, 1.6])
-        with left_col:
-            st.markdown(f"""
-            <div style="background:#FFFFFF;border:1px solid #E2E6ED;border-radius:10px;
-                 padding:16px">
-              <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap">
-                <span style="font-size:13px;font-weight:700;color:#0D1117">{title}</span>
-                {_dir_badge_html}
-              </div>
-              <div style="margin-bottom:8px">
-                <a href="{fred_url}" target="_blank"
-                   style="font-size:10px;color:#3B82F6;text-decoration:none;
-                          background:#EFF6FF;border:0.5px solid #BFDBFE;
-                          border-radius:4px;padding:2px 6px">
-                  FRED: {fred_code} &#8599;</a>
-              </div>
-              <div style="font-family:'Space Mono',monospace;font-size:26px;
-                   font-weight:700;color:{status_color};line-height:1;margin-bottom:4px">
-                {f"{cur_val:.2f}{unit}" if cur_val is not None else "N/A"}</div>
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-                <span style="font-size:20px;font-weight:700;color:{diff_color}">{direction_arrow}</span>
-                <div>
-                  <div style="font-size:11px;color:{diff_color};font-weight:500">
-                    {direction_label} ({diff_sign}{direction_diff:.2f}{unit})</div>
-                  <div style="font-size:10px;color:#9CA3AF">{period_label}</div>
-                </div>
-              </div>
-              <div style="font-size:11px;color:#374151;padding:6px 0;
-                   border-top:0.5px solid #F3F4F6">{desc_short}</div>
-              {_exp_html}
+        # ── 모바일: 설명 위 / 차트 아래 (세로 스택) ───────────────
+        st.markdown(f"""
+        <div style="background:#FFFFFF;border:1px solid #E2E6ED;border-radius:10px;
+             padding:12px;margin-bottom:4px">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:700;color:#0D1117">{title}</span>
+            {_dir_badge_html}
+          </div>
+          <div style="margin-bottom:6px">
+            <a href="{fred_url}" target="_blank"
+               style="font-size:9px;color:#3B82F6;text-decoration:none;
+                      background:#EFF6FF;border:0.5px solid #BFDBFE;
+                      border-radius:4px;padding:2px 5px">
+              FRED: {fred_code} &#8599;</a>
+          </div>
+          <div style="font-family:'Space Mono',monospace;font-size:22px;
+               font-weight:700;color:{status_color};line-height:1;margin-bottom:4px">
+            {f"{cur_val:.2f}{unit}" if cur_val is not None else "N/A"}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+            <span style="font-size:16px;font-weight:700;color:{diff_color}">{direction_arrow}</span>
+            <div>
+              <div style="font-size:10px;color:{diff_color};font-weight:500">
+                {direction_label} ({diff_sign}{direction_diff:.2f}{unit})</div>
+              <div style="font-size:9px;color:#9CA3AF">{period_label}</div>
             </div>
-            """, unsafe_allow_html=True)
-        with right_col:
-            if chart_fig is not None:
-                st.plotly_chart(chart_fig, use_container_width=True, key=f"chart_ind_{fred_code}")
-            else:
-                st.markdown("""
-                <div style="background:#F9FAFB;border:1px solid #E2E6ED;border-radius:10px;
-                     height:220px;display:flex;align-items:center;justify-content:center;
-                     color:#9CA3AF;font-size:13px">
-                  FRED API Key를 입력하면 차트가 표시됩니다
-                </div>""", unsafe_allow_html=True)
+          </div>
+          <div style="font-size:10px;color:#374151;padding:5px 0;
+               border-top:0.5px solid #F3F4F6">{desc_short}</div>
+          {_exp_html}
+        </div>
+        """, unsafe_allow_html=True)
+        if chart_fig is not None:
+            st.plotly_chart(chart_fig, use_container_width=True, key=f"chart_ind_{fred_code}")
+        else:
+            st.markdown("""
+            <div style="background:#F9FAFB;border:1px solid #E2E6ED;border-radius:8px;
+                 height:120px;display:flex;align-items:center;justify-content:center;
+                 color:#9CA3AF;font-size:11px">
+              FRED API Key 입력 시 차트 표시
+            </div>""", unsafe_allow_html=True)
 
     if is_placeholder(FRED_API_KEY):
         st.markdown('<div class="warn-box">⚠️ FRED API Key 미입력 — 사이드바에서 입력하면 유동성 분석 활성화<br>'
@@ -3498,7 +3850,7 @@ with tab0:
         xanchor="left", yanchor="bottom")
     fig_m2.update_layout(
         template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
-        height=220, margin=dict(l=0,r=60,t=10,b=0),
+        height=160, margin=dict(l=0,r=50,t=8,b=0),
         legend=dict(orientation="h", y=1.12, x=0, font=dict(size=10), bgcolor="rgba(255,255,255,0.8)"),
         xaxis=dict(gridcolor="#EBEDF0", color="#718096", tickformat="%Y"),
         yaxis=dict(gridcolor="#EBEDF0", color="#718096", title="지수(시작=100)"),
@@ -3603,7 +3955,7 @@ with tab0:
             bordercolor=color, borderwidth=1.5, borderpad=3)
         fig.update_layout(
             template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
-            height=220, margin=dict(l=0,r=90,t=8,b=0), showlegend=True,
+            height=160, margin=dict(l=0,r=70,t=6,b=0), showlegend=True,
             legend=dict(orientation="h", y=1.08, x=0, font=dict(size=10),
                         bgcolor="rgba(255,255,255,0.8)"),
             xaxis=dict(gridcolor="#EBEDF0", color="#718096", tickformat="%Y-%m",
@@ -3736,7 +4088,7 @@ with tab0:
         borderwidth=1, borderpad=2, xanchor="left", yanchor="bottom")
     fig_cpi.update_layout(
         template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
-        height=220, margin=dict(l=0,r=70,t=10,b=0),
+        height=160, margin=dict(l=0,r=55,t=8,b=0),
         legend=dict(orientation="h", y=1.08, x=0, font=dict(size=11), bgcolor="rgba(0,0,0,0)"),
         xaxis=dict(gridcolor="#EBEDF0", color="#718096", tickformat="%Y"),
         yaxis=dict(gridcolor="#EBEDF0", color="#718096", title="전년비 (%)"),
@@ -3858,7 +4210,7 @@ with tab0:
 
     fig_t10.update_layout(
         template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
-        height=280, margin=dict(l=0, r=120, t=10, b=0),
+        height=170, margin=dict(l=0,r=80,t=8,b=0),
         legend=dict(orientation="h", y=1.08, x=0,
                     font=dict(size=11), bgcolor="rgba(0,0,0,0)"),
         xaxis=dict(gridcolor="#EBEDF0", color="#718096", tickformat="%Y-%m",
@@ -3877,7 +4229,7 @@ with tab0:
         _sp_color = "#9CA3AF"; _sp_msg = "스프레드 계산 중"
 
     # 현재값 카드 + 차트
-    _tv_cols = st.columns([1, 1.6])
+    _tv_cols = [st.container(), st.container()]  # 모바일: 세로 스택
     with _tv_cols[0]:
         t2_disp  = f"{t2_val:.2f}%"  if t2_val  else "N/A"
         t10_disp = f"{t10_val:.2f}%" if t10_val else "N/A"
@@ -3988,7 +4340,7 @@ with tab0:
     st.markdown("<div style='font-family:Space Mono,monospace;font-size:11px;color:#3B5BA5;letter-spacing:1px;margin:8px 0'>📊 유동성 나머지 지표 — 은행준비금 · 실질금리 · 크레딧 스프레드</div>",
                 unsafe_allow_html=True)
 
-    _rem_cols = st.columns(3)
+    _rem_cols = [st.container(), st.container(), st.container()]  # 모바일: 세로 스택
     _rem_good_dirs = {"Reserves":"up", "RealRate":"dn", "CreditSpread":"dn"}
     for _rcol, _rkey, _rnum, _rlabel in [
         (_rem_cols[0], "Reserves",     "8️⃣", "은행 준비금"),
@@ -4082,7 +4434,7 @@ def build_full_report():
     _mkt_kr  = MKT_KR.get(mkt_status, MKT_KR["NEUTRAL"])
     _max_s   = {"S":40,"M1":30,"M2":25,"L":15,"XL":10}[INVEST_SCALE]
     _stage_n = _la["stage"]
-    _ir, _   = get_invest_ratio(_stage_n, mkt_status, hard_stops)
+    _ir, _, _gld_ratio = get_invest_ratio(_stage_n, mkt_status, hard_stops, vix=vix_val)
     _avail   = INVEST_AMOUNT_만원 * _ir
     _cash    = INVEST_AMOUNT_만원 * (1 - _ir)
     _today   = _avail * 0.40
@@ -4691,6 +5043,56 @@ with tab2:
     _render_stepbar(3, LIQ_ACTION.get("stage", 0), 0)
     st.markdown('<div class="sec-header">📊 종목 선별 (STEP 3)</div>', unsafe_allow_html=True)
 
+    # ── V98: 백테스트 결과 (신호 신뢰도 패널) ───────────────
+    try:
+        with st.expander("📈 신호 신뢰도 — 과거 STRONG BUY 승률 (클릭해서 보기)", expanded=False):
+            _bt_placeholder = st.empty()
+            _bt_placeholder.markdown(
+                "<div style='font-size:11px;color:#9CA3AF;padding:8px 0'>분석 중...</div>",
+                unsafe_allow_html=True)
+            _bt_df = run_backtest(tuple(DEFAULT_TICKERS[:20]), lookback_days=365)
+            if not _bt_df.empty:
+                _n_sig  = len(_bt_df)
+                _wr20   = round(_bt_df["20일승"].mean()*100, 1)
+                _wr60   = round(_bt_df["60일승"].mean()*100, 1)
+                _avg20  = round(_bt_df["20일수익%"].mean(), 2)
+                _avg60  = round(_bt_df["60일수익%"].mean(), 2)
+                _med20  = round(_bt_df["20일수익%"].median(), 2)
+                _mdd    = round(_bt_df["20일수익%"].min(), 2)
+                _best   = _bt_df.groupby("Ticker")["20일수익%"].mean().sort_values(ascending=False)
+                _top3   = " · ".join([f"{t}({v:+.1f}%)" for t,v in _best.head(3).items()])
+                _bot3   = " · ".join([f"{t}({v:+.1f}%)" for t,v in _best.tail(3).items()])
+                _c20    = "#166534" if _wr20>=55 else ("#92400E" if _wr20>=45 else "#B91C1C")
+                _c60    = "#166534" if _wr60>=55 else ("#92400E" if _wr60>=45 else "#B91C1C")
+                _bt_placeholder.markdown(
+                    f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
+                    f"border-radius:8px;padding:12px 14px'>"
+                    f"<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
+                    f"최근 1년 · 신호 {_n_sig}건 분석 (브레이크아웃+거래량+RS 동시 충족)</div>"
+                    f"<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px'>"
+                    f"<div style='text-align:center;background:#F9FAFB;border-radius:6px;padding:8px'>"
+                    f"<div style='font-size:9px;color:#6B7280'>20일 승률</div>"
+                    f"<div style='font-size:20px;font-weight:500;color:{_c20}'>{_wr20}%</div></div>"
+                    f"<div style='text-align:center;background:#F9FAFB;border-radius:6px;padding:8px'>"
+                    f"<div style='font-size:9px;color:#6B7280'>20일 평균수익</div>"
+                    f"<div style='font-size:20px;font-weight:500;color:{'#166534' if _avg20>0 else '#B91C1C'}'>{_avg20:+.1f}%</div></div>"
+                    f"<div style='text-align:center;background:#F9FAFB;border-radius:6px;padding:8px'>"
+                    f"<div style='font-size:9px;color:#6B7280'>60일 승률</div>"
+                    f"<div style='font-size:20px;font-weight:500;color:{_c60}'>{_wr60}%</div></div>"
+                    f"</div>"
+                    f"<div style='font-size:11px;color:#374151;line-height:1.8'>"
+                    f"중간값 <b>{_med20:+.1f}%</b> &nbsp;·&nbsp; 최대손실 <b style='color:#B91C1C'>{_mdd:+.1f}%</b><br>"
+                    f"강한 종목: <span style='color:#166534'>{_top3}</span><br>"
+                    f"약한 종목: <span style='color:#B91C1C'>{_bot3}</span>"
+                    f"</div></div>",
+                    unsafe_allow_html=True)
+            else:
+                _bt_placeholder.markdown(
+                    "<div style='font-size:11px;color:#9CA3AF'>데이터 부족 — 더 많은 종목으로 재시도</div>",
+                    unsafe_allow_html=True)
+    except Exception as _bt_err:
+        pass
+
     if df_all.empty:
         st.markdown('<div class="warn-box">⚠️ 종목 데이터 없음 — 사이드바 [🔄 새로고침]을 눌러주세요.</div>', unsafe_allow_html=True)
     else:
@@ -4792,17 +5194,13 @@ with tab2:
                 unsafe_allow_html=True)
 
         # ── ③ 정렬 + 테이블 ─────────────────────────────────
-        _c1, _c2 = st.columns([3, 1])
-        with _c1:
-            st.markdown(
-                "<span style='font-family:Space Mono,monospace;font-size:10px;"
-                "color:#3B5BA5;letter-spacing:1px'>📋 종목 분석 테이블</span>"
-                " <span style='font-size:10px;color:#9CA3AF'>— 조건/8 = 8가지 선별조건 충족 수</span>",
-                unsafe_allow_html=True)
-        with _c2:
-            _sort_opt = st.selectbox(
-                "정렬", ["조건수","섹터 AI Score","RS Score","52주 고점%","EPS Growth%","PEG"],
-                key="t1_sort", label_visibility="collapsed")
+        st.markdown(
+            "<span style='font-family:Space Mono,monospace;font-size:9px;"
+            "color:#3B5BA5;letter-spacing:1px'>📋 종목 분석 테이블</span>",
+            unsafe_allow_html=True)
+        _sort_opt = st.selectbox(
+            "정렬", ["조건수","섹터 AI Score","RS Score","52주 고점%","EPS Growth%","PEG"],
+            key="t1_sort", label_visibility="collapsed")
 
         _disp_df = (
             _df.sort_values(["조건수", _sc_col], ascending=[False,False], na_position="last")
@@ -4810,19 +5208,18 @@ with tab2:
             else _df.sort_values(_sort_opt, ascending=(_sort_opt=="PEG"), na_position="last")
         )
 
-        # 컬럼 최소화 — 핵심만, PEG판정/Signal/RevGrowth/ROE 제외해 폭 축소
+        # 모바일: 핵심 컬럼만 (가로 스크롤 최소화)
         _showcols = [c for c in [
-            "Ticker","섹터","조건/9","Signal",
-            "RS✅","AI✅","EPS✅","RSI✅","신고가✅",
-            "Breakout","Vol Surge","3연상",
-            "Price","PEG","Rev Growth%",
-            "실적예정","실적경고"
+            "Ticker","조건/9","Signal",
+            "RS✅","AI✅","EPS✅",
+            "Breakout","3연상","MA10회복",
+            "Price","ATR손절","실적경고"
         ] if c in _disp_df.columns]
 
         st.dataframe(
             _disp_df[_showcols],
             use_container_width=True,
-            height=520,
+            height=340,
             column_config={
                 "조건/9":  st.column_config.TextColumn("조건/9",  width="small"),
                 "RS✅":    st.column_config.TextColumn("RS",     width="small"),
@@ -4838,6 +5235,8 @@ with tab2:
                 "Breakout":    st.column_config.TextColumn("B/O",                      width="small"),
                 "Vol Surge":   st.column_config.TextColumn("Vol↑",                     width="small"),
                 "3연상":       st.column_config.TextColumn("3연상",                    width="small"),
+                "MA10회복":    st.column_config.TextColumn("🔁회복",                   width="small"),
+                "ATR손절":     st.column_config.NumberColumn("ATR손절",  format="$%.2f",width="small"),
                 "실적경고":    st.column_config.TextColumn("실적",    width="small"),
                 "실적예정":    st.column_config.TextColumn("발표일",  width="small"),
                 "섹터":        st.column_config.TextColumn("섹터",    width="medium"),
@@ -4910,84 +5309,78 @@ with tab3:
         _buy_df = pd.DataFrame(); _exit_df = pd.DataFrame()
 
     # ════════════════════════════════════════════════════════
-    # 섹션 0 — 즉시 행동 카드
+    # 섹션 0 — 즉시 행동 카드 (모바일: 세로 스택)
     # ════════════════════════════════════════════════════════
-    _c0a, _c0b, _c0c = st.columns([1.2, 1.4, 1.4])
 
-    # 현재 투자 단계
-    with _c0a:
-        st.markdown(
-            f"<div style='background:{_stage_bg};border:1.5px solid {_stage_col}44;"
-            f"border-radius:10px;padding:16px;text-align:center;height:120px'>"
-            f"<div style='font-size:10px;color:{_stage_col};font-weight:600;"
-            f"letter-spacing:1px;margin-bottom:6px'>현재 투자 환경</div>"
-            f"<div style='font-size:22px;font-weight:700;color:{_stage_col};"
-            f"line-height:1.2'>{_stage_lbl}</div>"
-            f"<div style='font-size:12px;color:{_stage_col};opacity:0.8;margin-top:6px'>"
-            f"유동성 {LIQ_SCORE_100:.0f}점 · {_stage}단계</div>"
-            f"</div>",
-            unsafe_allow_html=True)
+    # 현재 투자 단계 카드
+    st.markdown(
+        f"<div style='background:{_stage_bg};border:1.5px solid {_stage_col}44;"
+        f"border-radius:10px;padding:12px 14px;text-align:center;margin-bottom:6px'>"
+        f"<div style='font-size:9px;color:{_stage_col};font-weight:600;"
+        f"letter-spacing:1px;margin-bottom:4px'>현재 투자 환경</div>"
+        f"<div style='font-size:20px;font-weight:700;color:{_stage_col};"
+        f"line-height:1.2'>{_stage_lbl}</div>"
+        f"<div style='font-size:11px;color:{_stage_col};opacity:0.8;margin-top:4px'>"
+        f"유동성 {LIQ_SCORE_100:.0f}점 · {_stage}단계</div>"
+        f"</div>",
+        unsafe_allow_html=True)
 
-    # 매수 검토 종목
-    with _c0b:
+    # 매수 검토 종목 카드 (세로)
+    if True:  # 모바일 세로 스택
         if not _buy_df.empty:
             _tkr_html = "".join(
                 f"<div style='display:flex;justify-content:space-between;"
                 f"align-items:center;padding:3px 0;border-bottom:0.5px solid #D1FAE5'>"
                 f"<span style='font-family:Space Mono,monospace;font-size:12px;"
                 f"font-weight:600;color:#0D1117'>{r['Ticker']}</span>"
-                f"<span style='font-size:11px;color:#15803d'>"
+                f"<span style='font-size:10px;color:#15803d'>"
                 f"AI {float(r.get(_sc_col,0)):.0f} · RS {int(r.get('RS Score',0))} · "
                 f"{int(r['조건수'])}/8</span></div>"
                 for _, r in _buy_df.iterrows()
             )
             st.markdown(
                 f"<div style='background:#F0FDF4;border:0.5px solid #86EFAC;"
-                f"border-radius:10px;padding:12px 14px;height:120px;overflow:hidden'>"
-                f"<div style='font-size:10px;font-weight:600;color:#15803d;"
-                f"letter-spacing:1px;margin-bottom:6px'>🟢 매수 검토 종목</div>"
+                f"border-radius:10px;padding:10px 12px;margin-bottom:6px'>"
+                f"<div style='font-size:9px;font-weight:600;color:#15803d;"
+                f"letter-spacing:1px;margin-bottom:5px'>🟢 매수 검토 종목</div>"
                 f"{_tkr_html}</div>",
                 unsafe_allow_html=True)
         else:
             st.markdown(
                 "<div style='background:#FFFBEB;border:0.5px solid #FDE68A;"
-                "border-radius:10px;padding:12px 14px;height:120px;"
-                "display:flex;align-items:center;justify-content:center;text-align:center'>"
-                "<div style='font-size:12px;color:#92400E'>"
+                "border-radius:10px;padding:10px 12px;margin-bottom:6px;text-align:center'>"
+                "<div style='font-size:11px;color:#92400E'>"
                 "⚠️ 6조건 충족 종목 없음<br>"
-                "<span style='font-size:11px'>종목테이블에서 4조건↑ 종목을 WATCH LIST로 관리하세요</span>"
+                "<span style='font-size:10px'>4조건↑ 종목을 WATCH LIST로 관리하세요</span>"
                 "</div></div>",
                 unsafe_allow_html=True)
 
-    # 청산 검토 종목
-    with _c0c:
-        if not _exit_df.empty:
-            _ex_tks = _exit_df["Ticker"].tolist()
-            _ex_html = " &nbsp;·&nbsp; ".join(
-                f"<span style='font-family:Space Mono,monospace;font-size:12px;"
-                f"font-weight:600'>{t}</span>" for t in _ex_tks[:8]
-            )
-            _ex_more = f"<span style='font-size:11px;color:#9CA3AF'> 외 {len(_ex_tks)-8}개</span>" if len(_ex_tks)>8 else ""
-            st.markdown(
-                f"<div style='background:#FEF2F2;border:0.5px solid #FECACA;"
-                f"border-radius:10px;padding:12px 14px;height:120px;overflow:hidden'>"
-                f"<div style='font-size:10px;font-weight:600;color:#B91C1C;"
-                f"letter-spacing:1px;margin-bottom:6px'>⚠️ 청산 검토 종목</div>"
-                f"<div style='font-size:12px;color:#B91C1C;line-height:1.8'>"
-                f"{_ex_html}{_ex_more}</div>"
-                f"<div style='font-size:10px;color:#9CA3AF;margin-top:6px'>"
-                f"MA10 이탈 — 보유 중이면 매도 검토</div></div>",
-                unsafe_allow_html=True)
-        else:
-            st.markdown(
-                "<div style='background:#F0FDF4;border:0.5px solid #86EFAC;"
-                "border-radius:10px;padding:12px 14px;height:120px;"
-                "display:flex;align-items:center;justify-content:center;text-align:center'>"
-                "<div style='font-size:12px;color:#15803d'>"
-                "✅ 청산 검토 종목 없음<br>"
-                "<span style='font-size:11px'>MA10 이탈 종목 없음</span>"
-                "</div></div>",
-                unsafe_allow_html=True)
+    # 청산 검토 종목 카드 (세로)
+    if not _exit_df.empty:
+        _ex_tks = _exit_df["Ticker"].tolist()
+        _ex_html = " &nbsp;·&nbsp; ".join(
+            f"<span style='font-family:Space Mono,monospace;font-size:12px;"
+            f"font-weight:600'>{t}</span>" for t in _ex_tks[:8]
+        )
+        _ex_more = f"<span style='font-size:10px;color:#9CA3AF'> 외 {len(_ex_tks)-8}개</span>" if len(_ex_tks)>8 else ""
+        st.markdown(
+            f"<div style='background:#FEF2F2;border:0.5px solid #FECACA;"
+            f"border-radius:10px;padding:10px 12px;margin-bottom:6px'>"
+            f"<div style='font-size:9px;font-weight:600;color:#B91C1C;"
+            f"letter-spacing:1px;margin-bottom:5px'>⚠️ 청산 검토 종목</div>"
+            f"<div style='font-size:12px;color:#B91C1C;line-height:1.8'>"
+            f"{_ex_html}{_ex_more}</div>"
+            f"<div style='font-size:9px;color:#9CA3AF;margin-top:4px'>"
+            f"MA10 이탈 — 보유 중이면 매도 검토</div></div>",
+            unsafe_allow_html=True)
+    else:
+        st.markdown(
+            "<div style='background:#F0FDF4;border:0.5px solid #86EFAC;"
+            "border-radius:10px;padding:10px 12px;margin-bottom:6px;text-align:center'>"
+            "<div style='font-size:11px;color:#15803d'>"
+            "✅ 청산 검토 종목 없음 — MA10 이탈 없음"
+            "</div></div>",
+            unsafe_allow_html=True)
 
     st.markdown("<hr style='border-color:#E2E6ED;margin:14px 0'>", unsafe_allow_html=True)
 
@@ -5001,7 +5394,7 @@ with tab3:
         st.session_state["invest_amount"] = float(
             st.session_state.get("port_invest_amount", 1000))
 
-    _pc1, _pc2 = st.columns([1, 2])
+    _pc1, _pc2 = st.columns([1, 1])  # 모바일: CSS가 세로 스택으로 강제
     with _pc1:
         st.markdown(
             "<div style='font-size:11px;font-weight:500;color:#374151;margin-bottom:4px'>"
@@ -5060,71 +5453,96 @@ with tab3:
             _wn = "⚠️ 실적임박" if _r.get("실적경고","—")=="⚠️" else ""
             _bk = "✅ 브레이크아웃" if _r.get("Breakout","—")=="✅" else "대기중"
             _vs = "✅ 거래량급증" if _r.get("Vol Surge","—")=="✅" else "—"
-            _sig= _r.get("Signal","—")
-            # 진입 근거 텍스트
+            _sig      = _r.get("Signal","—")
+            _ma10_rec  = _r.get("MA10회복","—") == "✅"
+            _trailing  = _r.get("추적손절","—") == "✅"
+            _atr_stop  = _r.get("ATR손절", None)
+            _p_stage   = int(_r.get("익절단계", 0) or 0)
+            _p_ret     = float(_r.get("수익률20d", 0) or 0)
             _reasons = []
-            if _cn >= 6: _reasons.append("6조건 이상 충족 — 최우선 진입 검토")
-            if _rs >= 90: _reasons.append(f"RS {_rs}점 — 나스닥 상위 10% 주도주")
-            if _ai >= 80: _reasons.append(f"AI {_ai:.0f}점 — 실적·밸류에이션 강함")
-            if _ep >= 15: _reasons.append(f"EPS 성장 {_ep:.0f}% — 이익 성장 중")
+            if _cn >= 6:   _reasons.append("6조건 이상 충족 — 최우선 진입 검토")
+            if _ma10_rec:  _reasons.append("🔁 MA10 재돌파 — 손절 물량 소화, 재진입 검토")
+            if _trailing:  _reasons.append("📉 추적손절 — 20일 고점 대비 -10% 이탈")
+            if _rs >= 90:  _reasons.append(f"RS {_rs}점 — 나스닥 상위 10% 주도주")
+            if _ai >= 80:  _reasons.append(f"AI {_ai:.0f}점 — 실적·밸류에이션 강함")
+            if _ep >= 15:  _reasons.append(f"EPS 성장 {_ep:.0f}% — 이익 성장 중")
             _reason_txt = " &nbsp;|&nbsp; ".join(_reasons) if _reasons else "조건 충족"
-
-            # 손절가(-8%) / 1차목표(+20%) / 2차목표(+35%) 계산
-            _stop_pr   = _pr * 0.92
-            _tgt1_pr   = _pr * 1.20
-            _tgt2_pr   = _pr * 1.35
-            _risk_amt  = round(_pr * 0.08, 2)
-            _reward1   = round(_pr * 0.20, 2)
-            _rr_ratio  = round(20/8, 1)  # 리워드:리스크 = 2.5:1
+            if _atr_stop and _atr_stop > 0:
+                _stop_pr  = _atr_stop
+                _stop_lbl = "ATR손절(×2)"
+                _stop_pct = round((_stop_pr/_pr-1)*100,1)
+            else:
+                _stop_pr  = _pr * 0.92
+                _stop_lbl = "손절(-8%)"
+                _stop_pct = -8.0
+            _rr_ratio  = round(15 / abs(_stop_pct), 1) if _stop_pct != 0 else 2.0
+            _hold_pct  = 100 if _p_stage==0 else (50 if _p_stage==1 else 25)
+            _sold_pct  = 100 - _hold_pct
+            _sc        = "#166534" if _p_stage==0 else ("#0F766E" if _p_stage==1 else "#0369A1")
+            _sbg       = "#F0FDF4" if _p_stage==0 else ("#F0FDFA" if _p_stage==1 else "#EFF6FF")
+            _stxt      = (
+                "진입 후 보유 중 — +15% 달성 시 50% 매도 예정" if _p_stage==0 else
+                f"🎯 1차 달성 ({_p_ret:+.1f}%) — 50% 매도 완료 / 잔여 50% 보유" if _p_stage==1 else
+                f"🎯 2차 달성 ({_p_ret:+.1f}%) — 25% 추가 매도 / 잔여 25% 추세 추종"
+            )
+            _bh = f"<div style='width:{_hold_pct}%;background:{_sc};height:10px;border-radius:{'3px 0 0 3px' if _sold_pct>0 else '3px'}'></div>"
+            _bs = f"<div style='width:{_sold_pct}%;background:#FCA5A5;height:10px;border-radius:0 3px 3px 0'></div>" if _sold_pct>0 else ""
+            _tgt1_pr = _pr*1.15; _tgt2_pr = _pr*1.25
 
             st.markdown(
                 f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
-                f"border-radius:8px;padding:12px 16px;margin-bottom:6px'>"
-                # 헤더
+                f"border-radius:8px;padding:12px 14px;margin-bottom:6px'>"
                 f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'>"
-                f"<span style='font-family:Space Mono,monospace;font-size:15px;"
-                f"font-weight:700;color:#0D1117'>{_r['Ticker']}</span>"
-                f"<div style='display:flex;gap:8px;align-items:center'>"
-                f"<span style='font-size:11px;color:#15803d'>{_bk}</span>"
-                f"<span style='font-size:11px;color:#6D28D9'>{_vs}</span>"
+                f"<span style='font-family:Space Mono,monospace;font-size:15px;font-weight:700;color:#0D1117'>{_r['Ticker']}</span>"
+                f"<div style='display:flex;gap:5px;align-items:center;flex-wrap:wrap'>"
+                f"{'<span style="font-size:9px;background:#EFF6FF;color:#1D4ED8;border-radius:4px;padding:1px 5px">🔁회복</span>' if _ma10_rec else ''}"
+                f"{'<span style="font-size:9px;background:#FFFBEB;color:#92400E;border-radius:4px;padding:1px 5px">📉추적</span>' if _trailing else ''}"
                 f"<span style='font-size:12px;font-weight:600;color:#1D4ED8'>{_sig}</span>"
-                f"<span style='font-size:11px;color:#B91C1C'>{_wn}</span>"
+                f"<span style='font-size:10px;color:#B91C1C'>{_wn}</span>"
                 f"</div></div>"
-                # 매수가 / 손절가 / 목표가
-                f"<div style='display:grid;grid-template-columns:repeat(4,1fr);"
-                f"gap:6px;margin-bottom:8px'>"
-                f"<div style='background:#F0FDF4;border-radius:6px;padding:7px 10px;text-align:center'>"
-                f"<div style='font-size:9px;color:#15803d;font-weight:500'>매수가</div>"
-                f"<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:700;color:#0D1117'>${_pr:.2f}</div>"
+                f"<div style='background:{_sbg};border-radius:7px;padding:8px 10px;margin-bottom:8px'>"
+                f"<div style='display:flex;justify-content:space-between;margin-bottom:4px'>"
+                f"<span style='font-size:10px;font-weight:600;color:{_sc}'>보유 {_hold_pct}%&nbsp; 매도 {_sold_pct}%</span>"
+                f"<span style='font-size:9px;color:{_sc}'>{'1차완료' if _p_stage==1 else ('2차완료' if _p_stage==2 else '보유중')}</span>"
                 f"</div>"
-                f"<div style='background:#FEF2F2;border-radius:6px;padding:7px 10px;text-align:center'>"
-                f"<div style='font-size:9px;color:#B91C1C;font-weight:500'>손절가 (-8%)</div>"
-                f"<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:700;color:#B91C1C'>${_stop_pr:.2f}</div>"
+                f"<div style='display:flex;width:100%;border-radius:3px;overflow:hidden;margin-bottom:5px'>{_bh}{_bs}</div>"
+                f"<div style='font-size:10px;color:{_sc};line-height:1.5'>{_stxt}</div>"
                 f"</div>"
-                f"<div style='background:#EFF6FF;border-radius:6px;padding:7px 10px;text-align:center'>"
-                f"<div style='font-size:9px;color:#1D4ED8;font-weight:500'>1차목표 (+20%)</div>"
-                f"<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:700;color:#1D4ED8'>${_tgt1_pr:.2f}</div>"
+                f"<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px'>"
+                f"<div style='background:#F0FDF4;border-radius:6px;padding:6px 8px;text-align:center'>"
+                f"<div style='font-size:9px;color:#15803d;font-weight:500'>현재가</div>"
+                f"<div style='font-family:Space Mono,monospace;font-size:12px;font-weight:700;color:#0D1117'>${_pr:.2f}</div>"
                 f"</div>"
-                f"<div style='background:#F5F3FF;border-radius:6px;padding:7px 10px;text-align:center'>"
-                f"<div style='font-size:9px;color:#6D28D9;font-weight:500'>2차목표 (+35%)</div>"
-                f"<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:700;color:#6D28D9'>${_tgt2_pr:.2f}</div>"
+                f"<div style='background:#FEF2F2;border-radius:6px;padding:6px 8px;text-align:center'>"
+                f"<div style='font-size:9px;color:#B91C1C;font-weight:500'>{_stop_lbl}</div>"
+                f"<div style='font-family:Space Mono,monospace;font-size:12px;font-weight:700;color:#B91C1C'>${_stop_pr:.2f}</div>"
+                f"<div style='font-size:9px;color:#B91C1C'>{_stop_pct:.1f}%</div>"
+                f"</div>"
+                f"<div style='background:#FFFBEB;border-radius:6px;padding:6px 8px;text-align:center'>"
+                f"<div style='font-size:9px;color:#92400E;font-weight:500'>1차 +15%</div>"
+                f"<div style='font-family:Space Mono,monospace;font-size:12px;font-weight:700;color:#92400E'>${_tgt1_pr:.2f}</div>"
+                f"<div style='font-size:9px;color:#92400E'>50% 매도</div>"
+                f"</div>"
+                f"<div style='background:#EFF6FF;border-radius:6px;padding:6px 8px;text-align:center'>"
+                f"<div style='font-size:9px;color:#1D4ED8;font-weight:500'>2차 +25%</div>"
+                f"<div style='font-family:Space Mono,monospace;font-size:12px;font-weight:700;color:#1D4ED8'>${_tgt2_pr:.2f}</div>"
+                f"<div style='font-size:9px;color:#1D4ED8'>25% 추가</div>"
                 f"</div>"
                 f"</div>"
-                # 지표 요약 + R:R
-                f"<div style='display:flex;gap:14px;font-size:11px;color:#6B7280;margin-bottom:5px;flex-wrap:wrap'>"
+                f"<div style='display:flex;gap:10px;font-size:11px;color:#6B7280;margin-bottom:5px;flex-wrap:wrap'>"
                 f"<span>AI <b style='color:#0D1117'>{_ai:.0f}</b></span>"
                 f"<span>RS <b style='color:#0D1117'>{_rs}</b></span>"
                 f"<span>조건 <b style='color:#1D4ED8'>{_cn}/8</b></span>"
                 f"<span>EPS <b style='color:#0D1117'>{_ep:.0f}%</b></span>"
                 f"<span>매출 <b style='color:#0D1117'>{_rv:.0f}%</b></span>"
                 f"{'<span>PEG <b style="color:#0D1117">' + f'{_pg:.1f}' + '</b></span>' if _pg>0 else ''}"
-                f"<span style='margin-left:auto;color:#6D28D9;font-weight:600'>R:R = {_rr_ratio}:1</span>"
+                f"<span style='margin-left:auto;color:#6D28D9;font-weight:600'>R:R {_rr_ratio}:1</span>"
                 f"</div>"
                 f"<div style='font-size:11px;color:#374151'>{_reason_txt}</div>"
                 f"</div>",
                 unsafe_allow_html=True)
 
-        # 투자금 기반 포트폴리오
+        # 투자금 기반 포트폴리오 (V98: ATR 사이징 + GLD 헤지 표시)
         if _invest > 0:
             st.markdown("<div style='margin:8px 0'></div>", unsafe_allow_html=True)
             try:
@@ -5137,18 +5555,30 @@ with tab3:
             _ir = _ir_map.get(_stage, 0.5)
             _avail = _invest * _ir
             _today = _avail * 0.40
+            # GLD 헤지 비중 (V98)
+            _gld_map = {5:0.00, 4:0.03, 3:0.07, 2:0.15, 1:0.20}
+            _gld_r = _gld_map.get(_stage, 0.05)
+            if vix_val and vix_val >= 25: _gld_r = max(_gld_r, 0.12)
+            _gld_amt = round(_invest * _gld_r, 0)
 
             _port_html = (
                 f"<div style='background:#F8FAFF;border:0.5px solid #BFDBFE;"
-                f"border-radius:8px;padding:12px 16px;margin-top:6px'>"
+                f"border-radius:8px;padding:12px 14px;margin-top:6px'>"
                 f"<div style='font-size:11px;font-weight:600;color:#1D4ED8;margin-bottom:8px'>"
-                f"💼 포트폴리오 — 투자금 {_invest:,.0f}만원 기준</div>"
-                f"<div style='display:flex;gap:16px;font-size:11px;color:#6B7280;margin-bottom:8px'>"
+                f"💼 포트폴리오 — 투자금 {_invest:,.0f}만원 기준 (ATR 리스크 1% 룰)</div>"
+                f"<div style='display:flex;gap:14px;font-size:11px;color:#6B7280;margin-bottom:6px;flex-wrap:wrap'>"
                 f"<span>투자 가능: <b style='color:#0D1117'>{_avail:,.0f}만원</b> ({_ir*100:.0f}%)</span>"
-                f"<span>오늘 1차: <b style='color:#0D1117'>{_today:,.0f}만원</b> (40%)</span>"
+                f"<span>오늘 1차: <b style='color:#0D1117'>{_today:,.0f}만원</b></span>"
                 f"<span>환율: <b style='color:#0D1117'>{_fx:,.0f}원/$</b></span>"
                 f"</div>"
             )
+            if _gld_r > 0:
+                _port_html += (
+                    f"<div style='background:#FFFBEB;border:0.5px solid #FDE68A;"
+                    f"border-radius:6px;padding:7px 10px;margin-bottom:8px;font-size:11px;color:#92400E'>"
+                    f"🛡️ GLD 헤지 권고: <b>{_gld_amt:,.0f}만원</b> ({_gld_r*100:.0f}%) "
+                    f"— 유동성 {_stage}단계 방어 자산</div>"
+                )
             _n_buy = len(_buy_df)
             _weights = [40,35,25] if _n_buy>=3 else ([60,40] if _n_buy==2 else [100])
             _weights = _weights[:_n_buy]
@@ -5164,8 +5594,15 @@ with tab3:
             )
             for i, (_, _r) in enumerate(_buy_df.iterrows()):
                 _w   = (_r.get(_sc_col,50) / _total_ai * 100) if _total_ai > 0 else 100/_n_buy
-                _amt = _avail * _w / 100
                 _pr  = float(_r.get("Price",0))
+                _atr_v = _r.get("ATR", None)
+                # V98: ATR 포지션 사이징 (1% 리스크 룰)
+                _atr_amt, _atr_pct = get_atr_position_size(_invest, _atr_v, _pr)
+                if _atr_amt and _atr_pct:
+                    _amt = _atr_amt
+                    _w   = _atr_pct
+                else:
+                    _amt = _avail * _w / 100
                 _usd = _amt * 10000 / _fx
                 _sh  = int(_usd / _pr) if _pr > 0 else 0
                 _real= _sh * _pr * _fx / 10000
@@ -5273,7 +5710,7 @@ with tab3:
         "color:#3B5BA5;letter-spacing:1px;margin-bottom:8px'>③ 왜 이 판단인가 — 근거 요약</div>",
         unsafe_allow_html=True)
 
-    _ev1, _ev2 = st.columns(2)
+    _ev1, _ev2 = st.container(), st.container()  # 모바일: 세로 스택
     with _ev1:
         # 유동성 핵심 지표
         _ev_rows = [
@@ -5469,11 +5906,11 @@ with tab3:
             _fig_cmp.add_hline(y=0, line_color="#E5E7EB", line_width=1)
             _fig_cmp.update_layout(
                 template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
-                height=280, margin=dict(l=4,r=4,t=8,b=4),
+                height=180, margin=dict(l=2,r=2,t=6,b=2),
                 legend=dict(font=dict(size=10), orientation="h",
                             yanchor="bottom", y=1.02, bgcolor="rgba(255,255,255,0.85)"),
-                xaxis=dict(gridcolor="#EBEDF0", tickformat="%y.%m", tickfont=dict(size=10)),
-                yaxis=dict(gridcolor="#EBEDF0", ticksuffix="%", tickfont=dict(size=10)),
+                xaxis=dict(gridcolor="#EBEDF0", tickformat="%y.%m", tickfont=dict(size=8)),
+                yaxis=dict(gridcolor="#EBEDF0", ticksuffix="%", tickfont=dict(size=8)),
                 hovermode="x unified")
             st.plotly_chart(_fig_cmp, use_container_width=True, key="rpt_qqq_cmp")
 
@@ -5548,8 +5985,8 @@ with tab4:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>V94 QUANTUM INSTITUTIONAL OS</b>"
-        f" &nbsp;|&nbsp; APP_V94 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>V98 📱 MOBILE QUANTUM OS</b>"
+        f" &nbsp;|&nbsp; APP_V98 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

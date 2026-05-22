@@ -3570,39 +3570,46 @@ with tab0:
   </div>
 </details>"""
 
-        # ── PC: 설명(좌) + 차트(우) 2열 레이아웃 복원 ──────────
+        # ── PC: 설명(좌, 고정220px) + 차트(우, 고정220px) 2열 레이아웃 ──
+        # ✅ 왼쪽 카드 min-height:220px 고정 → 지표별 높이 통일
+        # ✅ _exp_html(설명) 는 카드 밖 하단에 별도 배치 → 카드 높이 영향 없음
         left_col, right_col = st.columns([1, 1.6])
         with left_col:
             st.markdown(f"""
             <div style="background:#FFFFFF;border:1px solid #E2E6ED;border-radius:10px;
-                 padding:16px">
-              <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap">
-                <span style="font-size:13px;font-weight:700;color:#0D1117">{title}</span>
-                {_dir_badge_html}
-              </div>
-              <div style="margin-bottom:8px">
-                <a href="{fred_url}" target="_blank"
-                   style="font-size:10px;color:#3B82F6;text-decoration:none;
-                          background:#EFF6FF;border:0.5px solid #BFDBFE;
-                          border-radius:4px;padding:2px 6px">
-                  FRED: {fred_code} &#8599;</a>
-              </div>
-              <div style="font-family:'Space Mono',monospace;font-size:26px;
-                   font-weight:700;color:{status_color};line-height:1;margin-bottom:4px">
-                {f"{cur_val:.2f}{unit}" if cur_val is not None else "N/A"}</div>
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-                <span style="font-size:20px;font-weight:700;color:{diff_color}">{direction_arrow}</span>
-                <div>
-                  <div style="font-size:11px;color:{diff_color};font-weight:500">
-                    {direction_label} ({diff_sign}{direction_diff:.2f}{unit})</div>
-                  <div style="font-size:10px;color:#9CA3AF">{period_label}</div>
+                 padding:16px;min-height:220px;box-sizing:border-box;
+                 display:flex;flex-direction:column;justify-content:space-between">
+              <div>
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+                  <span style="font-size:13px;font-weight:700;color:#0D1117">{title}</span>
+                  {_dir_badge_html}
+                </div>
+                <div style="margin-bottom:10px">
+                  <a href="{fred_url}" target="_blank"
+                     style="font-size:10px;color:#3B82F6;text-decoration:none;
+                            background:#EFF6FF;border:0.5px solid #BFDBFE;
+                            border-radius:4px;padding:2px 6px">
+                    FRED: {fred_code} &#8599;</a>
+                </div>
+                <div style="font-family:'Space Mono',monospace;font-size:28px;
+                     font-weight:700;color:{status_color};line-height:1;margin-bottom:6px">
+                  {f"{cur_val:.2f}{unit}" if cur_val is not None else "N/A"}</div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                  <span style="font-size:22px;font-weight:700;color:{diff_color}">{direction_arrow}</span>
+                  <div>
+                    <div style="font-size:11px;color:{diff_color};font-weight:500">
+                      {direction_label} ({diff_sign}{direction_diff:.2f}{unit})</div>
+                    <div style="font-size:10px;color:#9CA3AF">{period_label}</div>
+                  </div>
                 </div>
               </div>
-              <div style="font-size:11px;color:#374151;padding:6px 0;
+              <div style="font-size:11px;color:#374151;padding:8px 0 0 0;
                    border-top:0.5px solid #F3F4F6">{desc_short}</div>
-              {_exp_html}
             </div>
             """, unsafe_allow_html=True)
+            # 설명 펼치기 — 카드 밖 하단 (카드 높이에 영향 없음)
+            if _exp_html:
+                st.markdown(_exp_html, unsafe_allow_html=True)
         with right_col:
             if chart_fig is not None:
                 st.plotly_chart(chart_fig, use_container_width=True, key=f"chart_ind_{fred_code}")
@@ -4086,7 +4093,7 @@ with tab0:
 
     fig_t10.update_layout(
         template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FAFBFC",
-        height=280, margin=dict(l=0, r=120, t=10, b=0),
+        height=220, margin=dict(l=0, r=120, t=10, b=0),
         legend=dict(orientation="h", y=1.08, x=0,
                     font=dict(size=11), bgcolor="rgba(0,0,0,0)"),
         xaxis=dict(gridcolor="#EBEDF0", color="#718096", tickformat="%Y-%m",

@@ -742,7 +742,52 @@ DEFAULT_TICKERS = [
     # 헤지 자산 (V98: 나스닥 폭락 방어)
     "GLD",   # 금 ETF — 위기 시 반등
     "TLT",   # 장기채 ETF — 금리 하락 시 반등
-]  # 총 70개 — 나스닥100 + 헤지 2종 (V98)
+    # ── 대표 ETF 10개 ───────────────────────────────────
+    "QQQ",   # 나스닥100       — 벤치마크 (RS 기준 지수)
+    "SPY",   # S&P500          — 시장 전체 대표 지수
+    "IWM",   # 러셀2000        — 소형주 경기 선행 지표
+    "SMH",   # 반도체 섹터     — NVDA·AVGO·AMD 집약
+    "XLK",   # 기술 섹터       — S&P500 기술주 바스켓
+    "XLV",   # 헬스케어 섹터   — 방어·성장 혼합
+    "XLE",   # 에너지 섹터     — 원유·가스 대표
+    "TQQQ",  # 나스닥100 3배   — 단기 모멘텀 확인용
+    "ARKK",  # AI·혁신 성장주  — 고위험 성장 바스켓
+    "SQQQ",  # 나스닥 인버스3배 — 하락장 헤지 시그널
+    # ── 고배당주 15개 ────────────────────────────────────
+    # ※ RS는 QQQ 대비 낮게 나오는 게 정상 — 배당%·추세로 판단
+    "JNJ",   # 존슨앤존슨      배당 ~3.2%  배당왕 63년   헬스케어
+    "KO",    # 코카콜라        배당 ~3.1%  배당왕 62년   소비재
+    "PG",    # P&G             배당 ~2.4%  배당왕 68년   생활용품
+    "MCD",   # 맥도날드        배당 ~2.3%  배당귀족 48년 소비재
+    "VZ",    # 버라이즌        배당 ~6.5%  통신 고배당
+    "T",     # AT&T            배당 ~5.8%  통신 고배당
+    "PFE",   # 화이자          배당 ~6.8%  헬스케어 고배당
+    "MO",    # 알트리아        배당 ~8.5%  담배 초고배당
+    "ABBV",  # 애브비          배당 ~4.5%  바이오 고배당 (휴미라)
+    "CVX",   # 쉐브론          배당 ~4.2%  에너지 메이저
+    "XOM",   # 엑슨모빌        배당 ~3.5%  에너지 세계 1위
+    "PM",    # 필립모리스      배당 ~5.5%  글로벌 담배
+    "O",     # 리얼티인컴      배당 ~5.5%  월배당 REIT 대표
+    "IBM",   # IBM             배당 ~3.5%  기술 고배당 전환
+    "MMM",   # 쓰리엠(3M)      배당 ~5.5%  배당왕 65년  산업재
+    # ── 배당성장주 15개 ──────────────────────────────────
+    # ※ 배당 증가 + 주가 성장 병행 — 장기 복리 전략
+    "V",     # 비자            배당 ~0.8%  성장 15년+  결제 네트워크
+    "MA",    # 마스터카드      배당 ~0.6%  성장 13년+  결제 인프라
+    "JPM",   # JP모건          배당 ~2.3%  성장        금융 대장주
+    "HD",    # 홈디포          배당 ~2.4%  귀족 14년   소비·인프라
+    "UNH",   # 유나이티드헬스  배당 ~1.5%  성장        헬스케어 1위
+    "NEE",   # 넥스트에라에너지 배당 ~2.8%  성장 29년   신재생에너지
+    "LMT",   # 록히드마틴      배당 ~2.5%  성장 21년   방산 1위
+    "LOW",   # 로우스          배당 ~2.0%  귀족 41년   홈개선 2위
+    "BLK",   # 블랙록          배당 ~2.5%  성장 14년   자산운용 1위
+    "SPGI",  # S&P글로벌       배당 ~1.0%  성장 51년   신용평가
+    "TGT",   # 타겟            배당 ~3.5%  귀족 55년   유통·소매
+    "APD",   # 에어프로덕츠    배당 ~2.8%  왕  42년   산업가스
+    "SCHD",  # Schwab 배당성장 ETF — 배당성장주 바스켓 대표
+    "VYM",   # Vanguard 고배당 ETF — 광범위 분산 ~3%
+    "DGRO",  # iShares 배당성장 ETF — 배당성장 지수 추종
+]  # 총 112개 — 나스닥100(70) + 헤지(2) + ETF(10) + 고배당(15) + 배당성장(15) (V106)
 
 FRED_META = {
     "M2":           ("M2SL",         "M2 통화량",       "B$", 30),
@@ -1376,6 +1421,7 @@ def load_stocks(tickers, _bust=0):
             peg=safe(info.get("pegRatio")); eps=safe(info.get("earningsGrowth"))*100
             rev=safe(info.get("revenueGrowth"))*100; roe=safe(info.get("returnOnEquity"))*100
             eveb=safe(info.get("enterpriseToEbitda")); ps=safe(info.get("priceToSalesTrailing12Months"))
+            div_yield=round(safe(info.get("dividendYield"))*100, 2)  # 배당수익률 %
             peg_lbl=("N/A" if peg<=0 else ("우수" if peg<1 else ("양호" if peg<=2 else ("보통" if peg<=3 else "고평가"))))
             val_sc=0.0
             if peg>0: val_sc+=min(40,(1/peg)*20)
@@ -1468,6 +1514,7 @@ def load_stocks(tickers, _bust=0):
                 "52주 고점%":pct_ath,"신고가단계":ath_tier,"RS Raw":round(rs_raw,2),
                 "PEG":round(peg,2) if peg>0 else None,"PEG 판정":peg_lbl,
                 "EPS Growth%":round(eps,1),"Rev Growth%":round(rev,1),"ROE%":round(roe,1),
+                "배당수익률%":div_yield if div_yield>0 else None,
                 "Vol Ratio":round(vol_ratio,2),
                 "RSI":rsi_val,
                 "ATR":atr_val,"ATR손절":atr_stop,
@@ -4785,8 +4832,46 @@ with tab2:
         _sc_col    = "섹터 AI Score" if "섹터 AI Score" in df_all.columns else "AI Score"
         _liq_stage = LIQ_ACTION.get("stage", 0)
 
-        # ── 조건수 계산 ─────────────────────────────────────
-        _df = df_all.copy()
+        # ── 종목 모드 선택 ───────────────────────────────────
+        _mode_col, _ = st.columns([2, 3])
+        with _mode_col:
+            _stock_mode = st.radio(
+                "종목 모드",
+                ["📈 성장주", "💰 배당주", "🔍 전체"],
+                horizontal=True,
+                key="stock_mode_radio",
+                label_visibility="collapsed",
+                help="성장주: 브레이크아웃·EPS 조건 중심 | 배당주: 배당수익률·추세 중심 | 전체: 전 종목 표시"
+            )
+
+        # ── 모드별 종목 필터링 ───────────────────────────────
+        # 배당주 종목 목록 (성장 조건 완화 적용)
+        _DIVIDEND_TICKERS = {
+            # 고배당주 15개
+            "JNJ","KO","PG","MCD","VZ","T","PFE","MO",
+            "ABBV","CVX","XOM","PM","O","IBM","MMM",
+            # 배당성장주 15개 (ETF 포함)
+            "V","MA","JPM","HD","UNH",
+            "NEE","LMT","LOW","BLK","SPGI","TGT","APD",
+            "SCHD","VYM","DGRO",
+        }
+        _ETF_TICKERS = {
+            "QQQ","SPY","IWM","SMH","XLK","XLV","XLE",
+            "TQQQ","ARKK","SQQQ","GLD","TLT"
+        }
+
+        _df_all = df_all.copy()
+        if _stock_mode == "📈 성장주":
+            _df = _df_all[~_df_all["Ticker"].isin(_DIVIDEND_TICKERS | _ETF_TICKERS)].copy()
+            _mode_label = "성장주 필터 (배당주·ETF 제외)"
+        elif _stock_mode == "💰 배당주":
+            _df = _df_all[_df_all["Ticker"].isin(_DIVIDEND_TICKERS | _ETF_TICKERS)].copy()
+            _mode_label = "배당주·ETF 필터"
+        else:
+            _df = _df_all.copy()
+            _mode_label = "전체 종목"
+
+        # ── 조건수 계산 (모드별 조건 다름) ─────────────────
         _df["✅유동성"]  = _liq_stage >= 3
         _df["✅브레이크"] = (
             (_df.get("Breakout", pd.Series("—",index=_df.index)) == "✅") |
@@ -4797,10 +4882,22 @@ with tab2:
         _df["✅AI70"]    = _df.get(_sc_col,       pd.Series(0,  index=_df.index)) >= 70
         _df["✅신고가"]  = _df.get("52주 고점%",  pd.Series(-99,index=_df.index)) >= -20
         _df["✅실적OK"]  = _df.get("실적경고",    pd.Series("—",index=_df.index)) != "⚠️"
-        _df["✅EPS15"]   = _df.get("EPS Growth%", pd.Series(0,  index=_df.index)) >= 15
         _df["✅RSI정상"] = _df.get("RSI", pd.Series(50,index=_df.index)).fillna(50) < 70
-        _cond_cols = ["✅유동성","✅브레이크","✅거래량","✅RS80","✅AI70","✅신고가","✅실적OK","✅EPS15","✅RSI정상"]
-        _df["조건수"]  = _df[_cond_cols].sum(axis=1).astype(int)
+
+        if _stock_mode == "💰 배당주":
+            # 배당주 모드: 브레이크아웃·EPS15·RS80 조건 완화
+            # → 추세 상승(3연상 or 신고가 근처) + 배당% > 1% 로 대체
+            _df["✅EPS15"]  = _df.get("EPS Growth%", pd.Series(0,index=_df.index)) >= 0  # 완화: 0%↑
+            _df["✅배당있음"] = _df.get("배당수익률%", pd.Series(0,index=_df.index)).fillna(0) >= 1.0
+            _cond_cols = ["✅유동성","✅브레이크","✅거래량","✅RS80","✅AI70",
+                          "✅신고가","✅실적OK","✅EPS15","✅RSI정상","✅배당있음"]
+            _df["조건수"] = _df[_cond_cols].sum(axis=1).astype(int)
+        else:
+            _df["✅EPS15"]  = _df.get("EPS Growth%", pd.Series(0,index=_df.index)) >= 15
+            _cond_cols = ["✅유동성","✅브레이크","✅거래량","✅RS80","✅AI70",
+                          "✅신고가","✅실적OK","✅EPS15","✅RSI정상"]
+            _df["조건수"] = _df[_cond_cols].sum(axis=1).astype(int)
+
         _n_all = len(_df)
 
         # ── V93j: 조건 점수 옆 체크 아이콘 컬럼 ─────────────
@@ -4889,7 +4986,7 @@ with tab2:
                 unsafe_allow_html=True)
         with _c2:
             _sort_opt = st.selectbox(
-                "정렬", ["조건수","섹터 AI Score","RS Score","52주 고점%","EPS Growth%","PEG"],
+                "정렬", ["조건수","섹터 AI Score","RS Score","52주 고점%","EPS Growth%","배당수익률%","PEG"],
                 key="t1_sort", label_visibility="collapsed")
 
         _disp_df = (
@@ -4898,14 +4995,23 @@ with tab2:
             else _df.sort_values(_sort_opt, ascending=(_sort_opt=="PEG"), na_position="last")
         )
 
-        # PC: 전체 컬럼 표시
-        _showcols = [c for c in [
-            "Ticker","섹터","조건/9",
-            "RS✅","AI✅","EPS✅","RSI✅","신고가✅",
-            "Breakout","Vol Surge","3연상","MA10회복","갭업",
-            "Price","ATR손절","PEG","Rev Growth%",
-            "실적예정","실적경고"
-        ] if c in _disp_df.columns]
+        # PC: 전체 컬럼 표시 — 배당주 모드는 배당% 앞으로
+        if _stock_mode == "💰 배당주":
+            _showcols = [c for c in [
+                "Ticker","섹터","조건/9",
+                "배당수익률%","Price","RS✅","AI✅","RSI✅","신고가✅",
+                "Breakout","3연상","MA10회복",
+                "ATR손절","EPS✅","PEG","Rev Growth%",
+                "실적예정","실적경고"
+            ] if c in _disp_df.columns]
+        else:
+            _showcols = [c for c in [
+                "Ticker","섹터","조건/9",
+                "RS✅","AI✅","EPS✅","RSI✅","신고가✅",
+                "Breakout","Vol Surge","3연상","MA10회복","갭업",
+                "Price","ATR손절","PEG","Rev Growth%","배당수익률%",
+                "실적예정","실적경고"
+            ] if c in _disp_df.columns]
 
         st.dataframe(
             _disp_df[_showcols],
@@ -4931,12 +5037,22 @@ with tab2:
                 "실적경고":    st.column_config.TextColumn("실적",    width="small"),
                 "실적예정":    st.column_config.TextColumn("발표일",  width="small"),
                 "섹터":        st.column_config.TextColumn("섹터",    width="medium"),
-                "Rev Growth%": st.column_config.NumberColumn("매출성장%", format="%.0f%%", width="small"),
+                "Rev Growth%":  st.column_config.NumberColumn("매출성장%", format="%.0f%%", width="small"),
+                "배당수익률%":  st.column_config.NumberColumn("배당%",    format="%.1f%%", width="small"),
             },
             key="t1_df"
         )
 
         # ── ④ 표 아래 — 경고 배너들 ─────────────────────────
+        # ETF / 배당주 RS 안내
+        st.markdown(
+            "<div style='font-size:11px;color:#6B7280;background:#F9FAFB;"
+            "border:0.5px solid #E2E6ED;border-radius:6px;padding:8px 12px;margin-bottom:8px'>"
+            "💡 <b>RS 해석 주의</b> &nbsp;·&nbsp; "
+            "ETF(QQQ·SMH·TQQQ 등)와 배당주(KO·JNJ·VZ 등)는 나스닥 성장주 대비 RS가 "
+            "낮게 나오는 게 <b>정상</b>입니다. 배당주는 RS보다 <b>배당% · 추세 방향</b>으로 판단하세요."
+            "</div>",
+            unsafe_allow_html=True)
         # 7조건 없음 경고
         _cnt6 = int((_df["조건수"] >= 6).sum())
         _cnt5 = int((_df["조건수"] >= 5).sum())
@@ -4993,7 +5109,9 @@ with tab3:
         _df["✅EPS15"]   = _df.get("EPS Growth%", pd.Series(0,  index=_df.index)) >= 15
         _df["조건수"]    = _df[["✅유동성","✅브레이크","✅거래량","✅RS80",
                                 "✅AI70","✅신고가","✅실적OK","✅EPS15"]].sum(axis=1).astype(int)
-        _buy_df  = _df[_df["조건수"] >= 5].sort_values(["조건수",_sc_col],ascending=[False,False]).head(5)
+        # 배당주 모드: 조건 기준 완화 (≥3), 배당수익률 있는 종목 우선
+        _buy_min_cond = 3 if st.session_state.get("stock_mode_radio","📈 성장주") == "💰 배당주" else 5
+        _buy_df  = _df[_df["조건수"] >= _buy_min_cond].sort_values(["조건수",_sc_col],ascending=[False,False]).head(5)
         _exit_df = _df[_df.get("Exit Signal", pd.Series("—",index=_df.index))=="⚠️"]
     else:
         _buy_df = pd.DataFrame(); _exit_df = pd.DataFrame()

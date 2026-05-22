@@ -1217,75 +1217,6 @@ fred_history = load_fred_history(FRED_API_KEY, st.session_state.cache_key)
 with st.spinner("📈 시장 데이터 로드 중..."):
     mkt         = load_market(st.session_state.cache_key)
     sector_data = load_sectors(st.session_state.cache_key)
-
-# ─────────────────────────────────────────────────────────
-# V85: 백테스트 함수 — 브레이크아웃 신호 성공률 분석
-# ─────────────────────────────────────────────────────────
-@st.cache_data(ttl=86400, show_spinner=False)
-def run_backtest(tickers_tuple, lookback_days=500):
-    """과거 브레이크아웃+거래량급증+RS 신호 → 20/60일 후 수익률"""
-    results = []
-    try:
-        _period = "2y"
-        _qqq_raw   = yf.download("QQQ", period=_period, auto_adjust=True, progress=False)
-        _qqq_close = get_close_from_df(_qqq_raw)
-        if _qqq_close is None or len(_qqq_close) < 60:
-            return pd.DataFrame()
-    except: return pd.DataFrame()
-
-    for tk in tickers_tuple:
-        try:
-            _raw    = yf.download(tk, period="3y", auto_adjust=True, progress=False)
-            _close  = get_close_from_df(_raw)
-            _volume = get_volume_from_df(_raw)
-            if _close is None or len(_close) < 100: continue
-
-            # lookback_days 이내만 분석
-            _cutoff = pd.Timestamp.now() - pd.DateOffset(days=lookback_days)
-            _idx_start = max(30, sum(_close.index < _cutoff))
-
-            for i in range(_idx_start, len(_close) - 61):
-                _cur = float(_close.iloc[i])
-
-                # ① 브레이크아웃
-                if i < 22: continue
-                _high20   = float(_close.iloc[i-21:i].max())
-                _breakout = _cur > _high20
-                if not _breakout: continue
-
-                # ② 거래량 급증
-                if _volume is None or i < 20: continue
-                _avg_v     = float(_volume.iloc[i-20:i].mean())
-                _vol_surge = float(_volume.iloc[i]) > _avg_v * 1.5 if _avg_v > 0 else False
-                if not _vol_surge: continue
-
-                # ③ RS 3개월 초과수익
-                _dt = _close.index[i]
-                _qqq_sub = _qqq_close[_qqq_close.index <= _dt]
-                if len(_close) < 63 or len(_qqq_sub) < 63: continue
-                try:
-                    _sr = float(_close.iloc[i] / _close.iloc[i-63] - 1)
-                    _qr = float(_qqq_sub.iloc[-1] / _qqq_sub.iloc[-64] - 1)
-                    _rs_ok = (_sr - _qr) * 100 >= 10
-                except: continue
-                if not _rs_ok: continue
-
-                # 20/60일 후 수익률
-                _r20 = round(float(_close.iloc[i+20] / _cur - 1) * 100, 2)
-                _r60 = round(float(_close.iloc[i+60] / _cur - 1) * 100, 2)
-                results.append({
-                    "Ticker": tk,
-                    "신호일": _dt.strftime('%Y-%m-%d'),
-                    "매수가": round(_cur, 2),
-                    "20일수익%": _r20,
-                    "60일수익%": _r60,
-                    "20일승": _r20 > 0,
-                    "60일승": _r60 > 0,
-                })
-        except: continue
-
-    return pd.DataFrame(results) if results else pd.DataFrame()
-
 # ─────────────────────────────────────────────────────────
 # 종목 데이터 전역 로드 (V34: 탭 진입 전 자동 실행)
 # ─────────────────────────────────────────────────────────
@@ -4988,55 +4919,6 @@ with tab2:
     _render_stepbar(3, LIQ_ACTION.get("stage", 0), 0)
     st.markdown('<div class="sec-header">📊 종목 선별 (STEP 3)</div>', unsafe_allow_html=True)
 
-    # ── V98: 백테스트 결과 (신호 신뢰도 패널) ───────────────
-    try:
-        with st.expander("📈 신호 신뢰도 — 과거 STRONG BUY 승률 (클릭해서 보기)", expanded=False):
-            _bt_placeholder = st.empty()
-            _bt_placeholder.markdown(
-                "<div style='font-size:11px;color:#9CA3AF;padding:8px 0'>분석 중...</div>",
-                unsafe_allow_html=True)
-            _bt_df = run_backtest(tuple(DEFAULT_TICKERS[:20]), lookback_days=365)
-            if not _bt_df.empty:
-                _n_sig  = len(_bt_df)
-                _wr20   = round(_bt_df["20일승"].mean()*100, 1)
-                _wr60   = round(_bt_df["60일승"].mean()*100, 1)
-                _avg20  = round(_bt_df["20일수익%"].mean(), 2)
-                _avg60  = round(_bt_df["60일수익%"].mean(), 2)
-                _med20  = round(_bt_df["20일수익%"].median(), 2)
-                _mdd    = round(_bt_df["20일수익%"].min(), 2)
-                _best   = _bt_df.groupby("Ticker")["20일수익%"].mean().sort_values(ascending=False)
-                _top3   = " · ".join([f"{t}({v:+.1f}%)" for t,v in _best.head(3).items()])
-                _bot3   = " · ".join([f"{t}({v:+.1f}%)" for t,v in _best.tail(3).items()])
-                _c20    = "#166534" if _wr20>=55 else ("#92400E" if _wr20>=45 else "#B91C1C")
-                _c60    = "#166534" if _wr60>=55 else ("#92400E" if _wr60>=45 else "#B91C1C")
-                _bt_placeholder.markdown(
-                    f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
-                    f"border-radius:8px;padding:12px 14px'>"
-                    f"<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
-                    f"최근 1년 · 신호 {_n_sig}건 분석 (브레이크아웃+거래량+RS 동시 충족)</div>"
-                    f"<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px'>"
-                    f"<div style='text-align:center;background:#F9FAFB;border-radius:6px;padding:8px'>"
-                    f"<div style='font-size:9px;color:#6B7280'>20일 승률</div>"
-                    f"<div style='font-size:20px;font-weight:500;color:{_c20}'>{_wr20}%</div></div>"
-                    f"<div style='text-align:center;background:#F9FAFB;border-radius:6px;padding:8px'>"
-                    f"<div style='font-size:9px;color:#6B7280'>20일 평균수익</div>"
-                    f"<div style='font-size:20px;font-weight:500;color:{'#166534' if _avg20>0 else '#B91C1C'}'>{_avg20:+.1f}%</div></div>"
-                    f"<div style='text-align:center;background:#F9FAFB;border-radius:6px;padding:8px'>"
-                    f"<div style='font-size:9px;color:#6B7280'>60일 승률</div>"
-                    f"<div style='font-size:20px;font-weight:500;color:{_c60}'>{_wr60}%</div></div>"
-                    f"</div>"
-                    f"<div style='font-size:11px;color:#374151;line-height:1.8'>"
-                    f"중간값 <b>{_med20:+.1f}%</b> &nbsp;·&nbsp; 최대손실 <b style='color:#B91C1C'>{_mdd:+.1f}%</b><br>"
-                    f"강한 종목: <span style='color:#166534'>{_top3}</span><br>"
-                    f"약한 종목: <span style='color:#B91C1C'>{_bot3}</span>"
-                    f"</div></div>",
-                    unsafe_allow_html=True)
-            else:
-                _bt_placeholder.markdown(
-                    "<div style='font-size:11px;color:#9CA3AF'>데이터 부족 — 더 많은 종목으로 재시도</div>",
-                    unsafe_allow_html=True)
-    except Exception as _bt_err:
-        pass
 
     if df_all.empty:
         st.markdown('<div class="warn-box">⚠️ 종목 데이터 없음 — 사이드바 [🔄 새로고침]을 눌러주세요.</div>', unsafe_allow_html=True)

@@ -5084,7 +5084,7 @@ with tab2:
                 unsafe_allow_html=True)
         with _c2:
             _sort_opt = st.selectbox(
-                "정렬", ["조건수","섹터 AI Score","RS Score","52주 고점%","EPS Growth%","배당수익률%","PEG"],
+                "정렬", ["조건수","섹터 AI Score","RS Score","배당수익률%","52주 고점%","EPS Growth%","PEG"],
                 key="t1_sort", label_visibility="collapsed")
 
         _disp_df = (
@@ -5093,23 +5093,15 @@ with tab2:
             else _df.sort_values(_sort_opt, ascending=(_sort_opt=="PEG"), na_position="last")
         )
 
-        # PC: 전체 컬럼 표시 — 배당 전용 모드는 배당% 앞으로
-        if _only_div:
-            _showcols = [c for c in [
-                "Ticker","섹터","조건/9",
-                "배당수익률%","Price","RS✅","AI✅","RSI✅","신고가✅",
-                "Breakout","3연상","MA10회복",
-                "ATR손절","EPS✅","PEG","Rev Growth%",
-                "실적예정","실적경고"
-            ] if c in _disp_df.columns]
-        else:
-            _showcols = [c for c in [
-                "Ticker","섹터","조건/9",
-                "RS✅","AI✅","EPS✅","RSI✅","신고가✅",
-                "Breakout","Vol Surge","3연상","MA10회복","갭업",
-                "Price","ATR손절","PEG","Rev Growth%","배당수익률%",
-                "실적예정","실적경고"
-            ] if c in _disp_df.columns]
+        # PC: 컬럼 구성 고정 — 모드 무관 항상 동일한 순서
+        # 배당수익률%는 항시 표시 (데이터 없으면 N/A)
+        _showcols = [c for c in [
+            "Ticker","섹터","조건/9",
+            "RS✅","AI✅","EPS✅","RSI✅","신고가✅",
+            "Breakout","Vol Surge","3연상","MA10회복","갭업",
+            "Price","배당수익률%","ATR손절","PEG","Rev Growth%",
+            "실적예정","실적경고"
+        ] if c in _disp_df.columns]
 
         st.dataframe(
             _disp_df[_showcols],

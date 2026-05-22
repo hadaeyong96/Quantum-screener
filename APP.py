@@ -4832,25 +4832,13 @@ with tab2:
         _sc_col    = "섹터 AI Score" if "섹터 AI Score" in df_all.columns else "AI Score"
         _liq_stage = LIQ_ACTION.get("stage", 0)
 
-        # ── 종목 모드 선택 ───────────────────────────────────
-        _mode_col, _ = st.columns([2, 3])
-        with _mode_col:
-            _stock_mode = st.radio(
-                "종목 모드",
-                ["📈 성장주", "💰 배당주", "🔍 전체"],
-                horizontal=True,
-                key="stock_mode_radio",
-                label_visibility="collapsed",
-                help="성장주: 브레이크아웃·EPS 조건 중심 | 배당주: 배당수익률·추세 중심 | 전체: 전 종목 표시"
-            )
-
-        # ── 모드별 종목 필터링 ───────────────────────────────
-        # 배당주 종목 목록 (성장 조건 완화 적용)
-        _DIVIDEND_TICKERS = {
-            # 고배당주 15개
+        # ── 종목 카테고리 체크박스 (멀티선택) ──────────────
+        # 카테고리별 종목 정의
+        _HIGH_DIV_TICKERS = {
             "JNJ","KO","PG","MCD","VZ","T","PFE","MO",
             "ABBV","CVX","XOM","PM","O","IBM","MMM",
-            # 배당성장주 15개 (ETF 포함)
+        }
+        _DIV_GROWTH_TICKERS = {
             "V","MA","JPM","HD","UNH",
             "NEE","LMT","LOW","BLK","SPGI","TGT","APD",
             "SCHD","VYM","DGRO",
@@ -4859,19 +4847,61 @@ with tab2:
             "QQQ","SPY","IWM","SMH","XLK","XLV","XLE",
             "TQQQ","ARKK","SQQQ","GLD","TLT"
         }
+        _GROWTH_TICKERS = set(DEFAULT_TICKERS) - _HIGH_DIV_TICKERS - _DIV_GROWTH_TICKERS - _ETF_TICKERS
+        _DIVIDEND_TICKERS = _HIGH_DIV_TICKERS | _DIV_GROWTH_TICKERS  # 호환용
 
-        _df_all = df_all.copy()
-        if _stock_mode == "📈 성장주":
-            _df = _df_all[~_df_all["Ticker"].isin(_DIVIDEND_TICKERS | _ETF_TICKERS)].copy()
-            _mode_label = "성장주 필터 (배당주·ETF 제외)"
-        elif _stock_mode == "💰 배당주":
-            _df = _df_all[_df_all["Ticker"].isin(_DIVIDEND_TICKERS | _ETF_TICKERS)].copy()
-            _mode_label = "배당주·ETF 필터"
-        else:
-            _df = _df_all.copy()
+        # 체크박스 UI
+        st.markdown(
+            "<div style='font-size:11px;font-weight:600;color:#374151;"
+            "margin-bottom:4px'>📂 종목 카테고리 선택</div>",
+            unsafe_allow_html=True)
+        _cb_col1, _cb_col2, _cb_col3, _cb_col4, _cb_col5 = st.columns(5)
+        with _cb_col1:
+            _chk_growth   = st.checkbox("📈 성장주",   value=st.session_state.get("chk_growth",   True),  key="chk_growth")
+        with _cb_col2:
+            _chk_highdiv  = st.checkbox("💰 고배당",   value=st.session_state.get("chk_highdiv",  False), key="chk_highdiv")
+        with _cb_col3:
+            _chk_divgrow  = st.checkbox("🌱 배당성장", value=st.session_state.get("chk_divgrow",  False), key="chk_divgrow")
+        with _cb_col4:
+            _chk_etf      = st.checkbox("📊 ETF",      value=st.session_state.get("chk_etf",      False), key="chk_etf")
+        with _cb_col5:
+            _chk_all      = st.checkbox("🔍 전체",     value=st.session_state.get("chk_all",      False), key="chk_all")
+
+        # 선택된 카테고리에 따라 표시 종목 결정
+        if _chk_all or not any([_chk_growth, _chk_highdiv, _chk_divgrow, _chk_etf]):
+            _selected_tickers = set(DEFAULT_TICKERS)
             _mode_label = "전체 종목"
+            _active_cats = {"growth","highdiv","divgrow","etf"}
+        else:
+            _selected_tickers = set()
+            _active_cats = set()
+            if _chk_growth:  _selected_tickers |= _GROWTH_TICKERS;  _active_cats.add("growth")
+            if _chk_highdiv: _selected_tickers |= _HIGH_DIV_TICKERS; _active_cats.add("highdiv")
+            if _chk_divgrow: _selected_tickers |= _DIV_GROWTH_TICKERS; _active_cats.add("divgrow")
+            if _chk_etf:     _selected_tickers |= _ETF_TICKERS;       _active_cats.add("etf")
+            _cat_labels = []
+            if _chk_growth:  _cat_labels.append("📈 성장주")
+            if _chk_highdiv: _cat_labels.append("💰 고배당")
+            if _chk_divgrow: _cat_labels.append("🌱 배당성장")
+            if _chk_etf:     _cat_labels.append("📊 ETF")
+            _mode_label = " + ".join(_cat_labels)
 
-        # ── 조건수 계산 (모드별 조건 다름) ─────────────────
+        # 선택된 종목만 필터
+        _df_all = df_all.copy()
+        _df = _df_all[_df_all["Ticker"].isin(_selected_tickers)].copy()
+
+        # 배당주 카테고리가 포함됐는지 (조건 완화 여부 결정)
+        _has_div_cat = bool(_active_cats & {"highdiv","divgrow"})
+        _only_div    = _active_cats <= {"highdiv","divgrow"}  # 배당 카테고리만 선택
+
+        # 선택 카테고리 배지 표시
+        st.markdown(
+            f"<div style='font-size:10px;color:#6B7280;margin:2px 0 8px 0'>"
+            f"표시 중: <b style='color:#374151'>{_mode_label}</b> "
+            f"— {len(_df)}종목</div>",
+            unsafe_allow_html=True)
+
+        # ── 조건수 계산 (카테고리별 조건 다름) ──────────────
         _df["✅유동성"]  = _liq_stage >= 3
         _df["✅브레이크"] = (
             (_df.get("Breakout", pd.Series("—",index=_df.index)) == "✅") |
@@ -4884,21 +4914,25 @@ with tab2:
         _df["✅실적OK"]  = _df.get("실적경고",    pd.Series("—",index=_df.index)) != "⚠️"
         _df["✅RSI정상"] = _df.get("RSI", pd.Series(50,index=_df.index)).fillna(50) < 70
 
-        if _stock_mode == "💰 배당주":
-            # 배당주 모드: 브레이크아웃·EPS15·RS80 조건 완화
-            # → 추세 상승(3연상 or 신고가 근처) + 배당% > 1% 로 대체
-            _df["✅EPS15"]  = _df.get("EPS Growth%", pd.Series(0,index=_df.index)) >= 0  # 완화: 0%↑
+        if _only_div:
+            # 배당 전용 모드: EPS 기준 완화 + 배당수익률 조건 추가
+            _df["✅EPS15"]   = _df.get("EPS Growth%",  pd.Series(0,index=_df.index)) >= 0
             _df["✅배당있음"] = _df.get("배당수익률%", pd.Series(0,index=_df.index)).fillna(0) >= 1.0
             _cond_cols = ["✅유동성","✅브레이크","✅거래량","✅RS80","✅AI70",
                           "✅신고가","✅실적OK","✅EPS15","✅RSI정상","✅배당있음"]
-            _df["조건수"] = _df[_cond_cols].sum(axis=1).astype(int)
         else:
-            _df["✅EPS15"]  = _df.get("EPS Growth%", pd.Series(0,index=_df.index)) >= 15
+            # 성장주 기준 (혼합 포함)
+            _df["✅EPS15"]   = _df.get("EPS Growth%",  pd.Series(0,index=_df.index)) >= 15
             _cond_cols = ["✅유동성","✅브레이크","✅거래량","✅RS80","✅AI70",
                           "✅신고가","✅실적OK","✅EPS15","✅RSI정상"]
-            _df["조건수"] = _df[_cond_cols].sum(axis=1).astype(int)
 
+        _df["조건수"] = _df[_cond_cols].sum(axis=1).astype(int)
         _n_all = len(_df)
+
+        # session_state에 선택 상태 저장 (STEP4 연동용)
+        st.session_state["active_cats"]      = _active_cats
+        st.session_state["selected_tickers"] = _selected_tickers
+        st.session_state["only_div_mode"]    = _only_div
 
         # ── V93j: 조건 점수 옆 체크 아이콘 컬럼 ─────────────
         _sc2 = "섹터 AI Score" if "섹터 AI Score" in _df.columns else "AI Score"
@@ -5085,6 +5119,30 @@ with tab3:
     _render_stepbar(4, LIQ_ACTION.get("stage", 0), 0)
     st.markdown('<div class="sec-header">💰 매수 실행 (STEP 4)</div>', unsafe_allow_html=True)
 
+    # ── STEP3 선택 카테고리 안내 배지 ───────────────────────
+    _s4_cats = st.session_state.get("active_cats", {"growth"})
+    _cat_badge_map = {
+        "growth":  ("<span style='background:#EFF6FF;color:#1D4ED8;border:0.5px solid #BFDBFE;"
+                    "border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>"
+                    "📈 성장주</span>"),
+        "highdiv": ("<span style='background:#F0FDF4;color:#15803d;border:0.5px solid #86EFAC;"
+                    "border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>"
+                    "💰 고배당</span>"),
+        "divgrow": ("<span style='background:#F0FDF4;color:#15803d;border:0.5px solid #86EFAC;"
+                    "border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>"
+                    "🌱 배당성장</span>"),
+        "etf":     ("<span style='background:#FFFBEB;color:#92400E;border:0.5px solid #FDE68A;"
+                    "border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>"
+                    "📊 ETF</span>"),
+    }
+    _badges = "".join(_cat_badge_map[c] for c in ["growth","highdiv","divgrow","etf"] if c in _s4_cats)
+    st.markdown(
+        f"<div style='margin-bottom:10px;font-size:11px;color:#6B7280'>"
+        f"STEP3 선택 카테고리: {_badges}"
+        f"<span style='font-size:10px;color:#9CA3AF'>"
+        f"(STEP3 탭에서 변경)</span></div>",
+        unsafe_allow_html=True)
+
     # ── 공통 변수 준비 ─────────────────────────────────────
     _sc_col    = "섹터 AI Score" if "섹터 AI Score" in df_all.columns else "AI Score"
     _stage     = LIQ_ACTION.get("stage", 0)
@@ -5093,9 +5151,17 @@ with tab3:
     _stage_bg  = LIQ_ACTION.get("bg",    "#F9FAFB")
     _invest    = INVEST_AMOUNT_만원
 
-    # 7조건 필터 (종목테이블과 동일 로직)
+    # ── STEP4 종목 필터 — STEP3 체크박스 선택과 연동 ──────
     if not df_all.empty:
+        # STEP3에서 선택한 카테고리 읽기
+        _s4_selected = st.session_state.get("selected_tickers", set(DEFAULT_TICKERS))
+        _s4_only_div = st.session_state.get("only_div_mode", False)
+
+        # 선택된 카테고리 종목만 필터
         _df = df_all.copy()
+        if _s4_selected:
+            _df = _df[_df["Ticker"].isin(_s4_selected)].copy()
+
         _df["✅유동성"]  = _stage >= 3
         _df["✅브레이크"] = (
             (_df.get("Breakout", pd.Series("—",index=_df.index)) == "✅") |
@@ -5106,11 +5172,20 @@ with tab3:
         _df["✅AI70"]    = _df.get(_sc_col,       pd.Series(0,  index=_df.index)) >= 70
         _df["✅신고가"]  = _df.get("52주 고점%",  pd.Series(-99,index=_df.index)) >= -20
         _df["✅실적OK"]  = _df.get("실적경고",    pd.Series("—",index=_df.index)) != "⚠️"
-        _df["✅EPS15"]   = _df.get("EPS Growth%", pd.Series(0,  index=_df.index)) >= 15
-        _df["조건수"]    = _df[["✅유동성","✅브레이크","✅거래량","✅RS80",
-                                "✅AI70","✅신고가","✅실적OK","✅EPS15"]].sum(axis=1).astype(int)
-        # 배당주 모드: 조건 기준 완화 (≥3), 배당수익률 있는 종목 우선
-        _buy_min_cond = 3 if st.session_state.get("stock_mode_radio","📈 성장주") == "💰 배당주" else 5
+
+        if _s4_only_div:
+            # 배당 전용: EPS 완화 + 배당수익률 조건
+            _df["✅EPS15"]   = _df.get("EPS Growth%",  pd.Series(0,index=_df.index)) >= 0
+            _df["✅배당있음"] = _df.get("배당수익률%", pd.Series(0,index=_df.index)).fillna(0) >= 1.0
+            _df["조건수"] = _df[["✅유동성","✅브레이크","✅거래량","✅RS80",
+                                 "✅AI70","✅신고가","✅실적OK","✅EPS15","✅배당있음"]].sum(axis=1).astype(int)
+            _buy_min_cond = 3
+        else:
+            _df["✅EPS15"]   = _df.get("EPS Growth%", pd.Series(0,index=_df.index)) >= 15
+            _df["조건수"] = _df[["✅유동성","✅브레이크","✅거래량","✅RS80",
+                                 "✅AI70","✅신고가","✅실적OK","✅EPS15"]].sum(axis=1).astype(int)
+            _buy_min_cond = 5
+
         _buy_df  = _df[_df["조건수"] >= _buy_min_cond].sort_values(["조건수",_sc_col],ascending=[False,False]).head(5)
         _exit_df = _df[_df.get("Exit Signal", pd.Series("—",index=_df.index))=="⚠️"]
     else:

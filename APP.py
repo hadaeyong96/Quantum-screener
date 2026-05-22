@@ -1550,32 +1550,50 @@ def load_stocks(tickers, _bust=0):
 if 'liq_pct' not in vars():
     liq_pct = 0.5
 
+# ── df_all 로딩 전략 ──────────────────────────────────────
+# 최초 1회 또는 새로고침 시에만 yfinance 호출
+# 체크박스/탭 전환은 session_state 캐시에서 즉시 읽음
+_ck = st.session_state.cache_key
+_ss_key = f"df_all_v{_ck}"   # 새로고침 시 키 변경 → 강제 재로딩
+
 df_all         = pd.DataFrame()
 df_port        = pd.DataFrame()
 failed_tickers = []
-try:
-    with st.spinner("📡 종목 데이터 수집 중… (첫 실행 1~2분)"):
-        df_all, df_port, failed_tickers = load_stocks(
-            tuple(TICKERS), st.session_state.cache_key)
-    if not df_all.empty and sector_data:
-        _smap = {t: sec for sec, tks in SECTOR_TICKERS.items() for t in tks}
-        df_all["섹터"] = df_all["Ticker"].map(lambda t: _smap.get(t, "기타"))
-        def _sec_bonus(tk):
-            sec = _smap.get(tk)
-            if not sec or sec not in sector_data: return 0.0
-            sd  = sector_data[sec]
-            sc  = sd.get("sector_score", 50)  # V98: 0~100점 기반
-            if sc >= 70: return 8.0    # 강한 섹터
-            if sc >= 45: return 0.0    # 중립
-            return -8.0                # 약한 섹터
-        df_all["섹터 AI Score"] = df_all.apply(
-            lambda r: min(100, max(0, r["AI Score"] + _sec_bonus(r["Ticker"]))), axis=1
-        ).round(1)
-        df_all = df_all.sort_values(
-            "섹터 AI Score", ascending=False).reset_index(drop=True)
-        df_all.index = df_all.index + 1
-except Exception as _e_load:
-    pass  # 로드 실패 시 빈 DataFrame 유지
+
+if _ss_key in st.session_state and not st.session_state[_ss_key].empty:
+    # ✅ 캐시 HIT: session_state에서 즉시 읽기 (체크박스 변경 등 재실행 시)
+    df_all         = st.session_state[_ss_key]
+    df_port        = st.session_state.get(f"df_port_v{_ck}", pd.DataFrame())
+    failed_tickers = st.session_state.get(f"failed_v{_ck}", [])
+else:
+    # ❌ 캐시 MISS: 최초 실행 또는 새로고침 시 yfinance 호출
+    try:
+        with st.spinner("📡 종목 데이터 수집 중… (첫 실행 1~2분, 이후 즉시 전환)"):
+            df_all, df_port, failed_tickers = load_stocks(
+                tuple(TICKERS), _ck)
+        if not df_all.empty and sector_data:
+            _smap = {t: sec for sec, tks in SECTOR_TICKERS.items() for t in tks}
+            df_all["섹터"] = df_all["Ticker"].map(lambda t: _smap.get(t, "기타"))
+            def _sec_bonus(tk):
+                sec = _smap.get(tk)
+                if not sec or sec not in sector_data: return 0.0
+                sd  = sector_data[sec]
+                sc  = sd.get("sector_score", 50)
+                if sc >= 70: return 8.0
+                if sc >= 45: return 0.0
+                return -8.0
+            df_all["섹터 AI Score"] = df_all.apply(
+                lambda r: min(100, max(0, r["AI Score"] + _sec_bonus(r["Ticker"]))), axis=1
+            ).round(1)
+            df_all = df_all.sort_values(
+                "섹터 AI Score", ascending=False).reset_index(drop=True)
+            df_all.index = df_all.index + 1
+        # session_state에 저장 → 이후 탭 전환·체크박스 변경 시 즉시 사용
+        st.session_state[f"df_all_v{_ck}"]  = df_all
+        st.session_state[f"df_port_v{_ck}"] = df_port
+        st.session_state[f"failed_v{_ck}"]  = failed_tickers
+    except Exception as _e_load:
+        pass
 
 pe_data     = load_sp500_pe(st.session_state.cache_key)
 
@@ -5029,8 +5047,8 @@ with tab2:
             else _df.sort_values(_sort_opt, ascending=(_sort_opt=="PEG"), na_position="last")
         )
 
-        # PC: 전체 컬럼 표시 — 배당주 모드는 배당% 앞으로
-        if _stock_mode == "💰 배당주":
+        # PC: 전체 컬럼 표시 — 배당 전용 모드는 배당% 앞으로
+        if _only_div:
             _showcols = [c for c in [
                 "Ticker","섹터","조건/9",
                 "배당수익률%","Price","RS✅","AI✅","RSI✅","신고가✅",

@@ -3,7 +3,10 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V107
+VERSION : APP_V108
+  V108 - 유동성 지표 설명 전면 개편 (초보자용 표 형식)
+         → 8개 지표 모두 용어 정의·예시·비교표·팁 추가
+         → <details> 제거, 항상 펼쳐진 표 형식 적용
   V107 - ③ 섹션 원형 복원 (유동성 카드 | 시장지표 카드 분리)
          → V106에서 통합·다크카드 수정 이전 상태로 복원
   V106 - ① 매수 종목 상세 카드 → st.dataframe 표 형식 통일
@@ -223,7 +226,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V107",
+st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V108",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -987,7 +990,7 @@ sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
     "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>"
     "QUANTUM INSTITUTIONAL OS</div>"
-    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V107 &nbsp;·&nbsp; 💻 PC VERSION</div>"
+    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V108 &nbsp;·&nbsp; 💻 PC VERSION</div>"
     "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
@@ -1075,7 +1078,7 @@ sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=
 # ─────────────────────────────────────────────────────────
 # TITLE
 # ─────────────────────────────────────────────────────────
-APP_VERSION = "V107"
+APP_VERSION = "V108"
 st.markdown(f"""
 <div style="padding:16px 0 10px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
@@ -1085,7 +1088,7 @@ st.markdown(f"""
         QUANTUM INSTITUTIONAL OS
       </span><br>
       <span style="font-size:11px;color:#6B7280;letter-spacing:2px">
-        V107  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
+        V108  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
       </span><br>
       <span style="font-size:11px;color:#9CA3AF;margin-top:4px;display:inline-block;
             border-left:3px solid #3B5BA5;padding-left:8px;line-height:1.6">
@@ -4775,7 +4778,7 @@ def build_full_report():
         )
 
     report = f"""{SEP}
-  QUANTUM INSTITUTIONAL OS  |  투자 지침서  |  V107
+  QUANTUM INSTITUTIONAL OS  |  투자 지침서  |  V108
   {now_str}
 {SEP}
 
@@ -5870,8 +5873,8 @@ with tab4:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V107</b>"
-        f" &nbsp;|&nbsp; APP_V107 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V108</b>"
+        f" &nbsp;|&nbsp; APP_V108 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

@@ -1075,8 +1075,8 @@ sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=
 # ─────────────────────────────────────────────────────────
 APP_VERSION = "V106"
 st.markdown(f"""
-<div style="padding:16px 0 8px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
-  <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px">
+<div style="padding:16px 0 10px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
     <div>
       <span style="font-family:'Space Mono',monospace;font-size:20px;
             color:#3B5BA5;letter-spacing:3px;font-weight:700">
@@ -1084,6 +1084,13 @@ st.markdown(f"""
       </span><br>
       <span style="font-size:11px;color:#6B7280;letter-spacing:2px">
         V106  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
+      </span><br>
+      <span style="font-size:11px;color:#9CA3AF;margin-top:4px;display:inline-block;
+            border-left:3px solid #3B5BA5;padding-left:8px;line-height:1.6">
+        초보 투자자가 기관처럼 판단하도록 돕는 투자 학습 도구입니다.<br>
+        숫자보다 <b style="color:#374151">해석</b>,
+        해석보다 <b style="color:#374151">행동 지침</b>을 제공합니다.
+        투자 결과의 책임은 전적으로 본인에게 있습니다.
       </span>
     </div>
     <div style="text-align:right">
@@ -5643,33 +5650,39 @@ with tab3:
     st.markdown("<hr style='border-color:#E2E6ED;margin:14px 0'>", unsafe_allow_html=True)
 
     # ════════════════════════════════════════════════════════
-    # 섹션 3 — 판단 근거 요약
+    # 섹션 3 — 판단 근거 + 종목 선별 원칙
     # ════════════════════════════════════════════════════════
     st.markdown(
         "<div style='font-family:Space Mono,monospace;font-size:11px;"
-        "color:#3B5BA5;letter-spacing:1px;margin-bottom:8px'>③ 왜 이 판단인가 — 근거 요약</div>",
+        "color:#3B5BA5;letter-spacing:1px;margin-bottom:8px'>"
+        "③ 왜 이 판단인가 — 근거 요약</div>",
         unsafe_allow_html=True)
 
-    _ev1, _ev2 = st.columns(2)
+    _ev1, _ev2 = st.columns([1.1, 1])
+
     with _ev1:
-        # 유동성 핵심 지표
-        _ev_rows = [
-            ("M2 통화량",    "M2",           True),
-            ("역레포 RRP",   "RRP",          False),
-            ("TGA 재무부",   "TGA",          False),
-            ("실질금리",     "RealRate",     False),
-            ("크레딧 스프레드","CreditSpread",False),
-            ("기준금리",     "FedFunds",     False),
-        ]
-        _ev_html = "<div style='font-size:10px;color:#9CA3AF;margin-bottom:6px'>유동성 지표</div>"
-        for _name, _key, _ in _ev_rows:
+        # ── 왼쪽: 유동성 + 시장 지표 통합 카드 ──
+        _ev_html = (
+            "<div style='font-size:12px;font-weight:700;color:#0D1117;"
+            "margin-bottom:10px'>📊 현재 시장 환경 요약</div>"
+            "<div style='font-size:10px;font-weight:600;color:#9CA3AF;"
+            "letter-spacing:0.5px;margin-bottom:4px'>💧 유동성 지표</div>"
+        )
+        for _name, _key in [
+            ("M2 통화량",       "M2"),
+            ("역레포 RRP",      "RRP"),
+            ("TGA 재무부",      "TGA"),
+            ("실질금리",        "RealRate"),
+            ("크레딧 스프레드", "CreditSpread"),
+            ("기준금리",        "FedFunds"),
+        ]:
             _info  = IND_SCORE_100.get(_key, {})
             _score = _info.get("score")
             _val   = _info.get("val")
             if _score is None: continue
-            if   _score >= 65: _ic="✅"; _sc="#15803d"
-            elif _score >= 40: _ic="⚠️"; _sc="#92400E"
-            else:              _ic="❌"; _sc="#B91C1C"
+            if   _score >= 65: _ic="✅"; _sc="#15803d"; _bg="#F0FDF4"
+            elif _score >= 40: _ic="⚠️"; _sc="#92400E"; _bg="#FFFBEB"
+            else:              _ic="❌"; _sc="#B91C1C"; _bg="#FEF2F2"
             _unit = _info.get("meta",{}).get("unit","")
             _val_str = (f"${_val/1000:.1f}T" if _unit=="B$" and _val and _val>=1000
                         else f"${_val:.0f}B" if _unit=="B$" and _val
@@ -5677,39 +5690,48 @@ with tab3:
                         else "—")
             _ev_html += (
                 f"<div style='display:flex;justify-content:space-between;"
-                f"align-items:center;padding:4px 0;border-bottom:0.5px solid #F3F4F6;"
-                f"font-size:11px'>"
-                f"<span style='color:#6B7280'>{_ic} {_name}</span>"
-                f"<span style='font-family:Space Mono,monospace;color:{_sc}'>"
-                f"{_val_str} &nbsp;<b>{_score:.0f}점</b></span></div>"
+                f"align-items:center;padding:4px 6px;margin-bottom:2px;"
+                f"background:{_bg};border-radius:4px;font-size:11px'>"
+                f"<span style='color:#374151'>{_ic} {_name}</span>"
+                f"<span style='font-family:Space Mono,monospace;font-weight:600;color:{_sc}'>"
+                f"{_val_str} &nbsp;{_score:.0f}점</span></div>"
             )
-        st.markdown(
-            f"<div style='background:#F9FAFB;border:0.5px solid #E2E6ED;"
-            f"border-radius:8px;padding:12px 14px'>{_ev_html}</div>",
-            unsafe_allow_html=True)
-
-    with _ev2:
-        # 시장 지표 + 리스크 요인
-        _mk_html = "<div style='font-size:10px;color:#9CA3AF;margin-bottom:6px'>시장 지표</div>"
+        # 시장 지표
+        _ev_html += (
+            "<div style='font-size:10px;font-weight:600;color:#9CA3AF;"
+            "letter-spacing:0.5px;margin:10px 0 4px 0'>📡 시장 지표</div>"
+        )
         _mk_rows = []
         try:
             _vix = float(mkt.get("VIX").iloc[-1]) if mkt.get("VIX") is not None else None
-            if _vix: _mk_rows.append(("VIX 공포지수", f"{_vix:.1f}", "#B91C1C" if _vix>25 else "#92400E" if _vix>18 else "#15803d"))
+            if _vix: _mk_rows.append(("VIX 공포지수", f"{_vix:.1f}",
+                "#B91C1C" if _vix>25 else "#92400E" if _vix>18 else "#15803d",
+                "#FEF2F2" if _vix>25 else "#FFFBEB" if _vix>18 else "#F0FDF4"))
         except: pass
         try:
             _t10 = float(mkt.get("TNX").iloc[-1]) if mkt.get("TNX") is not None else None
-            if _t10: _mk_rows.append(("10년물 금리", f"{_t10:.2f}%", "#B91C1C" if _t10>4.5 else "#92400E" if _t10>4.0 else "#15803d"))
+            if _t10: _mk_rows.append(("10년물 금리", f"{_t10:.2f}%",
+                "#B91C1C" if _t10>4.5 else "#92400E" if _t10>4.0 else "#15803d",
+                "#FEF2F2" if _t10>4.5 else "#FFFBEB" if _t10>4.0 else "#F0FDF4"))
         except: pass
-        if fg_score: _mk_rows.append(("공포탐욕지수", f"{fg_score:.0f}점", "#15803d" if fg_score>60 else "#92400E" if fg_score>40 else "#B91C1C"))
-        if pe_current: _mk_rows.append(("S&P500 PER", f"{pe_current:.1f}배", "#B91C1C" if pe_current>27 else "#92400E" if pe_current>22 else "#15803d"))
-        _mk_rows.append(("시장 상태", MKT_KR.get(mkt_status,{}).get("label","—"),
-                          "#15803d" if mkt_status=="RISK ON" else "#B91C1C" if mkt_status=="RISK OFF" else "#92400E"))
-        for _n, _v, _c in _mk_rows:
-            _mk_html += (
+        if fg_score:
+            _mk_rows.append(("공포탐욕지수", f"{fg_score:.0f}점",
+                "#15803d" if fg_score>60 else "#92400E" if fg_score>40 else "#B91C1C",
+                "#F0FDF4" if fg_score>60 else "#FFFBEB" if fg_score>40 else "#FEF2F2"))
+        if pe_current:
+            _mk_rows.append(("S&P500 PER", f"{pe_current:.1f}배",
+                "#B91C1C" if pe_current>27 else "#92400E" if pe_current>22 else "#15803d",
+                "#FEF2F2" if pe_current>27 else "#FFFBEB" if pe_current>22 else "#F0FDF4"))
+        _mk_lbl = MKT_KR.get(mkt_status,{}).get("label","—")
+        _mk_rows.append(("시장 상태", _mk_lbl,
+            "#15803d" if mkt_status=="RISK ON" else "#B91C1C" if mkt_status=="RISK OFF" else "#92400E",
+            "#F0FDF4" if mkt_status=="RISK ON" else "#FEF2F2" if mkt_status=="RISK OFF" else "#FFFBEB"))
+        for _n, _v, _c, _bg in _mk_rows:
+            _ev_html += (
                 f"<div style='display:flex;justify-content:space-between;"
-                f"align-items:center;padding:4px 0;border-bottom:0.5px solid #F3F4F6;"
-                f"font-size:11px'>"
-                f"<span style='color:#6B7280'>{_n}</span>"
+                f"align-items:center;padding:4px 6px;margin-bottom:2px;"
+                f"background:{_bg};border-radius:4px;font-size:11px'>"
+                f"<span style='color:#374151'>{_n}</span>"
                 f"<span style='font-family:Space Mono,monospace;font-weight:600;color:{_c}'>{_v}</span></div>"
             )
         # 주의 요인
@@ -5724,11 +5746,149 @@ with tab3:
         except: pass
         if hard_stops: _risks.extend(hard_stops[:2])
         if _risks:
-            _mk_html += "<div style='font-size:10px;color:#B91C1C;margin-top:8px'><b>⚠️ 주의 요인</b><br>" + "<br>".join(f"· {r}" for r in _risks[:3]) + "</div>"
+            _ev_html += (
+                "<div style='background:#FEF2F2;border-radius:6px;padding:8px 10px;margin-top:8px'>"
+                "<div style='font-size:10px;font-weight:700;color:#B91C1C;margin-bottom:4px'>⚠️ 주의 요인</div>"
+                + "".join(f"<div style='font-size:10px;color:#B91C1C'>· {r}</div>" for r in _risks[:3])
+                + "</div>"
+            )
         st.markdown(
-            f"<div style='background:#F9FAFB;border:0.5px solid #E2E6ED;"
-            f"border-radius:8px;padding:12px 14px'>{_mk_html}</div>",
+            f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+            f"border-radius:10px;padding:14px 16px'>{_ev_html}</div>",
             unsafe_allow_html=True)
+
+    with _ev2:
+        # ── 오른쪽: 카테고리별 선별 알고리즘 설명 (동적) ──
+        _s3_cats = st.session_state.get("active_cats", {"growth"})
+
+        # 카테고리별 설명 정의
+        _algo_blocks = []
+
+        if "growth" in _s3_cats or not _s3_cats:
+            _algo_blocks.append({
+                "icon": "📈", "title": "성장주 선별 알고리즘",
+                "color": "#60A5FA", "bg": "#1E3A5F",
+                "rows": [
+                    ("RS 지수 80+",    "QQQ 대비 상위 20% 초과 상승 종목만 선발. "
+                                       "1M·3M·6M·12M 수익률 가중 합산 (3M 가장 중시)."),
+                    ("AI 점수 70+",    "RS 30% + EPS성장 15% + 매출성장 15% + "
+                                       "밸류에이션 15% + 거래량 15% + 유동성 10% 합산."),
+                    ("브레이크아웃",   "52주 신고가 돌파 또는 3일 연속 상승 확인. "
+                                       "주가가 저항선을 뚫고 올라가는 시점 포착."),
+                    ("거래량 급증",    "평균 거래량 대비 1.5배 이상. "
+                                       "기관·세력의 실제 매수가 동반됐다는 신호."),
+                    ("EPS 15%+",       "기업 순이익 성장률 15% 이상. "
+                                       "주가 상승의 근본 원동력."),
+                    ("매수 기준",      "9개 조건 중 5개 이상 충족 시 매수 후보."),
+                ]
+            })
+
+        if "highdiv" in _s3_cats:
+            _algo_blocks.append({
+                "icon": "💰", "title": "고배당주 선별 알고리즘",
+                "color": "#86EFAC", "bg": "#14532D",
+                "rows": [
+                    ("배당수익률 우선",  "실제 배당금 합계 ÷ 현재 주가. "
+                                         "yfinance 실배당 내역 기반 (추정값 사용 안함)."),
+                    ("배당 지속성",      "배당 삭감 이력 없는 종목 우선. "
+                                         "배당왕(50년+)·배당귀족(25년+) 포함."),
+                    ("RSI 70 미만",      "과매수 구간 진입 시 매수 자제. "
+                                         "배당주는 저점 분할매수가 핵심 전략."),
+                    ("추세 방향",        "MA10 위에 있거나 브레이크아웃 시 추가 가점. "
+                                         "배당 + 주가 상승 동시 노림."),
+                    ("EPS 조건 완화",    "EPS 0%↑ (성장주 15% 대비 완화). "
+                                         "안정적 수익 구조면 충분."),
+                    ("매수 기준",        "9개 조건 중 3개 이상 + 배당수익률 1%↑."),
+                ]
+            })
+
+        if "divgrow" in _s3_cats:
+            _algo_blocks.append({
+                "icon": "🌱", "title": "배당성장주 선별 알고리즘",
+                "color": "#FDE68A", "bg": "#78350F",
+                "rows": [
+                    ("배당률 + 성장성",  "배당수익률 × EPS 성장률 복합 평가. "
+                                         "현재 배당이 낮아도 성장률이 높으면 우대."),
+                    ("RS 지수 활용",     "QQQ 대비 초과 수익률 확인. "
+                                         "배당성장주도 시장 대비 강해야 진입 가치 있음."),
+                    ("매출·이익 성장",   "EPS·매출 성장률 0%↑ (플러스 성장 유지 확인). "
+                                         "배당을 늘릴 여력이 있는지 판단."),
+                    ("장기 복리 전략",   "배당 재투자 시 복리 효과 극대화. "
+                                         "SCHD·DGRO 같은 배당성장 ETF도 포함."),
+                    ("매수 기준",        "9개 조건 중 3개 이상 + 배당수익률 0.5%↑ "
+                                         "+ 카테고리 소속 확인."),
+                ]
+            })
+
+        if "etf" in _s3_cats:
+            _algo_blocks.append({
+                "icon": "📊", "title": "ETF 선별 알고리즘",
+                "color": "#C4B5FD", "bg": "#3B0764",
+                "rows": [
+                    ("RS 지수 기준",    "QQQ 대비 상대강도 확인. "
+                                         "단, QQQ·SPY는 기준 지수라 RS가 낮게 나오는 게 정상."),
+                    ("모멘텀 비교",     "QQQ 대비 수익률 곡선 기울기 비교 (아래 차트 참고). "
+                                         "SMH·XLK 등 섹터 ETF의 초과 상승 여부 확인."),
+                    ("레버리지 주의",   "TQQQ(3배)는 단기 모멘텀 지표로만 활용. "
+                                         "장기 보유 시 변동성 감소(decay) 발생."),
+                    ("인버스 활용법",   "SQQQ는 유동성 1~2단계 하락 시 헤지 신호. "
+                                         "매수 금지 구간 확인용으로 참고."),
+                    ("매수 기준",       "RS·AI 조건 기준 적용 (성장주와 동일). "
+                                         "단, RS 해석은 절대값이 아닌 상대 비교로 판단."),
+                ]
+            })
+
+        # HTML 생성
+        _right_html = (
+            "<div style='background:#0D1117;border-radius:10px;padding:14px 16px;"
+            "color:#F9FAFB;box-sizing:border-box'>"
+            "<div style='font-size:11px;font-weight:700;color:#F9FAFB;"
+            "margin-bottom:10px;border-bottom:1px solid #374151;padding-bottom:6px'>"
+            "🎯 종목 선별 알고리즘 — 왜 이 종목인가</div>"
+            "<div style='font-size:10px;color:#9CA3AF;margin-bottom:10px;line-height:1.5'>"
+            "초보 투자자가 기관처럼 판단할 수 있도록<br>"
+            "유동성 → 섹터 → 종목 순서로 자동 선별합니다.</div>"
+        )
+
+        if not _algo_blocks:
+            _right_html += (
+                "<div style='font-size:10px;color:#6B7280;text-align:center;padding:20px'>"
+                "STEP3 탭에서 카테고리를 선택하면<br>해당 선별 기준이 표시됩니다.</div>"
+            )
+        else:
+            for _blk in _algo_blocks:
+                _right_html += (
+                    f"<div style='background:{_blk['bg']};border-radius:7px;"
+                    f"padding:10px 12px;margin-bottom:8px'>"
+                    f"<div style='font-size:11px;font-weight:700;"
+                    f"color:{_blk['color']};margin-bottom:6px'>"
+                    f"{_blk['icon']} {_blk['title']}</div>"
+                )
+                for _label, _desc in _blk["rows"]:
+                    _right_html += (
+                        f"<div style='display:flex;gap:6px;margin-bottom:4px;"
+                        f"font-size:10px;line-height:1.5'>"
+                        f"<span style='color:{_blk['color']};font-weight:600;"
+                        f"white-space:nowrap;min-width:72px'>{_label}</span>"
+                        f"<span style='color:#D1D5DB'>{_desc}</span></div>"
+                    )
+                _right_html += "</div>"
+
+        # 공통 리스크 관리 원칙
+        _right_html += (
+            "<div style='border-top:1px solid #374151;padding-top:8px;margin-top:4px'>"
+            "<div style='font-size:10px;font-weight:600;color:#FCA5A5;"
+            "margin-bottom:4px'>🛡️ 공통 리스크 관리 원칙</div>"
+            "<div style='font-size:10px;color:#D1D5DB;line-height:1.7'>"
+            "손절: 매수가 ×0.92 (-8%) 또는 ATR×2 &nbsp;|&nbsp; "
+            "1차 익절: +15% (50% 매도) &nbsp;|&nbsp; "
+            "2차 익절: +25% (25% 추가)</div>"
+            "<div style='font-size:10px;color:#9CA3AF;margin-top:4px'>"
+            "유동성 1~2단계 하락 시 전량 청산 우선 검토</div>"
+            "</div></div>"
+        )
+
+        st.markdown(_right_html, unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════

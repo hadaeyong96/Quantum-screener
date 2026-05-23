@@ -3,11 +3,7 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V109
-  V109 - 유동성 지표 설명 색상 최소화 (흰 배경·텍스트 위주)
-  V108 - 유동성 지표 설명 전면 개편 (초보자용 표 형식)
-         → 8개 지표 모두 용어 정의·예시·비교표·팁 추가
-         → <details> 제거, 항상 펼쳐진 표 형식 적용
+VERSION : APP_V107
   V107 - ③ 섹션 원형 복원 (유동성 카드 | 시장지표 카드 분리)
          → V106에서 통합·다크카드 수정 이전 상태로 복원
   V106 - ① 매수 종목 상세 카드 → st.dataframe 표 형식 통일
@@ -227,7 +223,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V109",
+st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V107",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -991,7 +987,7 @@ sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
     "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>"
     "QUANTUM INSTITUTIONAL OS</div>"
-    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V109 &nbsp;·&nbsp; 💻 PC VERSION</div>"
+    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V107 &nbsp;·&nbsp; 💻 PC VERSION</div>"
     "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
@@ -1079,7 +1075,7 @@ sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=
 # ─────────────────────────────────────────────────────────
 # TITLE
 # ─────────────────────────────────────────────────────────
-APP_VERSION = "V109"
+APP_VERSION = "V107"
 st.markdown(f"""
 <div style="padding:16px 0 10px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
@@ -1089,7 +1085,7 @@ st.markdown(f"""
         QUANTUM INSTITUTIONAL OS
       </span><br>
       <span style="font-size:11px;color:#6B7280;letter-spacing:2px">
-        V109  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
+        V107  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
       </span><br>
       <span style="font-size:11px;color:#9CA3AF;margin-top:4px;display:inline-block;
             border-left:3px solid #3B5BA5;padding-left:8px;line-height:1.6">
@@ -2479,266 +2475,178 @@ tab0, tab1, tab2, tab3, tab4 = st.tabs([
 
 # ── V93: 지표 설명 expander 헬퍼 ─────────────────────────
 def _indicator_explain(key):
-    """지표별 초보자용 설명 — 표 형식 (항상 펼쳐진 상태)"""
+    """지표별 시장 흐름 설명 expander"""
     _explains = {
         "FedFunds": {
-            "term":    "기준금리 (Fed Funds Rate)",
-            "def":     "미국 연방준비제도(연준)가 정하는 은행 간 하룻밤 대출 금리입니다. "
-                       "모든 금리의 기준이 되며 경제 전체의 돈값을 결정합니다.",
-            "analogy": "쉽게 말해: 연준이 돈 빌리는 비용을 올리고 내리는 조절 나사입니다.",
-            "up_label": "📈 금리 인상 (긴축) — 나쁨",
-            "up_rows": [
-                ("의미",   "돈 빌리는 비용이 비싸진다"),
-                ("기업",   "대출 이자 부담↑ → 투자 줄임 → 이익 감소"),
-                ("소비자", "주담대·신용카드 이자↑ → 소비 줄임"),
-                ("주식",   "기업 이익 감소 예상 → 주가 하락 압박"),
-                ("역사",   "2022년 0%→5.25% 인상 → 나스닥 -33%"),
-            ],
-            "dn_label": "📉 금리 인하 (완화) — 좋음",
-            "dn_rows": [
-                ("의미",   "돈 빌리는 비용이 싸진다"),
-                ("기업",   "저금리 대출 → 공격적 투자 → 이익 증가"),
-                ("소비자", "대출 이자↓ → 소비·부동산 활성화"),
-                ("주식",   "기업 이익 증가 기대 → 주가 상승"),
-                ("역사",   "2020년 0%로 인하 → 나스닥 2년간 +100%"),
-            ],
-            "tip": "💡 연준 목표: 물가 2% + 완전고용 유지. FOMC 회의(연 8회)에서 결정. 한국 새벽 3~4시 발표.",
+            "title": "기준금리가 오르면 왜 주가가 하락할까?",
+            "up_title": "📈 기준금리 올리면 (긴축)",
+            "up_flow": ["돈 빌리는 이자 비쌈",
+                        "기업이 투자 줄임",
+                        "소비자도 소비 줄임",
+                        "→ 기업 이익 감소 → 주가 하락"],
+            "dn_title": "📉 기준금리 내리면 (완화)",
+            "dn_flow": ["대출 이자 저렴해짐",
+                        "기업이 마음껏 투자",
+                        "소비자 지갑이 열림",
+                        "→ 기업 이익 증가 → 주가 상승"],
+            "tip": "💡 연준이 금리를 0%로 낮춘 2020~21년에 나스닥이 2배 올랐습니다",
         },
         "M2": {
-            "term":    "M2 통화량 (M2 Money Supply)",
-            "def":     "시장에 풀린 돈의 총량입니다. 현금 + 요구불예금 + 저축예금 + 머니마켓펀드 합산. "
-                       "시중에 돈이 얼마나 있는가를 가장 직접적으로 보여주는 지표입니다.",
-            "analogy": "쉽게 말해: 수영장 물처럼, M2가 늘면 자산 가격 수위가 올라갑니다.",
-            "up_label": "📈 M2 증가 (유동성 확대) — 좋음",
-            "up_rows": [
-                ("의미",   "시장에 돈이 더 많이 풀린다"),
-                ("은행",   "대출 여건 완화 → 기업·가계 자금 조달 쉬워짐"),
-                ("투자",   "남는 돈이 주식·부동산 등 자산으로 유입"),
-                ("주식",   "자산 가격 상승 → 주가 오름"),
-                ("역사",   "2020~21년 M2 +27% 급증 → 나스닥 +100%"),
-            ],
-            "dn_label": "📉 M2 감소 (유동성 축소) — 나쁨",
-            "dn_rows": [
-                ("의미",   "시장에서 돈이 빠져나간다 (양적긴축·QT)"),
-                ("은행",   "대출 어려워짐 → 기업 투자 위축"),
-                ("투자",   "자산 매도 → 현금 보유로 이동"),
-                ("주식",   "자산 가격 하락 압박"),
-                ("역사",   "2022년 M2 사상 첫 감소 → 나스닥 -33%"),
-            ],
-            "tip": "💡 M2는 후행 지표입니다. 오늘 늘어도 시장 반영은 3~6개월 후일 수 있습니다. 방향과 기울기가 중요합니다.",
+            "title": "M2가 늘면 왜 주가가 오를까?",
+            "up_title": "📈 M2 증가하면",
+            "up_flow": ["은행에 돈이 많아짐",
+                        "대출이 쉬워짐",
+                        "기업이 투자 늘림",
+                        "→ 주가 상승"],
+            "dn_title": "📉 M2 감소하면",
+            "dn_flow": ["시장에서 돈이 빠짐",
+                        "대출 어려워짐",
+                        "기업 투자 줄어듦",
+                        "→ 주가 하락"],
+            "tip": "💡 2022년 M2가 처음으로 줄었을 때 나스닥이 -33% 하락했습니다",
         },
         "RRP": {
-            "term":    "역레포 (RRP, Reverse Repo) — 연준 역환매조건부채권",
-            "def":     "은행·머니마켓펀드가 남는 돈을 연준에 하룻밤 맡기고 이자를 받는 제도입니다. "
-                       "RRP 잔고가 많다는 것은 돈이 시장에 투자되지 않고 연준 금고에 쌓여 있다는 신호입니다.",
-            "analogy": "쉽게 말해: 은행이 돈을 금고에 넣어 잠자는 상태. 이 돈이 풀리면 시장으로 흘러들어옵니다.",
-            "up_label": "📉 RRP 높은 상태 — 나쁨 (시장 비활성)",
-            "up_rows": [
-                ("의미",   "은행 잉여 자금이 연준에 갇혀 있다"),
-                ("시장",   "주식·채권 시장으로 돈이 유입 안 됨"),
-                ("유동성", "시장 유동성 실질적으로 낮음"),
-                ("주식",   "자산 가격 정체 가능성"),
-                ("역사",   "2022~23년 RRP 2.5조$ 최고점 → 시장 침체"),
-            ],
-            "dn_label": "📈 RRP 감소 — 좋음 (시장 활성화)",
-            "dn_rows": [
-                ("의미",   "은행이 연준에서 돈을 빼서 시장에 투자"),
-                ("시장",   "주식·채권 시장으로 자금 유입"),
-                ("유동성", "시장 실질 유동성 증가"),
-                ("주식",   "자산 가격 상승 압력"),
-                ("역사",   "2023~24년 RRP 2.5조→0 감소 → 나스닥 반등"),
-            ],
-            "tip": "💡 RRP는 숨겨진 유동성입니다. 0에 가까워질수록 새로운 유동성 공급원이 줄어드는 신호이기도 합니다.",
+            "title": "역레포(RRP)가 줄면 왜 시장에 좋을까?",
+            "up_title": "📉 RRP 높으면 (나쁨)",
+            "up_flow": ["은행이 남는 돈을 연준에 보관 중",
+                        "그 돈이 주식·채권 시장에 안 들어옴",
+                        "시장 유동성 줄어듦",
+                        "→ 자산 가격 정체"],
+            "dn_title": "📈 RRP 줄어들면 (좋음)",
+            "dn_flow": ["은행이 연준에서 돈을 빼서 시장에 투자",
+                        "주식·채권 시장으로 돈 유입",
+                        "매수 압력 증가",
+                        "→ 자산 가격 상승"],
+            "tip": "💡 2022~24년 RRP가 2.5조→0으로 줄면서 나스닥이 반등했습니다",
         },
         "TGA": {
-            "term":    "TGA (Treasury General Account) — 미국 재무부 당좌계좌",
-            "def":     "미국 정부가 연준에 보유한 국가 통장입니다. 세금이 걷히면 잔고가 늘고, "
-                       "정부가 지출(복지·인프라 등)하면 잔고가 줄어듭니다.",
-            "analogy": "쉽게 말해: 정부 통장 잔고. 잔고가 쌓이면 시중 돈이 빠지고, 잔고가 줄면 시중에 돈이 풀립니다.",
-            "up_label": "📉 TGA 증가 — 나쁨 (시장 유동성 감소)",
-            "up_rows": [
-                ("의미",   "정부가 세금을 걷어 금고에 쌓아두는 중"),
-                ("효과",   "시중에서 돈이 정부 계좌로 흡수됨"),
-                ("유동성", "민간 시장 자금 감소"),
-                ("주식",   "자산 가격 하락 압박"),
-                ("역사",   "2023년 부채한도 협상 후 TGA 급증 → 시장 변동성"),
-            ],
-            "dn_label": "📈 TGA 감소 — 좋음 (시장 유동성 증가)",
-            "dn_rows": [
-                ("의미",   "정부가 지출하며 돈을 시장에 푸는 중"),
-                ("효과",   "정부 자금이 민간으로 유입"),
-                ("유동성", "시중 자금 증가"),
-                ("주식",   "자산 가격 상승 압력"),
-                ("역사",   "2020년 코로나 재정지출 TGA 급감 → 자산 가격 급등"),
-            ],
-            "tip": "💡 TGA는 부채한도 협상과 연동됩니다. 한도 타결 후 국채 발행 → TGA 급증 패턴이 반복됩니다.",
+            "title": "재무부 계좌(TGA)가 내려가면 왜 시장에 좋을까?",
+            "up_title": "📉 TGA 높으면 (나쁨)",
+            "up_flow": ["정부가 세금을 걷어서 쌓아둔 것",
+                        "시중에서 돈이 정부 금고로 흡수됨",
+                        "시장 유동성 감소",
+                        "→ 자산 가격 압박"],
+            "dn_title": "📈 TGA 낮으면 (좋음)",
+            "dn_flow": ["정부가 지출 중",
+                        "정부 돈이 시장으로 나옴",
+                        "시중 유동성 증가",
+                        "→ 자산 가격 상승"],
+            "tip": "💡 2023년 부채한도 협상 당시 TGA가 급증해 시장이 흔들렸습니다",
         },
         "Reserves": {
-            "term":    "은행 지급준비금 (Bank Reserves)",
-            "def":     "시중 은행들이 연준에 예치해야 하는 최소 자금입니다. "
-                       "이 금액이 충분해야 은행 간 자금 거래가 원활하게 이뤄집니다.",
-            "analogy": "쉽게 말해: 은행이 비상금으로 갖고 있어야 하는 금융 시스템의 안전판입니다.",
-            "up_label": "📈 준비금 충분 — 좋음 (안정)",
-            "up_rows": [
-                ("의미",   "은행이 여유 자금을 충분히 보유"),
-                ("금융",   "은행 간 단기 자금 거래 원활"),
-                ("대출",   "기업·가계 대출 잘 실행됨"),
-                ("주식",   "신용 경색 위험 낮음 → 주가 안정"),
-                ("기준",   "3조$ 이상이면 안전, 2조$ 이하면 주의"),
-            ],
-            "dn_label": "📉 준비금 부족 — 나쁨 (위험)",
-            "dn_rows": [
-                ("의미",   "은행들이 자금 여유가 없어짐"),
-                ("금융",   "은행 간 서로 돈 빌려주기 꺼림"),
-                ("금리",   "단기 금리(레포) 갑작스런 폭등 가능"),
-                ("주식",   "신용 경색 → 전반적 자산 가격 하락"),
-                ("역사",   "2019년 레포 위기: 준비금 부족 → 단기금리 하루 10% 폭등"),
-            ],
-            "tip": "💡 연준은 준비금이 너무 줄면 자산 매입(QE)으로 보충합니다. QT(양적긴축) 속도 조절의 핵심 지표입니다.",
+            "title": "은행 준비금이 충분해야 하는 이유",
+            "up_title": "📈 준비금 충분하면 (좋음)",
+            "up_flow": ["은행이 여유 자금 보유",
+                        "기업·가계에 대출 잘 해줌",
+                        "경제 활동 활발해짐",
+                        "→ 주가 상승"],
+            "dn_title": "📉 준비금 부족하면 (위험)",
+            "dn_flow": ["은행들이 서로 돈 빌려주기 꺼림",
+                        "단기 금리가 갑자기 폭등",
+                        "신용 경색 발생",
+                        "→ 2019년 레포 위기 재발 위험"],
+            "tip": "💡 2019년 준비금이 1.5조$까지 줄자 단기 금리가 하루 만에 10%로 폭등했습니다",
         },
         "RealRate": {
-            "term":    "실질금리 (Real Interest Rate)",
-            "def":     "명목금리에서 물가상승률(CPI)을 뺀 금리입니다. "
-                       "예: 기준금리 5% - 물가 3% = 실질금리 2%. 돈을 빌렸을 때 실제로 느끼는 부담입니다.",
-            "analogy": "쉽게 말해: 예금 이자 5%인데 물가가 3% 오르면 실질 수익은 2%뿐. "
-                       "실질금리가 높을수록 가만히 예금만 해도 돈이 불어난다는 뜻입니다.",
-            "up_label": "📉 실질금리 높음 — 나쁨 (성장주 불리)",
-            "up_rows": [
-                ("의미",   "채권·예금만 들어도 실질 이익 발생"),
-                ("투자자", "굳이 위험한 주식 살 필요 없음"),
-                ("타격",   "특히 PER 50배↑ 미래 이익 기대 성장주 직격"),
-                ("이유",   "미래 이익의 현재 가치(할인율) 상승 → 밸류에이션 하락"),
-                ("역사",   "2022년 실질금리 -1.5%→+4% → NVDA·META -70%"),
-            ],
-            "dn_label": "📈 실질금리 낮음/마이너스 — 좋음 (성장주 유리)",
-            "dn_rows": [
-                ("의미",   "예금·채권 실질 수익이 없거나 손실"),
-                ("투자자", "더 높은 수익 찾아 주식으로 이동"),
-                ("선호",   "특히 고성장 기술주·나스닥 선호 급증"),
-                ("이유",   "미래 이익 할인율 낮아짐 → 밸류에이션 상승"),
-                ("역사",   "2020~21년 실질금리 마이너스 → 나스닥 +100%"),
-            ],
-            "tip": "💡 실질금리 0% 기준선이 중요합니다. 0% 이상이면 성장주 역풍, 0% 이하이면 순풍입니다.",
-        },
-        "CreditSpread": {
-            "term":    "크레딧 스프레드 (Credit Spread) — 신용 스프레드",
-            "def":     "안전한 채권(미국 국채)과 위험한 채권(회사채·정크본드)의 금리 차이입니다. "
-                       "위험하면 이자를 더 많이 줘야 한다는 원리로 만들어진 지표입니다. "
-                       "예: 국채 4% / 회사채 7% → 스프레드 = 3% (이 3%가 위험 프리미엄)",
-            "analogy": "쉽게 말해: 스프레드가 크면 클수록 투자자들이 기업을 믿지 않는다는 신호입니다. "
-                       "주식시장 하락 전에 먼저 반응하는 경우가 많아 선행 지표로 활용됩니다.",
-            "up_label": "📉 스프레드 확대 — 나쁨 (위험 신호)",
-            "up_rows": [
-                ("의미",   "투자자들이 기업 부도 위험을 걱정하기 시작"),
-                ("기업",   "채권 발행 이자 급등 → 자금 조달 비용 증가"),
-                ("심리",   "경기 침체 우려 → 위험 자산 회피"),
-                ("주식",   "신용 시장 악화 → 주식시장도 하락"),
-                ("역사",   "2008년 스프레드 22% → S&P500 -57% 폭락"),
-            ],
-            "dn_label": "📈 스프레드 축소 — 좋음 (안정 신호)",
-            "dn_rows": [
-                ("의미",   "투자자들이 기업 부도 위험을 크게 걱정 안 함"),
-                ("기업",   "낮은 금리로 회사채 발행 가능 → 투자 확대"),
-                ("심리",   "경기 회복 기대 → 위험 자산 선호"),
-                ("주식",   "신용 시장 개선 → 주식시장도 상승"),
-                ("기준",   "2% 이하: 양호 / 4% 이상: 경고 / 7% 이상: 위기"),
-            ],
-            "tip": "💡 대표 지표: ICE BofA 하이일드 스프레드(정크본드). 이게 급등하면 주식 하락 전 선행 신호인 경우가 많습니다.",
+            "title": "실질금리가 오르면 왜 나스닥이 하락할까?",
+            "up_title": "📉 실질금리 높으면 (나쁨)",
+            "up_flow": ["채권만 들고 있어도 실질 이익 발생",
+                        "굳이 위험한 주식 살 필요 없음",
+                        "특히 PER 50배 이상 성장주가 타격",
+                        "→ 나스닥 하락"],
+            "dn_title": "📈 실질금리 낮거나 마이너스면 (좋음)",
+            "dn_flow": ["채권 실질 수익이 없거나 손실",
+                        "더 높은 수익 찾아 주식으로 이동",
+                        "특히 고성장 기술주 선호",
+                        "→ 나스닥 상승"],
+            "tip": "💡 2022년 실질금리가 -1.5%→+4%로 오르자 NVDA·META가 70% 이상 하락했습니다",
         },
         "CPI": {
-            "term":    "CPI (Consumer Price Index) — 소비자물가지수",
-            "def":     "장바구니 물가·집세·의료비 등 소비자가 실생활에서 지불하는 가격 변화를 측정합니다. "
-                       "연준이 가장 중요하게 보는 물가 지표입니다.",
-            "analogy": "쉽게 말해: CPI가 오른다 = 같은 돈으로 살 수 있는 게 줄어든다. "
-                       "연준은 CPI가 2%를 크게 넘으면 금리를 올려서 물가를 잡으려 합니다.",
-            "up_label": "📈 CPI 상승 — 나쁨 (물가 과열)",
-            "up_rows": [
-                ("의미",   "돈의 가치가 떨어지는 중"),
-                ("연준",   "금리 인상으로 물가 억제 시도"),
-                ("기업",   "원가·임금 상승 → 이익 감소"),
-                ("소비자", "실질 구매력 하락 → 소비 위축"),
-                ("주식",   "기업 이익 감소 + 금리 인상 이중 악재"),
-            ],
-            "dn_label": "📉 CPI 하락/안정 — 좋음 (물가 안정)",
-            "dn_rows": [
-                ("의미",   "물가가 안정되거나 내려가는 중"),
-                ("연준",   "금리 인하·동결 가능 → 시장 완화"),
-                ("기업",   "원가 안정 → 이익 방어"),
-                ("소비자", "실질 구매력 유지 → 소비 안정"),
-                ("주식",   "금리 인하 기대 → 밸류에이션 상승"),
-            ],
-            "tip": "💡 연준 목표: 2%. Core CPI(식품·에너지 제외)가 더 중요합니다. 매달 둘째 주 발표. 발표 3일 전 신규 매수 자제.",
+            "title": "CPI(물가)가 오르면 왜 주가가 하락할까?",
+            "up_title": "📈 CPI 높으면 (물가 상승)",
+            "up_flow": [
+                "물가가 오른다 = 돈의 가치가 떨어진다",
+                "연준이 금리를 올려서 물가를 잡으려 함",
+                "금리 오르면 기업 대출 비용 증가",
+                "→ 기업 이익 감소 → 주가 하락"],
+            "dn_title": "📉 CPI 낮으면 (물가 안정)",
+            "dn_flow": [
+                "물가가 안정됐다 = 연준이 금리 안 올려도 됨",
+                "오히려 경기 부양 위해 금리 인하 가능",
+                "대출 비용 낮아짐 → 기업 투자 늘어남",
+                "→ 기업 이익 증가 → 주가 상승"],
+            "tip": "💡 연준의 목표 물가는 2%. CPI가 2%를 크게 초과하면 금리 인상 압박이 커집니다",
         },
         "BondYield": {
-            "term":    "10년물 국채금리 (10-Year Treasury Yield)",
-            "def":     "미국 정부가 10년 만기로 돈을 빌릴 때 지급하는 이자율입니다. "
-                       "전 세계 금융 시장의 기준 할인율로 모든 자산 가격에 영향을 미칩니다.",
-            "analogy": "쉽게 말해: 가장 안전한 투자처(미국 국채)의 이자가 높아지면 위험한 주식을 살 이유가 줄어듭니다.",
-            "up_label": "📈 금리 상승 — 나쁨 (주식 역풍)",
-            "up_rows": [
-                ("의미",   "안전한 국채가 높은 이자를 줌"),
-                ("투자자", "채권으로 자금 이동 → 주식 매도"),
-                ("할인율", "미래 이익 현재 가치 하락 → 성장주 밸류에이션 하락"),
-                ("달러",   "달러 강세 → 신흥국 자금 이탈"),
-                ("역사",   "2022년 1.5%→4.5% → 나스닥 -33%"),
-            ],
-            "dn_label": "📉 금리 하락 — 좋음 (주식 순풍)",
-            "dn_rows": [
-                ("의미",   "채권 이자가 낮아 매력 감소"),
-                ("투자자", "더 높은 수익 찾아 주식으로 이동"),
-                ("할인율", "미래 이익 현재 가치 상승 → 성장주 밸류에이션 상승"),
-                ("달러",   "달러 약세 → 신흥국 자금 유입"),
-                ("기준",   "4% 이하: 주식 우호 / 4.5% 이상: 주식 부담"),
-            ],
-            "tip": "💡 실질금리(10년물 - CPI)가 더 중요합니다. 명목금리가 높아도 물가가 더 높으면 실질금리는 낮습니다.",
+            "title": "미국 채권금리가 오르면 왜 나스닥이 하락할까?",
+            "up_title": "📈 채권금리 오르면",
+            "up_flow": [
+                "미국 국채 이자가 많아짐",
+                "안전한데 이자도 높으니 채권으로 돈 이동",
+                "특히 전 세계 돈이 미국 채권으로 몰림",
+                "→ 주식 팔고 채권 사기 → 주가 하락"],
+            "dn_title": "📉 채권금리 내리면",
+            "dn_flow": [
+                "채권 이자가 낮아 매력 없음",
+                "더 높은 수익 찾아 주식으로 이동",
+                "특히 고성장 기술주 선호 증가",
+                "→ 나스닥 자금 유입 → 주가 상승"],
+            "tip": "💡 2022년 10년물 금리가 1.5%→4.5%로 오르자 나스닥이 -33% 하락했습니다",
+        },
+        "CreditSpread": {
+            "title": "크레딧 스프레드가 벌어지면 왜 위험할까?",
+            "up_title": "📉 스프레드 넓어지면 (나쁨)",
+            "up_flow": ["투자자들이 '기업이 망할 수도 있다' 생각",
+                        "기업 채권 아무도 안 사줌",
+                        "기업이 돈 조달 어려워짐",
+                        "→ 주식도 같이 하락"],
+            "dn_title": "📈 스프레드 좁으면 (좋음)",
+            "dn_flow": ["투자자들이 기업 부도를 걱정 안 함",
+                        "기업 채권 잘 팔림",
+                        "기업이 쉽게 투자 자금 조달",
+                        "→ 주가 상승"],
+            "tip": "💡 2008년 스프레드가 22%까지 벌어졌을 때 S&P500이 -57% 폭락했습니다",
         },
     }
     _e = _explains.get(key)
     if not _e: return
-
-    def _rows_html(rows):
-        html = ""
-        for i, (lbl, desc) in enumerate(rows):
-            bg = "#FFFFFF" if i % 2 == 0 else "#F9FAFB"
-            html += (
-                f"<tr style='background:{bg}'>"
-                f"<td style='padding:5px 8px;font-size:10px;font-weight:600;"
-                f"color:#374151;white-space:nowrap;width:52px;"
-                f"border-right:1px solid #E2E6ED;vertical-align:top'>{lbl}</td>"
-                f"<td style='padding:5px 8px;font-size:10px;color:#374151;line-height:1.5'>{desc}</td>"
-                f"</tr>"
-            )
-        return html
-
-    _html = (
-        f"<div style='margin:6px 0;border:1px solid #E2E6ED;border-radius:8px;"
-        f"overflow:hidden;background:#FFFFFF'>"
-        # 헤더 — 흰 배경, 진한 텍스트
-        f"<div style='padding:10px 14px;border-bottom:1px solid #E2E6ED'>"
-        f"<div style='font-size:12px;font-weight:700;color:#0D1117;margin-bottom:3px'>📖 {_e['term']}</div>"
-        f"<div style='font-size:11px;color:#374151;line-height:1.6'>{_e['def']}</div>"
-        f"<div style='font-size:11px;color:#6B7280;margin-top:4px'>{_e['analogy']}</div>"
-        f"</div>"
-        # 2열 비교표
-        f"<div style='display:grid;grid-template-columns:1fr 1fr'>"
-        f"<div style='border-right:1px solid #E2E6ED'>"
-        f"<div style='padding:6px 10px;font-size:11px;font-weight:700;color:#B91C1C;"
-        f"border-bottom:1px solid #E2E6ED'>{_e['up_label']}</div>"
-        f"<table style='width:100%;border-collapse:collapse'>{_rows_html(_e['up_rows'])}</table>"
-        f"</div>"
-        f"<div>"
-        f"<div style='padding:6px 10px;font-size:11px;font-weight:700;color:#15803d;"
-        f"border-bottom:1px solid #E2E6ED'>{_e['dn_label']}</div>"
-        f"<table style='width:100%;border-collapse:collapse'>{_rows_html(_e['dn_rows'])}</table>"
-        f"</div>"
-        f"</div>"
-        # 팁 — 연한 구분선만
-        f"<div style='border-top:1px solid #E2E6ED;padding:7px 12px;"
-        f"font-size:10px;color:#6B7280;line-height:1.6'>💡 {_e['tip']}</div>"
-        f"</div>"
-    )
+    # V93 FIX: st.expander 대신 HTML details/summary 사용
+    # → Streamlit 내부 _arr_w_right CSS 클래스 노출 버그 방지
+    _up_rows = "".join(
+        f"<div style='font-size:11px;color:#374151;padding:2px 0'>"
+        f"<span style='color:#1D4ED8;margin-right:4px'>&#8594;</span>{fl}</div>"
+        for fl in _e['up_flow'])
+    _dn_rows = "".join(
+        f"<div style='font-size:11px;color:#374151;padding:2px 0'>"
+        f"<span style='color:#1D4ED8;margin-right:4px'>&#8594;</span>{fl}</div>"
+        for fl in _e['dn_flow'])
+    _html = f"""
+<details style='margin:4px 0;border:0.5px solid #BFDBFE;border-radius:7px;overflow:hidden'>
+  <summary style='cursor:pointer;padding:8px 12px;background:#EFF6FF;
+    font-size:11px;font-weight:500;color:#1D4ED8;
+    list-style:none;display:flex;align-items:center;gap:6px'>
+    <span style='font-size:13px'>&#128216;</span>
+    {_e['title']}
+  </summary>
+  <div style='padding:12px 14px;background:#FFFFFF'>
+    <div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px'>
+      <div style='background:#F0FDF4;border-radius:7px;padding:10px 12px'>
+        <div style='font-size:11px;font-weight:600;color:#15803d;margin-bottom:5px'>
+          {_e['up_title']}</div>
+        {_up_rows}
+      </div>
+      <div style='background:#FEF2F2;border-radius:7px;padding:10px 12px'>
+        <div style='font-size:11px;font-weight:600;color:#B91C1C;margin-bottom:5px'>
+          {_e['dn_title']}</div>
+        {_dn_rows}
+      </div>
+    </div>
+    <div style='background:#F9FAFB;border-radius:6px;padding:7px 10px;
+      font-size:11px;color:#374151'>{_e['tip']}</div>
+  </div>
+</details>
+"""
     st.markdown(_html, unsafe_allow_html=True)
-
 
 
 # ─────────────────────────────────────────────────────────
@@ -4867,7 +4775,7 @@ def build_full_report():
         )
 
     report = f"""{SEP}
-  QUANTUM INSTITUTIONAL OS  |  투자 지침서  |  V108
+  QUANTUM INSTITUTIONAL OS  |  투자 지침서  |  V107
   {now_str}
 {SEP}
 
@@ -5962,8 +5870,8 @@ with tab4:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V109</b>"
-        f" &nbsp;|&nbsp; APP_V109 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V107</b>"
+        f" &nbsp;|&nbsp; APP_V107 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

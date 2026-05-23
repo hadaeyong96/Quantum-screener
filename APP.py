@@ -5758,137 +5758,57 @@ with tab3:
             unsafe_allow_html=True)
 
     with _ev2:
-        # ── 오른쪽: 카테고리별 선별 알고리즘 설명 (동적) ──
-        _s3_cats = st.session_state.get("active_cats", {"growth"})
+        # ── 오른쪽: 종목 선별 원칙 (초보자 학습 카드) ──
+        st.markdown("""
+        <div style='background:#0D1117;border-radius:10px;padding:16px;color:#F9FAFB;height:100%;box-sizing:border-box'>
+          <div style='font-size:12px;font-weight:700;color:#60A5FA;margin-bottom:10px;letter-spacing:0.5px'>
+            🎯 이 앱의 종목 선별 원칙</div>
 
-        # 카테고리별 설명 정의
-        _algo_blocks = []
+          <div style='font-size:11px;color:#9CA3AF;margin-bottom:12px;line-height:1.6'>
+            이 앱은 <b style='color:#F9FAFB'>초보 투자자가 기관처럼 판단</b>할 수 있도록<br>
+            데이터 → 해석 → 행동의 순서를 자동화합니다.
+          </div>
 
-        if "growth" in _s3_cats or not _s3_cats:
-            _algo_blocks.append({
-                "icon": "📈", "title": "성장주 선별 알고리즘",
-                "color": "#60A5FA", "bg": "#1E3A5F",
-                "rows": [
-                    ("RS 지수 80+",    "QQQ 대비 상위 20% 초과 상승 종목만 선발. "
-                                       "1M·3M·6M·12M 수익률 가중 합산 (3M 가장 중시)."),
-                    ("AI 점수 70+",    "RS 30% + EPS성장 15% + 매출성장 15% + "
-                                       "밸류에이션 15% + 거래량 15% + 유동성 10% 합산."),
-                    ("브레이크아웃",   "52주 신고가 돌파 또는 3일 연속 상승 확인. "
-                                       "주가가 저항선을 뚫고 올라가는 시점 포착."),
-                    ("거래량 급증",    "평균 거래량 대비 1.5배 이상. "
-                                       "기관·세력의 실제 매수가 동반됐다는 신호."),
-                    ("EPS 15%+",       "기업 순이익 성장률 15% 이상. "
-                                       "주가 상승의 근본 원동력."),
-                    ("매수 기준",      "9개 조건 중 5개 이상 충족 시 매수 후보."),
-                ]
-            })
+          <div style='margin-bottom:10px'>
+            <div style='font-size:10px;font-weight:600;color:#60A5FA;margin-bottom:6px'>
+              STEP 1 · 유동성 먼저</div>
+            <div style='font-size:10px;color:#D1D5DB;line-height:1.7'>
+              M2·RRP·TGA 지표로 시장에 돈이 도는지 확인.<br>
+              <span style='color:#86EFAC'>3단계 이상</span>이면 매수 검토,
+              <span style='color:#FCA5A5'>1~2단계</span>면 관망·청산 우선.
+            </div>
+          </div>
 
-        if "highdiv" in _s3_cats:
-            _algo_blocks.append({
-                "icon": "💰", "title": "고배당주 선별 알고리즘",
-                "color": "#86EFAC", "bg": "#14532D",
-                "rows": [
-                    ("배당수익률 우선",  "실제 배당금 합계 ÷ 현재 주가. "
-                                         "yfinance 실배당 내역 기반 (추정값 사용 안함)."),
-                    ("배당 지속성",      "배당 삭감 이력 없는 종목 우선. "
-                                         "배당왕(50년+)·배당귀족(25년+) 포함."),
-                    ("RSI 70 미만",      "과매수 구간 진입 시 매수 자제. "
-                                         "배당주는 저점 분할매수가 핵심 전략."),
-                    ("추세 방향",        "MA10 위에 있거나 브레이크아웃 시 추가 가점. "
-                                         "배당 + 주가 상승 동시 노림."),
-                    ("EPS 조건 완화",    "EPS 0%↑ (성장주 15% 대비 완화). "
-                                         "안정적 수익 구조면 충분."),
-                    ("매수 기준",        "9개 조건 중 3개 이상 + 배당수익률 1%↑."),
-                ]
-            })
+          <div style='margin-bottom:10px'>
+            <div style='font-size:10px;font-weight:600;color:#60A5FA;margin-bottom:6px'>
+              STEP 2 · 강한 섹터 선별</div>
+            <div style='font-size:10px;color:#D1D5DB;line-height:1.7'>
+              섹터 강도 점수(0~100)로 돈이 몰리는 섹터 파악.<br>
+              <span style='color:#86EFAC'>강한 섹터의 강한 종목</span>만 진입.
+            </div>
+          </div>
 
-        if "divgrow" in _s3_cats:
-            _algo_blocks.append({
-                "icon": "🌱", "title": "배당성장주 선별 알고리즘",
-                "color": "#FDE68A", "bg": "#78350F",
-                "rows": [
-                    ("배당률 + 성장성",  "배당수익률 × EPS 성장률 복합 평가. "
-                                         "현재 배당이 낮아도 성장률이 높으면 우대."),
-                    ("RS 지수 활용",     "QQQ 대비 초과 수익률 확인. "
-                                         "배당성장주도 시장 대비 강해야 진입 가치 있음."),
-                    ("매출·이익 성장",   "EPS·매출 성장률 0%↑ (플러스 성장 유지 확인). "
-                                         "배당을 늘릴 여력이 있는지 판단."),
-                    ("장기 복리 전략",   "배당 재투자 시 복리 효과 극대화. "
-                                         "SCHD·DGRO 같은 배당성장 ETF도 포함."),
-                    ("매수 기준",        "9개 조건 중 3개 이상 + 배당수익률 0.5%↑ "
-                                         "+ 카테고리 소속 확인."),
-                ]
-            })
+          <div style='margin-bottom:10px'>
+            <div style='font-size:10px;font-weight:600;color:#60A5FA;margin-bottom:6px'>
+              STEP 3 · 9가지 조건 체크</div>
+            <div style='font-size:10px;color:#D1D5DB;line-height:1.7'>
+              RS 80+ &nbsp;·&nbsp; AI점수 70+ &nbsp;·&nbsp; 브레이크아웃<br>
+              EPS 15%+ &nbsp;·&nbsp; 거래량 급증 &nbsp;·&nbsp; 신고가권<br>
+              <span style='color:#FDE68A'>조건 5개 이상</span> 충족 시 매수 후보.
+            </div>
+          </div>
 
-        if "etf" in _s3_cats:
-            _algo_blocks.append({
-                "icon": "📊", "title": "ETF 선별 알고리즘",
-                "color": "#C4B5FD", "bg": "#3B0764",
-                "rows": [
-                    ("RS 지수 기준",    "QQQ 대비 상대강도 확인. "
-                                         "단, QQQ·SPY는 기준 지수라 RS가 낮게 나오는 게 정상."),
-                    ("모멘텀 비교",     "QQQ 대비 수익률 곡선 기울기 비교 (아래 차트 참고). "
-                                         "SMH·XLK 등 섹터 ETF의 초과 상승 여부 확인."),
-                    ("레버리지 주의",   "TQQQ(3배)는 단기 모멘텀 지표로만 활용. "
-                                         "장기 보유 시 변동성 감소(decay) 발생."),
-                    ("인버스 활용법",   "SQQQ는 유동성 1~2단계 하락 시 헤지 신호. "
-                                         "매수 금지 구간 확인용으로 참고."),
-                    ("매수 기준",       "RS·AI 조건 기준 적용 (성장주와 동일). "
-                                         "단, RS 해석은 절대값이 아닌 상대 비교로 판단."),
-                ]
-            })
-
-        # HTML 생성
-        _right_html = (
-            "<div style='background:#0D1117;border-radius:10px;padding:14px 16px;"
-            "color:#F9FAFB;box-sizing:border-box'>"
-            "<div style='font-size:11px;font-weight:700;color:#F9FAFB;"
-            "margin-bottom:10px;border-bottom:1px solid #374151;padding-bottom:6px'>"
-            "🎯 종목 선별 알고리즘 — 왜 이 종목인가</div>"
-            "<div style='font-size:10px;color:#9CA3AF;margin-bottom:10px;line-height:1.5'>"
-            "초보 투자자가 기관처럼 판단할 수 있도록<br>"
-            "유동성 → 섹터 → 종목 순서로 자동 선별합니다.</div>"
-        )
-
-        if not _algo_blocks:
-            _right_html += (
-                "<div style='font-size:10px;color:#6B7280;text-align:center;padding:20px'>"
-                "STEP3 탭에서 카테고리를 선택하면<br>해당 선별 기준이 표시됩니다.</div>"
-            )
-        else:
-            for _blk in _algo_blocks:
-                _right_html += (
-                    f"<div style='background:{_blk['bg']};border-radius:7px;"
-                    f"padding:10px 12px;margin-bottom:8px'>"
-                    f"<div style='font-size:11px;font-weight:700;"
-                    f"color:{_blk['color']};margin-bottom:6px'>"
-                    f"{_blk['icon']} {_blk['title']}</div>"
-                )
-                for _label, _desc in _blk["rows"]:
-                    _right_html += (
-                        f"<div style='display:flex;gap:6px;margin-bottom:4px;"
-                        f"font-size:10px;line-height:1.5'>"
-                        f"<span style='color:{_blk['color']};font-weight:600;"
-                        f"white-space:nowrap;min-width:72px'>{_label}</span>"
-                        f"<span style='color:#D1D5DB'>{_desc}</span></div>"
-                    )
-                _right_html += "</div>"
-
-        # 공통 리스크 관리 원칙
-        _right_html += (
-            "<div style='border-top:1px solid #374151;padding-top:8px;margin-top:4px'>"
-            "<div style='font-size:10px;font-weight:600;color:#FCA5A5;"
-            "margin-bottom:4px'>🛡️ 공통 리스크 관리 원칙</div>"
-            "<div style='font-size:10px;color:#D1D5DB;line-height:1.7'>"
-            "손절: 매수가 ×0.92 (-8%) 또는 ATR×2 &nbsp;|&nbsp; "
-            "1차 익절: +15% (50% 매도) &nbsp;|&nbsp; "
-            "2차 익절: +25% (25% 추가)</div>"
-            "<div style='font-size:10px;color:#9CA3AF;margin-top:4px'>"
-            "유동성 1~2단계 하락 시 전량 청산 우선 검토</div>"
-            "</div></div>"
-        )
-
-        st.markdown(_right_html, unsafe_allow_html=True)
+          <div>
+            <div style='font-size:10px;font-weight:600;color:#60A5FA;margin-bottom:6px'>
+              STEP 4 · 리스크 관리</div>
+            <div style='font-size:10px;color:#D1D5DB;line-height:1.7'>
+              손절: 매수가 ×0.92 (-8%) 또는 ATR×2<br>
+              1차 익절: +15% (50% 매도)<br>
+              2차 익절: +25% (25% 추가 매도)
+            </div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════

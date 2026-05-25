@@ -2525,7 +2525,7 @@ tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs([
     'STEP3 📊 종목 선별',
     'STEP4 💰 매수 실행',
     '⚠️ 경기침체',
-    '📅 기타',
+    '📆 경제 이벤트',
 ])
 
 # ── V93: 지표 설명 expander 헬퍼 ─────────────────────────
@@ -5895,10 +5895,388 @@ with tab3:
 
 
 # ════════════════════════════════════════════════════════
-# TAB 4 — 📅 기타 (FOMC·CPI 일정)
+# ════════════════════════════════════════════════════════
+# TAB 4 — ⚠️ 경기침체 선행지표
 # ════════════════════════════════════════════════════════
 with tab4:
-    st.markdown('<div class="sec-header">📅 기타</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-header">⚠️ 경기침체 선행지표 모니터</div>',
+                unsafe_allow_html=True)
+    st.markdown("""
+    <div style='background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;
+         padding:14px 18px;margin-bottom:16px'>
+      <div style='font-size:13px;font-weight:700;color:#B91C1C;margin-bottom:6px'>
+        ⚠️ 경기침체 선행지표란?</div>
+      <div style='font-size:11px;color:#374151;line-height:1.8'>
+        경기침체는 GDP가 2분기 연속 감소하는 현상입니다. 공식 발표는 <b>수개월 후</b>에 나옵니다.<br>
+        선행지표는 침체가 오기 <b>6~18개월 전</b>에 먼저 신호를 보냅니다.<br>
+        주식시장은 경기침체 <b>평균 6개월 전</b>에 먼저 하락합니다.
+        → 선행지표를 미리 읽으면 대응할 시간을 벌 수 있습니다.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    @st.cache_data(ttl=3600, show_spinner=False)
+    def load_recession_data(api_key, _bust=0):
+        _series = {
+            "T10Y2Y": "T10Y2Y", "ICSA": "ICSA",
+            "SAHMREALTIME": "SAHMREALTIME", "UNRATE": "UNRATE",
+            "INDPRO": "INDPRO", "UMCSENT": "UMCSENT",
+        }
+        result = {}
+        if is_placeholder(api_key): return result
+        for key, sid in _series.items():
+            try:
+                url = (f"https://api.stlouisfed.org/fred/series/observations"
+                       f"?series_id={sid}&api_key={api_key}&file_type=json"
+                       f"&sort_order=asc&observation_start=2000-01-01")
+                resp = requests.get(url, timeout=15)
+                if resp.status_code != 200: continue
+                obs  = resp.json().get("observations", [])
+                data = {o["date"]: float(o["value"])
+                        for o in obs if o["value"] not in (".", "")}
+                s = pd.Series(data)
+                s.index = pd.to_datetime(s.index)
+                if not s.empty: result[key] = s.sort_index()
+            except: pass
+        return result
+
+    _rec_data = load_recession_data(FRED_API_KEY, st.session_state.cache_key)
+
+    def _calc_recession_score(rec_d, fred_d):
+        signals = []
+        t10y2y = rec_d.get("T10Y2Y")
+        if t10y2y is not None and len(t10y2y) > 0:
+            val = float(t10y2y.iloc[-1])
+            if val < -0.5:  signals.append(("장단기 금리 역전", 90, val, "%", "🔴"))
+            elif val < 0:   signals.append(("장단기 금리 역전", 65, val, "%", "🟠"))
+            elif val < 0.5: signals.append(("장단기 금리 역전", 35, val, "%", "🟡"))
+            else:           signals.append(("장단기 금리 역전", 10, val, "%", "🟢"))
+        sahm = rec_d.get("SAHMREALTIME")
+        if sahm is not None and len(sahm) > 0:
+            val = float(sahm.iloc[-1])
+            if val >= 0.5:   signals.append(("Sahm Rule 지수", 95, val, "", "🔴"))
+            elif val >= 0.3: signals.append(("Sahm Rule 지수", 60, val, "", "🟠"))
+            elif val >= 0.1: signals.append(("Sahm Rule 지수", 30, val, "", "🟡"))
+            else:            signals.append(("Sahm Rule 지수",  5, val, "", "🟢"))
+        icsa = rec_d.get("ICSA")
+        if icsa is not None and len(icsa) >= 52:
+            val   = float(icsa.iloc[-1])
+            avg52 = float(icsa.tail(52).mean())
+            chg   = (val - avg52) / avg52 * 100
+            if chg > 20:   signals.append(("실업급여 청구", 80, val/1000, "K", "🔴"))
+            elif chg > 10: signals.append(("실업급여 청구", 50, val/1000, "K", "🟠"))
+            elif chg > 0:  signals.append(("실업급여 청구", 25, val/1000, "K", "🟡"))
+            else:          signals.append(("실업급여 청구", 10, val/1000, "K", "🟢"))
+        cs = fred_d.get("CreditSpread")
+        if cs is not None and len(cs) > 0:
+            val = float(cs.iloc[-1])
+            if val > 7:   signals.append(("크레딧 스프레드", 95, val, "%", "🔴"))
+            elif val > 5: signals.append(("크레딧 스프레드", 70, val, "%", "🔴"))
+            elif val > 4: signals.append(("크레딧 스프레드", 45, val, "%", "🟠"))
+            elif val > 3: signals.append(("크레딧 스프레드", 20, val, "%", "🟡"))
+            else:         signals.append(("크레딧 스프레드",  8, val, "%", "🟢"))
+        unrate = rec_d.get("UNRATE")
+        if unrate is not None and len(unrate) >= 4:
+            val  = float(unrate.iloc[-1])
+            prev = float(unrate.iloc[-4])
+            chg  = val - prev
+            if chg > 0.5:   signals.append(("실업률 추세", 80, val, "%", "🔴"))
+            elif chg > 0.2: signals.append(("실업률 추세", 50, val, "%", "🟠"))
+            elif chg > 0:   signals.append(("실업률 추세", 25, val, "%", "🟡"))
+            else:           signals.append(("실업률 추세",  8, val, "%", "🟢"))
+        indpro = rec_d.get("INDPRO")
+        if indpro is not None and len(indpro) >= 4:
+            val  = float(indpro.iloc[-1])
+            prev = float(indpro.iloc[-4])
+            chg  = (val - prev) / prev * 100
+            if chg < -2:   signals.append(("산업생산지수", 75, chg, "%", "🔴"))
+            elif chg < 0:  signals.append(("산업생산지수", 45, chg, "%", "🟠"))
+            elif chg < 1:  signals.append(("산업생산지수", 20, chg, "%", "🟡"))
+            else:          signals.append(("산업생산지수",  5, chg, "%", "🟢"))
+        umcsent = rec_d.get("UMCSENT")
+        if umcsent is not None and len(umcsent) >= 13:
+            val  = float(umcsent.iloc[-1])
+            prev = float(umcsent.iloc[-13])
+            chg  = val - prev
+            if val < 60:    signals.append(("소비자심리", 75, val, "", "🔴"))
+            elif val < 70:  signals.append(("소비자심리", 45, val, "", "🟠"))
+            elif chg < -10: signals.append(("소비자심리", 35, val, "", "🟡"))
+            else:           signals.append(("소비자심리", 10, val, "", "🟢"))
+        total = sum(s[1] for s in signals) / len(signals) if signals else 50
+        return round(total, 1), signals
+
+    _rec_score, _rec_signals = _calc_recession_score(_rec_data, fred_data)
+
+    if   _rec_score >= 70: _rg_col="#B91C1C"; _rg_bg="#FEF2F2"; _rg_lbl="🔴 높은 위험"; _rg_bc="#FECACA"
+    elif _rec_score >= 50: _rg_col="#C2410C"; _rg_bg="#FFF7ED"; _rg_lbl="🟠 주의 구간"; _rg_bc="#FED7AA"
+    elif _rec_score >= 30: _rg_col="#92400E"; _rg_bg="#FFFBEB"; _rg_lbl="🟡 관찰 구간"; _rg_bc="#FDE68A"
+    else:                  _rg_col="#15803d"; _rg_bg="#F0FDF4"; _rg_lbl="🟢 안전 구간"; _rg_bc="#86EFAC"
+
+    st.markdown(
+        f"<div style='background:{_rg_bg};border:1.5px solid {_rg_bc};"
+        f"border-radius:12px;padding:16px 20px;margin-bottom:16px'>"
+        f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px'>"
+        f"<div><div style='font-size:14px;font-weight:700;color:{_rg_col}'>경기침체 위험 지수</div>"
+        f"<div style='font-size:11px;color:#6B7280;margin-top:2px'>7개 선행지표 종합 (0=안전·100=위기)</div></div>"
+        f"<div style='text-align:right'>"
+        f"<span style='font-family:Space Mono,monospace;font-size:42px;"
+        f"font-weight:700;color:{_rg_col}'>{_rec_score:.0f}</span>"
+        f"<span style='font-size:14px;color:#9CA3AF'>/100</span></div></div>"
+        f"<div style='background:#E2E6ED;border-radius:99px;height:10px;margin-bottom:8px'>"
+        f"<div style='background:{_rg_col};width:{min(_rec_score,100):.0f}%;"
+        f"height:100%;border-radius:99px'></div></div>"
+        f"<div style='font-size:13px;font-weight:600;color:{_rg_col}'>{_rg_lbl}</div>"
+        f"</div>",
+        unsafe_allow_html=True)
+
+    if not _rec_signals:
+        st.info("FRED API 키를 입력하면 침체 지표가 표시됩니다.")
+    else:
+        st.markdown("<div style='font-size:12px;font-weight:700;color:#0D1117;margin-bottom:8px'>📊 선행지표별 상태</div>", unsafe_allow_html=True)
+        _sig_cols = st.columns(min(len(_rec_signals), 4))
+        for i, (name, score, val, unit, icon) in enumerate(_rec_signals):
+            _col = _sig_cols[i % 4]
+            if   score >= 70: _sc="#B91C1C"; _sbg="#FEF2F2"; _sbc="#FECACA"
+            elif score >= 50: _sc="#C2410C"; _sbg="#FFF7ED"; _sbc="#FED7AA"
+            elif score >= 30: _sc="#92400E"; _sbg="#FFFBEB"; _sbc="#FDE68A"
+            else:             _sc="#15803d"; _sbg="#F0FDF4"; _sbc="#86EFAC"
+            _col.markdown(
+                f"<div style='background:{_sbg};border:1px solid {_sbc};"
+                f"border-radius:8px;padding:10px;text-align:center;margin-bottom:6px'>"
+                f"<div style='font-size:18px;margin-bottom:4px'>{icon}</div>"
+                f"<div style='font-size:10px;color:#6B7280;margin-bottom:2px'>{name}</div>"
+                f"<div style='font-family:Space Mono,monospace;font-size:15px;"
+                f"font-weight:700;color:{_sc}'>{val:.2f}{unit}</div>"
+                f"<div style='font-size:10px;color:{_sc};margin-top:2px'>위험도 {score:.0f}점</div>"
+                f"</div>", unsafe_allow_html=True)
+
+    st.markdown("<hr style='border-color:#E2E6ED;margin:14px 0'>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:12px;font-weight:700;color:#0D1117;margin-bottom:10px'>📈 핵심 선행지표 차트</div>", unsafe_allow_html=True)
+
+    _ch1, _ch2 = st.columns(2)
+    with _ch1:
+        st.markdown("<div style='font-size:11px;font-weight:600;color:#374151;margin-bottom:4px'>① 장단기 금리차 (10Y-2Y)</div>"
+                    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:6px'>0% 이하 역전 → 과거 침체 선행 신호 (평균 12~18개월 전)</div>",
+                    unsafe_allow_html=True)
+        _t10y2y = _rec_data.get("T10Y2Y")
+        if _t10y2y is not None and len(_t10y2y) > 10:
+            _s5 = _t10y2y[_t10y2y.index >= pd.Timestamp.now() - pd.DateOffset(years=5)]
+            import plotly.graph_objects as _go2
+            _fig_t = _go2.Figure()
+            _fig_t.add_trace(_go2.Scatter(x=_s5.index, y=[max(v,0) for v in _s5.values],
+                fill='tozeroy', fillcolor='rgba(21,128,61,0.12)',
+                line=dict(color='rgba(0,0,0,0)'), showlegend=False, hoverinfo='skip'))
+            _fig_t.add_trace(_go2.Scatter(x=_s5.index, y=[min(v,0) for v in _s5.values],
+                fill='tozeroy', fillcolor='rgba(185,28,28,0.18)',
+                line=dict(color='rgba(0,0,0,0)'), name='역전구간', hoverinfo='skip'))
+            _fig_t.add_trace(_go2.Scatter(x=_s5.index, y=_s5.values,
+                mode='lines', name='10Y-2Y', line=dict(color='#2563EB', width=2.5),
+                hovertemplate='%{x|%Y-%m}<br>%{y:.2f}%<extra></extra>'))
+            _fig_t.add_hline(y=0, line_color='#E53E3E', line_width=2, line_dash='dash')
+            _fig_t.add_annotation(x=0.01, y=0, xref='paper', yref='y',
+                text=' 역전 기준 0% ', showarrow=False,
+                font=dict(size=10, color='#E53E3E'),
+                bgcolor='rgba(255,255,255,0.9)', xanchor='left', yanchor='bottom')
+            _cv = float(_t10y2y.iloc[-1])
+            _fig_t.add_annotation(x=_s5.index[-1], y=_cv,
+                text=f'  현재 {_cv:+.2f}%',
+                showarrow=True, arrowhead=2, arrowwidth=2,
+                arrowcolor='#2563EB', ax=65, ay=0,
+                font=dict(size=11, color='#2563EB', family='Space Mono'),
+                bgcolor='rgba(255,255,255,0.95)', bordercolor='#2563EB',
+                borderwidth=1.5, borderpad=3)
+            _fig_t.update_layout(template='plotly_white', height=220,
+                margin=dict(l=0,r=85,t=8,b=0),
+                xaxis=dict(gridcolor='#EBEDF0', tickformat='%Y'),
+                yaxis=dict(gridcolor='#EBEDF0', ticksuffix='%'),
+                legend=dict(font=dict(size=9), x=0, y=1.1, orientation='h'),
+                plot_bgcolor='#FFFFFF', paper_bgcolor='#FAFBFC',
+                hovermode='x unified')
+            st.plotly_chart(_fig_t, use_container_width=True, key='rec_t10y2y_chart')
+        else:
+            st.info("FRED API 키 필요")
+
+    with _ch2:
+        st.markdown("<div style='font-size:11px;font-weight:600;color:#374151;margin-bottom:4px'>② Sahm Rule 지수</div>"
+                    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:6px'>0.5 이상 = 침체 시작. 연준 공식 지표</div>",
+                    unsafe_allow_html=True)
+        _sahm = _rec_data.get("SAHMREALTIME")
+        if _sahm is not None and len(_sahm) > 10:
+            _s5s = _sahm[_sahm.index >= pd.Timestamp.now() - pd.DateOffset(years=5)]
+            _fig_s = _go2.Figure()
+            _fig_s.add_trace(_go2.Scatter(x=_s5s.index, y=_s5s.values,
+                mode='lines', line=dict(color='#D97706', width=2.5),
+                fill='tozeroy', fillcolor='rgba(217,119,6,0.1)',
+                hovertemplate='%{x|%Y-%m}<br>%{y:.3f}<extra></extra>'))
+            _fig_s.add_hline(y=0.5, line_color='#E53E3E', line_width=2, line_dash='dash')
+            _fig_s.add_annotation(x=0.01, y=0.5, xref='paper', yref='y',
+                text=' 침체 기준 0.5 ', showarrow=False,
+                font=dict(size=10, color='#E53E3E'),
+                bgcolor='rgba(255,255,255,0.9)', xanchor='left', yanchor='bottom')
+            _sv = float(_sahm.iloc[-1])
+            _fig_s.add_annotation(x=_s5s.index[-1], y=_sv,
+                text=f'  현재 {_sv:.3f}',
+                showarrow=True, arrowhead=2, arrowwidth=2,
+                arrowcolor='#D97706', ax=65, ay=0,
+                font=dict(size=11, color='#D97706', family='Space Mono'),
+                bgcolor='rgba(255,255,255,0.95)', bordercolor='#D97706',
+                borderwidth=1.5, borderpad=3)
+            _fig_s.update_layout(template='plotly_white', height=220,
+                margin=dict(l=0,r=85,t=8,b=0),
+                xaxis=dict(gridcolor='#EBEDF0', tickformat='%Y'),
+                yaxis=dict(gridcolor='#EBEDF0'),
+                plot_bgcolor='#FFFFFF', paper_bgcolor='#FAFBFC',
+                hovermode='x unified')
+            st.plotly_chart(_fig_s, use_container_width=True, key='rec_sahm_chart')
+        else:
+            st.info("FRED API 키 필요")
+
+    _ch3, _ch4 = st.columns(2)
+    with _ch3:
+        st.markdown("<div style='font-size:11px;font-weight:600;color:#374151;margin-bottom:4px'>③ 신규 실업급여 청구 (주간)</div>"
+                    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:6px'>30만 건 이상이면 고용 악화 경고</div>",
+                    unsafe_allow_html=True)
+        _icsa = _rec_data.get("ICSA")
+        if _icsa is not None and len(_icsa) > 10:
+            _s5i = _icsa[_icsa.index >= pd.Timestamp.now() - pd.DateOffset(years=5)]
+            _fig_i = _go2.Figure()
+            _fig_i.add_trace(_go2.Scatter(x=_s5i.index, y=_s5i.values/1000,
+                mode='lines', line=dict(color='#E53E3E', width=2),
+                fill='tozeroy', fillcolor='rgba(229,57,62,0.08)',
+                hovertemplate='%{x|%Y-%m-%d}<br>%{y:.0f}K건<extra></extra>'))
+            _fig_i.add_hline(y=300, line_color='#E53E3E', line_width=1.5, line_dash='dot')
+            _fig_i.add_annotation(x=0.01, y=300, xref='paper', yref='y',
+                text=' 주의선 300K ', showarrow=False,
+                font=dict(size=10, color='#E53E3E'),
+                bgcolor='rgba(255,255,255,0.9)', xanchor='left', yanchor='bottom')
+            _iv = float(_icsa.iloc[-1])/1000
+            _fig_i.add_annotation(x=_s5i.index[-1], y=_iv,
+                text=f'  {_iv:.0f}K',
+                showarrow=True, arrowhead=2, arrowwidth=2,
+                arrowcolor='#E53E3E', ax=55, ay=0,
+                font=dict(size=11, color='#E53E3E', family='Space Mono'),
+                bgcolor='rgba(255,255,255,0.95)', bordercolor='#E53E3E',
+                borderwidth=1.5, borderpad=3)
+            _fig_i.update_layout(template='plotly_white', height=220,
+                margin=dict(l=0,r=70,t=8,b=0),
+                xaxis=dict(gridcolor='#EBEDF0', tickformat='%Y'),
+                yaxis=dict(gridcolor='#EBEDF0', title='천 건(K)'),
+                plot_bgcolor='#FFFFFF', paper_bgcolor='#FAFBFC',
+                hovermode='x unified')
+            st.plotly_chart(_fig_i, use_container_width=True, key='rec_icsa_chart')
+        else:
+            st.info("FRED API 키 필요")
+
+    with _ch4:
+        st.markdown("<div style='font-size:11px;font-weight:600;color:#374151;margin-bottom:4px'>④ 실업률 (UNRATE)</div>"
+                    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:6px'>3개월 연속 상승이면 침체 진입 신호</div>",
+                    unsafe_allow_html=True)
+        _unrate = _rec_data.get("UNRATE")
+        if _unrate is not None and len(_unrate) > 10:
+            _s5u = _unrate[_unrate.index >= pd.Timestamp.now() - pd.DateOffset(years=5)]
+            _fig_u = _go2.Figure()
+            _fig_u.add_trace(_go2.Scatter(x=_s5u.index, y=_s5u.values,
+                mode='lines', line=dict(color='#7C3AED', width=2.5),
+                fill='tozeroy', fillcolor='rgba(124,58,237,0.08)',
+                hovertemplate='%{x|%Y-%m}<br>%{y:.1f}%<extra></extra>'))
+            _uv   = float(_unrate.iloc[-1])
+            _uprev= float(_unrate.iloc[-4]) if len(_unrate) >= 4 else _uv
+            _utrend = '↑ 상승' if _uv > _uprev else ('↓ 하락' if _uv < _uprev else '→ 보합')
+            _fig_u.add_annotation(x=_s5u.index[-1], y=_uv,
+                text=f'  {_uv:.1f}% ({_utrend})',
+                showarrow=True, arrowhead=2, arrowwidth=2,
+                arrowcolor='#7C3AED', ax=80, ay=0,
+                font=dict(size=11, color='#7C3AED', family='Space Mono'),
+                bgcolor='rgba(255,255,255,0.95)', bordercolor='#7C3AED',
+                borderwidth=1.5, borderpad=3)
+            _fig_u.update_layout(template='plotly_white', height=220,
+                margin=dict(l=0,r=100,t=8,b=0),
+                xaxis=dict(gridcolor='#EBEDF0', tickformat='%Y'),
+                yaxis=dict(gridcolor='#EBEDF0', ticksuffix='%'),
+                plot_bgcolor='#FFFFFF', paper_bgcolor='#FAFBFC',
+                hovermode='x unified')
+            st.plotly_chart(_fig_u, use_container_width=True, key='rec_unrate_chart')
+        else:
+            st.info("FRED API 키 필요")
+
+    st.markdown("<hr style='border-color:#E2E6ED;margin:14px 0'>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:12px;font-weight:700;color:#0D1117;margin-bottom:10px'>📚 선행지표 해석 가이드</div>", unsafe_allow_html=True)
+
+    _guide_items = [
+        ("장단기 금리 역전 (10Y-2Y)",
+         "10년 금리 < 2년 금리 = 역전. 단기 이자가 장기보다 높은 비정상 상태.",
+         "1970년 이후 역전 발생 시 100% 침체. 평균 12~18개월 후 침체.",
+         "0% 이하: 주의 / -0.5% 이하: 경고"),
+        ("Sahm Rule",
+         "최근 3개월 평균 실업률 - 과거 12개월 최저 실업률. 실업 급증 포착.",
+         "0.5 이상이면 침체 확정. 2008·2020 모두 정확히 포착.",
+         "0.5 이상 = 침체 시작"),
+        ("신규 실업급여 청구",
+         "주간 단위 신규 실직자 수. 경기 악화를 가장 빠르게 반영.",
+         "2008년 위기 시 60만 건까지 급증. 30만 건 이상이면 주의.",
+         "25만 이하: 양호 / 30만 이상: 주의"),
+        ("크레딧 스프레드",
+         "회사채와 국채 금리 차이. 기업 부도 공포 시 확대.",
+         "주식 하락 3~6개월 전 먼저 반응하는 경우 多.",
+         "3.5% 이하: 안정 / 5% 이상: 경고"),
+        ("실업률",
+         "전체 노동인구 대비 실직자 비율.",
+         "코로나(2020): 3.5%→14.7% / 금융위기(2009): 4.4%→10%",
+         "3개월 연속 상승 전환 시 주의"),
+        ("산업생산지수",
+         "제조업·광업·에너지 생산량. 경기 활동 수준 직접 반영.",
+         "전분기 대비 감소 = 경기 둔화 신호.",
+         "전월 대비 0% 미만: 주의"),
+        ("소비자심리지수",
+         "미시간대 조사. 소비자의 경제 낙관도 측정.",
+         "2008년 55까지 하락. 60 이하면 침체 우려.",
+         "70 이상: 양호 / 60 이하: 위험"),
+    ]
+    for name, defn, hist, thresh in _guide_items:
+        st.markdown(
+            f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
+            f"border-radius:8px;padding:10px 14px;margin-bottom:5px'>"
+            f"<div style='font-size:11px;font-weight:700;color:#374151;margin-bottom:5px'>{name}</div>"
+            f"<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px'>"
+            f"<div><div style='font-size:9px;color:#9CA3AF;margin-bottom:2px'>📘 정의</div>"
+            f"<div style='font-size:10px;color:#374151;line-height:1.5'>{defn}</div></div>"
+            f"<div><div style='font-size:9px;color:#9CA3AF;margin-bottom:2px'>📚 역사</div>"
+            f"<div style='font-size:10px;color:#374151;line-height:1.5'>{hist}</div></div>"
+            f"<div><div style='font-size:9px;color:#9CA3AF;margin-bottom:2px'>📊 기준</div>"
+            f"<div style='font-size:10px;color:#374151;line-height:1.5'>{thresh}</div></div>"
+            f"</div></div>", unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style='background:#0D1117;border-radius:10px;padding:16px 18px;
+         color:#F9FAFB;margin-top:14px'>
+      <div style='font-size:12px;font-weight:700;color:#60A5FA;margin-bottom:10px'>
+        💡 경기침체와 주식시장 — 핵심 교훈</div>
+      <div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;font-size:11px'>
+        <div style='background:#1F2937;border-radius:7px;padding:10px'>
+          <div style='color:#FCA5A5;font-weight:600;margin-bottom:4px'>🏦 2008 금융위기</div>
+          <div style='color:#D1D5DB;line-height:1.6'>장단기 역전 2006년 발생<br>주식 하락 2007년 시작<br>공식 침체 2008년 발표<br>→ <b style="color:#FDE68A">선행 18개월</b></div>
+        </div>
+        <div style='background:#1F2937;border-radius:7px;padding:10px'>
+          <div style='color:#FCA5A5;font-weight:600;margin-bottom:4px'>🦠 2020 코로나</div>
+          <div style='color:#D1D5DB;line-height:1.6'>급격한 침체·회복<br>선행지표 포착 어려움<br>연준 즉각 개입으로 회복<br>→ <b style="color:#86EFAC">유동성이 핵심</b></div>
+        </div>
+        <div style='background:#1F2937;border-radius:7px;padding:10px'>
+          <div style='color:#FCA5A5;font-weight:600;margin-bottom:4px'>📉 2022 금리인상</div>
+          <div style='color:#D1D5DB;line-height:1.6'>장단기 역전 2022년 발생<br>나스닥 -33% 하락<br>공식 침체는 미발생<br>→ <b style="color:#FDE68A">역전≠반드시 침체</b></div>
+        </div>
+      </div>
+      <div style='margin-top:10px;font-size:10px;color:#9CA3AF'>
+        ⚠️ 선행지표는 100% 정확하지 않습니다.
+        여러 지표가 동시에 경고할 때 신뢰도가 올라갑니다.
+        유동성 탭의 5단계 판단과 함께 사용하세요.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# TAB 5 — 📆 주요 경제 이벤트
+# ════════════════════════════════════════════════════════
+with tab5:
+    st.markdown('<div class="sec-header">📆 주요 경제 이벤트</div>', unsafe_allow_html=True)
 
     # ── FOMC · CPI 2026 일정 ────────────────────────────
     st.markdown(

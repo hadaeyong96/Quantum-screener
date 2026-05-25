@@ -3683,75 +3683,7 @@ with tab0:
             f"font-weight:500;color:{_dir_tc};margin-left:6px'>{_dir_label}</span>"
         )
 
-        # explain 내용 미리 생성
-        _exp_html = ""
-        if explain_key:
-            _e = {
-                "FedFunds":("기준금리가 오르면 왜 주가가 하락할까?",
-                    "📈 올리면 (긴축)",["돈 빌리는 이자 비쌈","기업이 투자 줄임","소비자도 소비 줄임","→ 기업 이익 감소 → 주가 하락"],
-                    "📉 내리면 (완화)",["대출 이자 저렴해짐","기업이 마음껏 투자","소비자 지갑이 열림","→ 기업 이익 증가 → 주가 상승"],
-                    "💡 연준이 금리를 0%로 낮춘 2020~21년에 나스닥이 2배 올랐습니다"),
-                "M2":("M2가 늘면 왜 주가가 오를까?",
-                    "📈 증가하면",["은행에 돈이 많아짐","대출이 쉬워짐","기업이 투자 늘림","→ 주가 상승"],
-                    "📉 감소하면",["시장에서 돈이 빠짐","대출 어려워짐","기업 투자 줄어듦","→ 주가 하락"],
-                    "💡 2022년 M2가 처음으로 줄었을 때 나스닥이 -33% 하락했습니다"),
-                "RRP":("역레포(RRP)가 줄면 왜 시장에 좋을까?",
-                    "📉 높으면 (나쁨)",["은행이 남는 돈을 연준에 보관","그 돈이 주식·채권 시장에 안 들어옴","시장 유동성 줄어듦","→ 자산 가격 정체"],
-                    "📈 줄어들면 (좋음)",["은행이 연준에서 돈을 빼서 시장에 투자","주식·채권 시장으로 돈 유입","매수 압력 증가","→ 자산 가격 상승"],
-                    "💡 2022~24년 RRP가 2.5조→0으로 줄면서 나스닥이 반등했습니다"),
-                "TGA":("재무부 계좌(TGA)가 내려가면 왜 시장에 좋을까?",
-                    "📉 높으면 (나쁨)",["정부가 세금을 걷어서 쌓아둔 것","시중에서 돈이 정부 금고로 흡수됨","시장 유동성 감소","→ 자산 가격 압박"],
-                    "📈 낮으면 (좋음)",["정부가 지출 중","정부 돈이 시장으로 나옴","시중 유동성 증가","→ 자산 가격 상승"],
-                    "💡 2023년 부채한도 협상 당시 TGA가 급증해 시장이 흔들렸습니다"),
-                "CPI":("CPI(물가)가 오르면 왜 주가가 하락할까?",
-                    "📈 CPI 높으면 (물가 상승)",["물가가 오른다 = 돈의 가치가 떨어진다","연준이 금리를 올려서 물가를 잡으려 함","금리 오르면 기업 대출 비용 증가","→ 기업 이익 감소 → 주가 하락"],
-                    "📉 CPI 낮으면 (물가 안정)",["물가 안정 = 연준이 금리 안 올려도 됨","오히려 경기 부양 위해 금리 인하 가능","대출 비용 낮아짐 → 기업 투자 늘어남","→ 기업 이익 증가 → 주가 상승"],
-                    "💡 연준의 목표 물가는 2%. CPI가 2%를 크게 초과하면 금리 인상 압박이 커집니다"),
-                "BondYield":("채권금리가 오르면 왜 나스닥이 하락할까?",
-                    "📈 채권금리 오르면",["미국 국채 이자가 많아짐","안전한데 이자도 높으니 채권으로 자금 이동","전 세계 돈이 미국 채권으로 몰림","→ 주식 팔고 채권 사기 → 주가 하락"],
-                    "📉 채권금리 내리면",["채권 이자가 낮아 매력 없음","더 높은 수익 찾아 주식으로 이동","특히 고성장 기술주 선호 증가","→ 나스닥 자금 유입 → 주가 상승"],
-                    "💡 2022년 10년물 금리가 1.5%→4.5%로 오르자 나스닥이 -33% 하락했습니다"),
-                "Reserves":("은행 준비금이 충분해야 하는 이유",
-                    "📈 충분하면 (좋음)",["은행이 여유 자금 보유","기업·가계에 대출 잘 해줌","경제 활동 활발해짐","→ 주가 상승"],
-                    "📉 부족하면 (위험)",["은행들이 서로 돈 빌려주기 꺼림","단기 금리가 갑자기 폭등","신용 경색 발생","→ 2019년 레포 위기 재발 위험"],
-                    "💡 2019년 준비금이 1.5조$까지 줄자 단기 금리가 하루 만에 10%로 폭등했습니다"),
-                "RealRate":("실질금리가 오르면 왜 나스닥이 하락할까?",
-                    "📉 높으면 (나쁨)",["채권만 들고 있어도 실질 이익 발생","굳이 위험한 주식 살 필요 없음","특히 PER 50배 이상 성장주가 타격","→ 나스닥 하락"],
-                    "📈 낮거나 마이너스면 (좋음)",["채권 실질 수익이 없거나 손실","더 높은 수익 찾아 주식으로 이동","특히 고성장 기술주 선호","→ 나스닥 상승"],
-                    "💡 2022년 실질금리가 -1.5%→+4%로 오르자 NVDA·META가 70% 이상 하락했습니다"),
-                "CreditSpread":("크레딧 스프레드가 벌어지면 왜 위험할까?",
-                    "📉 넓어지면 (나쁨)",["투자자들이 '기업이 망할 수도 있다' 생각","기업 채권 아무도 안 사줌","기업이 돈 조달 어려워짐","→ 주식도 같이 하락"],
-                    "📈 좁으면 (좋음)",["투자자들이 기업 부도를 걱정 안 함","기업 채권 잘 팔림","기업이 쉽게 투자 자금 조달","→ 주가 상승"],
-                    "💡 2008년 스프레드가 22%까지 벌어졌을 때 S&P500이 -57% 폭락했습니다"),
-            }.get(explain_key)
-            if _e:
-                _etitle, _ut, _uf, _dt, _df, _tip = _e
-                _u_rows = "".join(f"<div style='font-size:11px;color:#374151;padding:2px 0'>&#8594; {f}</div>" for f in _uf)
-                _d_rows = "".join(f"<div style='font-size:11px;color:#374151;padding:2px 0'>&#8594; {f}</div>" for f in _df)
-                _exp_html = f"""
-<details style='margin-top:10px;border:0.5px solid #BFDBFE;border-radius:7px;overflow:hidden'>
-  <summary style='cursor:pointer;padding:7px 10px;background:#EFF6FF;
-    font-size:11px;font-weight:500;color:#1D4ED8;list-style:none'>
-    &#128216; {_etitle}
-  </summary>
-  <div style='padding:10px 12px;background:#FFFFFF'>
-    <div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px'>
-      <div style='background:#F0FDF4;border-radius:7px;padding:9px 10px'>
-        <div style='font-size:11px;font-weight:600;color:#15803d;margin-bottom:5px'>{_ut}</div>
-        {_u_rows}
-      </div>
-      <div style='background:#FEF2F2;border-radius:7px;padding:9px 10px'>
-        <div style='font-size:11px;font-weight:600;color:#B91C1C;margin-bottom:5px'>{_dt}</div>
-        {_d_rows}
-      </div>
-    </div>
-    <div style='background:#F9FAFB;border-radius:5px;padding:6px 9px;font-size:11px;color:#374151'>{_tip}</div>
-  </div>
-</details>"""
-
-        # ── PC: 설명(좌, 고정220px) + 차트(우, 고정220px) 2열 레이아웃 ──
-        # ✅ 왼쪽 카드 min-height:220px 고정 → 지표별 높이 통일
-        # ✅ _exp_html(설명) 는 카드 밖 하단에 별도 배치 → 카드 높이 영향 없음
+        # ── PC: 카드(좌) + 차트(우) 2열 레이아웃 ──────────────
         left_col, right_col = st.columns([1, 1.6])
         with left_col:
             st.markdown(f"""
@@ -3786,9 +3718,9 @@ with tab0:
                    border-top:0.5px solid #F3F4F6">{desc_short}</div>
             </div>
             """, unsafe_allow_html=True)
-            # 설명 펼치기 — 카드 밖 하단 (카드 높이에 영향 없음)
-            if _exp_html:
-                st.markdown(_exp_html, unsafe_allow_html=True)
+            # 설명 펼치기 — _indicator_explain 공통 함수 사용 (정의+역사 포함)
+            if explain_key:
+                _indicator_explain(explain_key)
         with right_col:
             if chart_fig is not None:
                 st.plotly_chart(chart_fig, use_container_width=True, key=f"chart_ind_{fred_code}")
@@ -4393,71 +4325,91 @@ with tab0:
     st.markdown("---")
 
     # ════════════════════════════════════════════════════
-    # 지표 8·9·10 — 은행 준비금 · 실질금리 · 크레딧 스프레드
-    # ✅ 바 제거 → 깔끔한 3열 요약 카드
+    # 지표 8 — 은행 준비금
     # ════════════════════════════════════════════════════
     st.markdown("---")
-    st.markdown("<div style='font-family:Space Mono,monospace;font-size:11px;color:#3B5BA5;letter-spacing:1px;margin:8px 0'>📊 유동성 나머지 지표 — 은행준비금 · 실질금리 · 크레딧 스프레드</div>",
-                unsafe_allow_html=True)
+    st.markdown("<div style='font-size:14px;font-weight:700;color:#0D1117;margin:8px 0'>8️⃣ 은행 지급준비금 (Bank Reserves)</div>", unsafe_allow_html=True)
 
-    _rem_cols = st.columns(3)
-    for _rcol, _rkey, _rnum, _rlabel in [
-        (_rem_cols[0], "Reserves",     "8️⃣", "은행 준비금"),
-        (_rem_cols[1], "RealRate",     "9️⃣", "실질금리"),
-        (_rem_cols[2], "CreditSpread", "🔟", "크레딧 스프레드"),
-    ]:
-        _rinfo  = IND_SCORE_100.get(_rkey, {})
-        _rscore = _rinfo.get("score")
-        _rval   = _rinfo.get("val")
-        _rmeta  = _rinfo.get("meta", {})
-        _rcolor = _score_color(_rscore)
-        _rslbl  = _score_label(_rscore)
-        _runit  = _rmeta.get("unit","")
-        _rbetter= _rmeta.get("better","")
-        _rgood  = _rmeta.get("good_desc","")
-        _rbad   = _rmeta.get("bad_desc","")
-        _rvstr  = (f"{_rval/1e9:.2f}T{_runit}" if (_runit=="B$" and _rval and abs(_rval)>500)
-                   else (f"{_rval:.2f}{_runit}" if _rval is not None else "N/A"))
-        _rsdisp = f"{_rscore:.0f}" if _rscore is not None else "—"
-        _fred_u = FRED_SCORE_URLS.get(_rkey, "https://fred.stlouisfed.org")
-        _bg     = "#F0FDF4" if (_rscore or 0)>=60 else ("#FFFBEB" if (_rscore or 0)>=35 else "#FEF2F2")
-        _bc     = "#86EFAC" if (_rscore or 0)>=60 else ("#FDE68A" if (_rscore or 0)>=35 else "#FECACA")
-
-        _rcol.markdown(f"""
-        <div style="background:{_bg};border:1px solid {_bc};border-radius:10px;
-             padding:14px 16px;margin:4px 0;min-height:110px;box-sizing:border-box">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-            <div>
-              <div style="font-size:12px;font-weight:700;color:#374151">{_rnum} {_rlabel}</div>
-              <div style="font-size:10px;color:#9CA3AF;margin-top:2px">{_rbetter}</div>
-            </div>
-            <div style="text-align:right">
-              <span style="font-family:'Space Mono',monospace;font-size:22px;
-                   font-weight:700;color:{_rcolor}">{_rsdisp}</span>
-              <span style="font-size:10px;color:#9CA3AF">/100</span>
-            </div>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div style="font-size:11px;color:#374151">현재: <b>{_rvstr}</b></div>
-            <div style="font-size:11px;font-weight:600;color:{_rcolor}">{_rslbl}</div>
-          </div>
-          <div style="font-size:10px;color:#6B7280;margin-top:6px;line-height:1.5">
-            <span style="color:#16A34A">✅ {_rgood}</span><br>
-            <span style="color:#B91C1C">⚠️ {_rbad}</span>
-          </div>
-          <div style="text-align:right;margin-top:4px">
-            <a href="{_fred_u}" target="_blank"
-               style="font-size:10px;color:#3B5BA5;text-decoration:none">FRED ↗</a>
-          </div>
-        </div>""", unsafe_allow_html=True)
+    res_val, res_s = _lv("Reserves")
+    res_ico, res_c, _ = _status(res_val, good_above=3000000, warn_below=2000000) if res_val else ("⚪","#9CA3AF","N/A")
+    res_arrow, res_diff, res_dir = _dir_arrow(res_s, 20)
+    fig_res = _mini_chart(res_s, "#059669", "은행 준비금",
+        ref_line=3000, ref_label="$3T (안전선)", ref_color="#059669",
+        warn_line=2000, warn_label="$2T (위험선)", warn_color="#E53E3E",
+        sp500_s=_sp500_overlay) if res_s is not None else None
+    _res_val_b = res_val if res_val else None
+    _res_str = f"${res_val/1000:.2f}T" if res_val and res_val >= 1000 else (f"${res_val:.0f}B" if res_val else "N/A")
+    _indicator_row(
+        title="8️⃣ 은행 지급준비금",
+        fred_code="WRESBAL",
+        fred_url="https://fred.stlouisfed.org/series/WRESBAL",
+        cur_val=res_val/1000 if res_val else None,
+        status_icon=res_ico, status_color=res_c,
+        desc_short="금융 시스템의 안전판",
+        up_bad="충분 → 신용 경색 위험 낮음",
+        up_good="부족 → 은행 간 자금 경색 위험",
+        chart_fig=fig_res, unit="T$",
+        direction_arrow=res_arrow, direction_diff=res_diff/1000 if res_diff else 0,
+        direction_label=res_dir, period_label="20거래일 전 대비",
+        explain_key="Reserves", good_dir="up"
+    )
 
     # ════════════════════════════════════════════════════
-    # V60: 현재 글로벌 유동성 종합 상태 — 통합 테이블
+    # 지표 9 — 실질금리
     # ════════════════════════════════════════════════════
-    # V93: 기타 지표 explain
-    _indicator_explain("Reserves")
-    _indicator_explain("RealRate")
-    _indicator_explain("CreditSpread")
+    st.markdown("---")
+    st.markdown("<div style='font-size:14px;font-weight:700;color:#0D1117;margin:8px 0'>9️⃣ 실질금리 (Real Interest Rate)</div>", unsafe_allow_html=True)
+
+    rr_val2, rr_s2 = _lv("RealRate")
+    rr_ico, rr_c, _ = _status(rr_val2, good_below=1.0, warn_above=2.5) if rr_val2 is not None else ("⚪","#9CA3AF","N/A")
+    rr_arrow, rr_diff, rr_dir = _dir_arrow(rr_s2, 60)
+    fig_rr = _mini_chart(rr_s2, "#E53E3E", "실질금리",
+        ref_line=0, ref_label="0% (중립선)", ref_color="#059669",
+        warn_line=2.0, warn_label="2% (성장주 압박)", warn_color="#E53E3E",
+        good_line=-0.5, good_label="-0.5% (성장주 최적)", good_color="#2563EB",
+        sp500_s=_sp500_overlay) if rr_s2 is not None else None
+    _indicator_row(
+        title="9️⃣ 실질금리",
+        fred_code="DFII10",
+        fred_url="https://fred.stlouisfed.org/series/DFII10",
+        cur_val=rr_val2,
+        status_icon=rr_ico, status_color=rr_c,
+        desc_short="성장주 가치의 핵심 할인율",
+        up_bad="상승 → 예금 이자 매력 증가, 성장주 압박",
+        up_good="하락/마이너스 → 주식으로 자금 이동",
+        chart_fig=fig_rr, unit="%",
+        direction_arrow=rr_arrow, direction_diff=rr_diff if rr_diff else 0,
+        direction_label=rr_dir, period_label="3개월(60거래일) 전 대비",
+        explain_key="RealRate", good_dir="dn"
+    )
+
+    # ════════════════════════════════════════════════════
+    # 지표 10 — 크레딧 스프레드
+    # ════════════════════════════════════════════════════
+    st.markdown("---")
+    st.markdown("<div style='font-size:14px;font-weight:700;color:#0D1117;margin:8px 0'>🔟 크레딧 스프레드 (Credit Spread)</div>", unsafe_allow_html=True)
+
+    cs_val2, cs_s2 = _lv("CreditSpread")
+    cs_ico, cs_c, _ = _status(cs_val2, good_below=3.5, warn_above=5.0) if cs_val2 is not None else ("⚪","#9CA3AF","N/A")
+    cs_arrow, cs_diff, cs_dir = _dir_arrow(cs_s2, 20)
+    fig_cs = _mini_chart(cs_s2, "#7C3AED", "크레딧 스프레드",
+        ref_line=3.5, ref_label="3.5% (안정)", ref_color="#059669",
+        warn_line=5.0, warn_label="5% (경고)", warn_color="#E53E3E",
+        sp500_s=_sp500_overlay) if cs_s2 is not None else None
+    _indicator_row(
+        title="🔟 크레딧 스프레드",
+        fred_code="BAMLH0A0HYM2",
+        fred_url="https://fred.stlouisfed.org/series/BAMLH0A0HYM2",
+        cur_val=cs_val2,
+        status_icon=cs_ico, status_color=cs_c,
+        desc_short="기업 부도 공포의 온도계",
+        up_bad="확대 → 기업 부도 공포, 주식 하락 선행 신호",
+        up_good="축소 → 시장 안정, 투자심리 개선",
+        chart_fig=fig_cs, unit="%",
+        direction_arrow=cs_arrow, direction_diff=cs_diff if cs_diff else 0,
+        direction_label=cs_dir, period_label="20거래일 전 대비",
+        explain_key="CreditSpread", good_dir="dn"
+    )
 
     st.markdown("---")
 

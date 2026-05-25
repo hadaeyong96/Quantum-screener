@@ -2949,20 +2949,20 @@ with tab0:
         _cur_ep   = {**_EDIT_DEFAULTS.get(_sel, {}), **_saved_ep.get(_sel, {})}
         _ec1, _ec2 = st.columns(2)
         with _ec1:
-            _nt  = st.text_input("📌 제목",            value=_cur_ep.get("title",""),    key="ep_title")
-            _nut = st.text_input("📈 상승 시 제목",     value=_cur_ep.get("up_title",""), key="ep_up_title")
+            _nt  = st.text_input("📌 제목",            value=_cur_ep.get("title",""),    key=f"ep_title_{_sel}")
+            _nut = st.text_input("📈 상승 시 제목",     value=_cur_ep.get("up_title",""), key=f"ep_up_title_{_sel}")
             _nuf = st.text_area( "📈 상승 시 흐름 (한 줄에 하나씩)",
                                   value="\n".join(_cur_ep.get("up_flow",[])),
-                                  height=130, key="ep_up_flow")
+                                  height=130, key=f"ep_up_flow_{_sel}")
         with _ec2:
-            _ntip = st.text_input("💡 핵심 팁",          value=_cur_ep.get("tip",""),      key="ep_tip")
-            _ndt  = st.text_input("📉 하락 시 제목",     value=_cur_ep.get("dn_title",""), key="ep_dn_title")
+            _ntip = st.text_input("💡 핵심 팁",          value=_cur_ep.get("tip",""),      key=f"ep_tip_{_sel}")
+            _ndt  = st.text_input("📉 하락 시 제목",     value=_cur_ep.get("dn_title",""), key=f"ep_dn_title_{_sel}")
             _ndf  = st.text_area( "📉 하락 시 흐름 (한 줄에 하나씩)",
                                    value="\n".join(_cur_ep.get("dn_flow",[])),
-                                   height=130, key="ep_dn_flow")
+                                   height=130, key=f"ep_dn_flow_{_sel}")
         _sc1, _sc2 = st.columns(2)
         with _sc1:
-            if st.button("💾 저장", key="ep_save", use_container_width=True):
+            if st.button("💾 저장", key=f"ep_save_{_sel}", use_container_width=True):
                 _saved_ep[_sel] = {
                     "title": _nt, "up_title": _nut,
                     "up_flow":  [l.strip() for l in _nuf.splitlines() if l.strip()],
@@ -2975,7 +2975,7 @@ with tab0:
                 else:
                     st.error("❌ 저장 실패")
         with _sc2:
-            if st.button("↩️ 기본값으로 초기화", key="ep_reset", use_container_width=True):
+            if st.button("↩️ 기본값으로 초기화", key=f"ep_reset_{_sel}", use_container_width=True):
                 _saved_ep.pop(_sel, None)
                 _save_explains(_saved_ep)
                 st.success("✅ 초기화 완료")

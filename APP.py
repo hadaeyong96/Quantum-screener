@@ -3,7 +3,10 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V115
+VERSION : APP_V116
+  V116 - 테마 원복 + 전체 상자 흰 배경 통일
+         → 사이드바 버튼 문구 명확화 (▶/▼ 기호)
+         → 경기침체 탭 상자 배경 흰색 통일
   V115 - Windows 블루 테마 적용 (배경 #E8EEF6, 흰 카드, 파란 강조)
          → 경기침체 탭: 범례 추가 + 검은 카드 → 흰 카드 교체
          → 탭 활성 색상 파란색, sec-header 파란 하단선
@@ -262,7 +265,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V115",
+st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V116",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -301,19 +304,19 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
 
-/* BASE — Windows 블루 테마 */
+/* BASE */
 .stApp,[data-testid="stAppViewContainer"],[data-testid="stMain"],section.main
-    { background-color:#E8EEF6 !important; }
+    { background-color:#F7F8FA !important; }
 [data-testid="stHeader"]
-    { background-color:#1565C0 !important; border-bottom:2px solid #0D47A1 !important; }
+    { background-color:#FFFFFF !important; border-bottom:1px solid #E2E6ED !important; }
 body,p,span,div,label
-    { color:#0D1117 !important; font-family:'Inter',sans-serif !important; }
+    { color:#1C2330 !important; font-family:'Inter',sans-serif !important; }
 h1,h2,h3 { font-family:'Space Mono',monospace !important; color:#0D1117 !important; }
 
-/* SIDEBAR — 흰 배경 */
+/* SIDEBAR */
 [data-testid="stSidebar"]
-    { background-color:#FFFFFF !important; border-right:2px solid #BBCDE5 !important; }
-[data-testid="stSidebar"] * { color:#0D1117 !important; }
+    { background-color:#FFFFFF !important; border-right:1px solid #E2E6ED !important; }
+[data-testid="stSidebar"] * { color:#374151 !important; }
 
 /* INPUTS */
 [data-testid="stTextInput"] input,[data-testid="stTextArea"] textarea
@@ -334,28 +337,26 @@ h1,h2,h3 { font-family:'Space Mono',monospace !important; color:#0D1117 !importa
 [data-testid="stDataFrame"]
     { border:1px solid #E2E6ED !important; border-radius:8px !important; background:#FFFFFF !important; }
 
-/* TABS — Windows 탭 스타일 */
+/* TABS */
 [data-testid="stTabs"] [role="tablist"]
-    { background:#FFFFFF !important; border-bottom:2px solid #1565C0 !important;
+    { background:#FFFFFF !important; border-bottom:1px solid #E2E6ED !important;
       border-radius:0 !important; padding:0 4px !important; }
 [data-testid="stTabs"] button
-    { color:#6B7280 !important; font-family:'Inter',sans-serif !important;
+    { color:#9CA3AF !important; font-family:'Inter',sans-serif !important;
       font-size:13px !important; font-weight:500 !important; padding:10px 20px !important;
       border:none !important; border-bottom:2px solid transparent !important;
       background:transparent !important; border-radius:0 !important; }
-[data-testid="stTabs"] button:hover
-    { color:#1565C0 !important; background:#EEF4FF !important; }
+[data-testid="stTabs"] button:hover { color:#374151 !important; }
 [data-testid="stTabs"] button[aria-selected="true"]
-    { color:#1565C0 !important; border-bottom:2px solid #1565C0 !important;
-      font-weight:700 !important; background:#EEF4FF !important; }
+    { color:#0D1117 !important; border-bottom:2px solid #3B5BA5 !important; font-weight:600 !important; }
 
-/* BUTTON — Windows 스타일 */
+/* BUTTON */
 .stButton button
-    { background:#FFFFFF !important; border:1px solid #BBCDE5 !important; color:#0D1117 !important;
+    { background:#FFFFFF !important; border:1px solid #D1D5DB !important; color:#374151 !important;
       font-family:'Inter',sans-serif !important; font-size:13px !important;
-      font-weight:500 !important; border-radius:4px !important; }
+      font-weight:500 !important; border-radius:6px !important; }
 .stButton button:hover
-    { background:#EEF4FF !important; border-color:#1565C0 !important; color:#1565C0 !important; }
+    { background:#F3F4F6 !important; border-color:#3B5BA5 !important; color:#0D1117 !important; }
 
 /* MISC */
 [data-testid="stCheckbox"] label { color:#374151 !important; font-size:13px !important; }
@@ -373,9 +374,9 @@ h1,h2,h3 { font-family:'Space Mono',monospace !important; color:#0D1117 !importa
 hr { border-color:#E2E6ED !important; margin:20px 0 !important; }
 
 /* SECTION HEADER — multpl style */
-.sec-header { padding:4px 0 8px 0; margin:16px 0 14px 0;
-    border-bottom:2px solid #1565C0; font-family:'Space Mono',monospace;
-    font-size:10px; letter-spacing:2px; color:#1565C0; text-transform:uppercase; }
+.sec-header { padding:0 0 8px 0; margin:20px 0 14px 0;
+    border-bottom:1px solid #E2E6ED; font-family:'Space Mono',monospace;
+    font-size:10px; letter-spacing:2px; color:#9CA3AF; text-transform:uppercase; }
 
 /* ALERT BOXES */
 .warn-box { background:#FEF2F2; border:1px solid #FCA5A5; border-radius:6px;
@@ -403,8 +404,8 @@ hr { border-color:#E2E6ED !important; margin:20px 0 !important; }
 .stat-item .value { font-family:'Space Mono',monospace; font-size:16px; color:#374151; margin-top:4px; }
 
 /* CARDS */
-.indicator-card { background:#FFFFFF; border:1px solid #BBCDE5; border-radius:6px;
-    padding:12px 14px; margin:3px 0; box-shadow:0 2px 4px rgba(21,101,192,0.08); }
+.indicator-card { background:#FFFFFF; border:1px solid #E2E6ED; border-radius:6px;
+    padding:12px 14px; margin:3px 0; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
 .sector-ticker-box { background:#FFFFFF; border:1px solid #E2E6ED; border-radius:6px; padding:12px 16px; margin:8px 0; }
 .tier-box { background:#F9FAFB; border:1px solid #E2E6ED; border-radius:6px; padding:10px 12px; margin:6px 0; }
 .tier-label { font-family:'Space Mono',monospace; font-size:10px; color:#9CA3AF;
@@ -1028,7 +1029,7 @@ sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
     "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>"
     "QUANTUM INSTITUTIONAL OS</div>"
-    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V115 &nbsp;·&nbsp; 💻 PC VERSION</div>"
+    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V116 &nbsp;·&nbsp; 💻 PC VERSION</div>"
     "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
@@ -1116,7 +1117,7 @@ sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=
 # ─────────────────────────────────────────────────────────
 # TITLE
 # ─────────────────────────────────────────────────────────
-APP_VERSION = "V115"
+APP_VERSION = "V116"
 st.markdown(f"""
 <div style="padding:16px 0 10px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
@@ -1126,7 +1127,7 @@ st.markdown(f"""
         QUANTUM INSTITUTIONAL OS
       </span><br>
       <span style="font-size:11px;color:#6B7280;letter-spacing:2px">
-        V115  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
+        V116  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
       </span><br>
       <span style="font-size:11px;color:#9CA3AF;margin-top:4px;display:inline-block;
             border-left:3px solid #3B5BA5;padding-left:8px;line-height:1.6">
@@ -2159,7 +2160,7 @@ if "edit_mode" not in st.session_state:
     st.session_state["edit_mode"] = False
 _em = st.session_state["edit_mode"]
 if sb.button(
-    "✏️ 문구 편집 ON" if not _em else "✅ 편집 중 — 클릭해서 닫기",
+    "✏️ 문구 편집 ON" if not _em else "✏️ 편집 중 (클릭해서 끄기)",
     use_container_width=True, key="toggle_edit_mode"
 ):
     st.session_state["edit_mode"] = not _em
@@ -2186,7 +2187,7 @@ if "show_api" not in st.session_state:
 
 sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=True)
 if sb.button(
-    "API 키 설정 열기" if not st.session_state["show_api"] else "API 키 설정 닫기",
+    "▶ API 키 설정 열기" if not st.session_state["show_api"] else "▼ API 키 설정 닫기",
     key="sb_api_toggle", use_container_width=True):
     st.session_state["show_api"] = not st.session_state["show_api"]
     st.rerun()
@@ -5907,7 +5908,7 @@ with tab4:
     st.markdown('<div class="sec-header">⚠️ 경기침체 선행지표 모니터</div>',
                 unsafe_allow_html=True)
     st.markdown("""
-    <div style='background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;
+    <div style='background:#FFFFFF;border:1px solid #E2E6ED;border-radius:10px;
          padding:14px 18px;margin-bottom:16px'>
       <div style='font-size:13px;font-weight:700;color:#B91C1C;margin-bottom:6px'>
         ⚠️ 경기침체 선행지표란?</div>
@@ -6012,10 +6013,10 @@ with tab4:
 
     _rec_score, _rec_signals = _calc_recession_score(_rec_data, fred_data)
 
-    if   _rec_score >= 70: _rg_col="#B91C1C"; _rg_bg="#FEF2F2"; _rg_lbl="🔴 높은 위험"; _rg_bc="#FECACA"
-    elif _rec_score >= 50: _rg_col="#C2410C"; _rg_bg="#FFF7ED"; _rg_lbl="🟠 주의 구간"; _rg_bc="#FED7AA"
-    elif _rec_score >= 30: _rg_col="#92400E"; _rg_bg="#FFFBEB"; _rg_lbl="🟡 관찰 구간"; _rg_bc="#FDE68A"
-    else:                  _rg_col="#15803d"; _rg_bg="#F0FDF4"; _rg_lbl="🟢 안전 구간"; _rg_bc="#86EFAC"
+    if   _rec_score >= 70: _rg_col="#B91C1C"; _rg_bg="#FFFFFF"; _rg_lbl="🔴 높은 위험"; _rg_bc="#FECACA"
+    elif _rec_score >= 50: _rg_col="#C2410C"; _rg_bg="#FFFFFF"; _rg_lbl="🟠 주의 구간"; _rg_bc="#FED7AA"
+    elif _rec_score >= 30: _rg_col="#92400E"; _rg_bg="#FFFFFF"; _rg_lbl="🟡 관찰 구간"; _rg_bc="#FDE68A"
+    else:                  _rg_col="#15803d"; _rg_bg="#FFFFFF"; _rg_lbl="🟢 안전 구간"; _rg_bc="#86EFAC"
 
     st.markdown(
         f"<div style='background:{_rg_bg};border:1.5px solid {_rg_bc};"
@@ -6052,10 +6053,10 @@ with tab4:
         _sig_cols = st.columns(min(len(_rec_signals), 4))
         for i, (name, score, val, unit, icon) in enumerate(_rec_signals):
             _col = _sig_cols[i % 4]
-            if   score >= 70: _sc="#B91C1C"; _sbg="#FEF2F2"; _sbc="#FECACA"
-            elif score >= 50: _sc="#C2410C"; _sbg="#FFF7ED"; _sbc="#FED7AA"
-            elif score >= 30: _sc="#92400E"; _sbg="#FFFBEB"; _sbc="#FDE68A"
-            else:             _sc="#15803d"; _sbg="#F0FDF4"; _sbc="#86EFAC"
+            if   score >= 70: _sc="#B91C1C"; _sbg="#FFFFFF"; _sbc="#E2E6ED"
+            elif score >= 50: _sc="#C2410C"; _sbg="#FFFFFF"; _sbc="#E2E6ED"
+            elif score >= 30: _sc="#92400E"; _sbg="#FFFFFF"; _sbc="#E2E6ED"
+            else:             _sc="#15803d"; _sbg="#FFFFFF"; _sbc="#E2E6ED"
             _col.markdown(
                 f"<div style='background:{_sbg};border:1px solid {_sbc};"
                 f"border-radius:8px;padding:10px;text-align:center;margin-bottom:6px'>"
@@ -6415,8 +6416,8 @@ with tab5:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V115</b>"
-        f" &nbsp;|&nbsp; APP_V115 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V116</b>"
+        f" &nbsp;|&nbsp; APP_V116 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

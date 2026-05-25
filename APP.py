@@ -3,7 +3,10 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V120
+VERSION : APP_V121
+  V121 - 뉴스 방식 변경: yfinance → Anthropic web_search
+         → Yahoo Finance Streamlit Cloud 차단(403) 문제 해결
+         → ANTHROPIC_API_KEY Secrets 필요
   V120 - STEP4 매수 추천 종목 뉴스 연동
          → yfinance 내장 뉴스 API (별도 키 불필요)
          → 종목당 최근 30일 뉴스 3건 · 제목·출처·날짜·링크
@@ -278,7 +281,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V120",
+st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V121",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -1042,7 +1045,7 @@ sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
     "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>"
     "QUANTUM INSTITUTIONAL OS</div>"
-    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V120 &nbsp;·&nbsp; 💻 PC VERSION</div>"
+    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V121 &nbsp;·&nbsp; 💻 PC VERSION</div>"
     "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
@@ -1130,7 +1133,7 @@ sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=
 # ─────────────────────────────────────────────────────────
 # TITLE
 # ─────────────────────────────────────────────────────────
-APP_VERSION = "V120"
+APP_VERSION = "V121"
 st.markdown(f"""
 <div style="padding:16px 0 10px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
@@ -1140,7 +1143,7 @@ st.markdown(f"""
         QUANTUM INSTITUTIONAL OS
       </span><br>
       <span style="font-size:11px;color:#6B7280;letter-spacing:2px">
-        V120  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
+        V121  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
       </span><br>
       <span style="font-size:11px;color:#9CA3AF;margin-top:4px;display:inline-block;
             border-left:3px solid #3B5BA5;padding-left:8px;line-height:1.6">
@@ -5601,100 +5604,125 @@ with tab3:
                 unsafe_allow_html=True)
 
 
-        # ── 📰 매수 종목 관련 최근 뉴스 ──────────────────────────
+        # ── 📰 매수 종목 관련 최근 뉴스 (Anthropic web_search) ──
         st.markdown("<div style='margin:16px 0 6px 0'></div>", unsafe_allow_html=True)
         st.markdown(
             "<div style='font-family:Space Mono,monospace;font-size:11px;"
             "color:#3B5BA5;letter-spacing:1px;margin-bottom:10px'>"
-            "📰 매수 추천 종목 최근 뉴스 (최근 1개월)</div>",
+            "📰 매수 추천 종목 최근 뉴스</div>",
             unsafe_allow_html=True)
 
-        @st.cache_data(ttl=1800, show_spinner=False)
-        def load_stock_news(tickers_tuple):
-            """yfinance 내장 뉴스 API — 별도 키 불필요"""
-            result = {}
-            for tk in tickers_tuple:
-                try:
-                    import sys, io as _sio
-                    _e = sys.stderr; sys.stderr = _sio.StringIO()
-                    try:
-                        _news = yf.Ticker(tk).news
-                    finally:
-                        sys.stderr = _e
-                    if not _news: continue
-                    # 최근 30일 필터
-                    _cutoff = datetime.now().timestamp() - 30 * 86400
-                    _filtered = [
-                        n for n in _news
-                        if n.get("providerPublishTime", 0) >= _cutoff
-                    ]
-                    result[tk] = _filtered[:3]  # 종목당 최대 3건
+        def _fetch_ticker_news(ticker):
+            """Anthropic API + web_search로 종목 뉴스 가져오기"""
+            try:
+                _ant_key = ""
+                try: _ant_key = st.secrets.get("ANTHROPIC_API_KEY", "")
                 except: pass
-            return result
+                if not _ant_key:
+                    import os; _ant_key = os.environ.get("ANTHROPIC_API_KEY", "")
+                if not _ant_key:
+                    return None, "ANTHROPIC_API_KEY 없음"
 
+                _prompt = (
+                    f"Search for the latest 3 news about {ticker} stock from the past 7 days. "
+                    f"Return ONLY a valid JSON array (no markdown, no explanation) with this format: "
+                    f'[{{"title":"...", "source":"...", "url":"...", "date":"YYYY-MM-DD"}}]'
+                )
+                _resp = requests.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "Content-Type": "application/json",
+                        "x-api-key": _ant_key,
+                        "anthropic-version": "2023-06-01",
+                    },
+                    json={
+                        "model": "claude-sonnet-4-20250514",
+                        "max_tokens": 1000,
+                        "tools": [{"type": "web_search_20250305", "name": "web_search"}],
+                        "messages": [{"role": "user", "content": _prompt}]
+                    },
+                    timeout=25
+                )
+                if _resp.status_code != 200:
+                    return None, f"API 오류 {_resp.status_code}"
+
+                _data = _resp.json()
+                # 텍스트 블록 추출
+                _text = ""
+                for _blk in _data.get("content", []):
+                    if _blk.get("type") == "text":
+                        _text += _blk.get("text", "")
+
+                # JSON 파싱
+                import re as _re
+                _match = _re.search(r'\[.*?\]', _text, _re.DOTALL)
+                if _match:
+                    _articles = json.loads(_match.group())
+                    return _articles, None
+                return None, "파싱 실패"
+            except Exception as _e:
+                return None, str(_e)
+
+        _news_tickers = _buy_df["Ticker"].tolist()[:5]
+        _has_ant_key = False
         try:
-            _news_tickers = tuple(_buy_df["Ticker"].tolist()[:5])
-            _news_data = load_stock_news(_news_tickers)
+            _has_ant_key = bool(st.secrets.get("ANTHROPIC_API_KEY", ""))
+        except: pass
+        if not _has_ant_key:
+            import os; _has_ant_key = bool(os.environ.get("ANTHROPIC_API_KEY", ""))
 
-            if not _news_data:
-                st.markdown(
-                    "<div style='font-size:11px;color:#9CA3AF;padding:8px'>"
-                    "뉴스 데이터를 불러오는 중입니다...</div>",
-                    unsafe_allow_html=True)
-            else:
-                for _tk in _news_tickers:
-                    _articles = _news_data.get(_tk, [])
-                    if not _articles: continue
-
-                    # 종목 헤더
-                    _tk_color = _ticker_badge_color(_tk)
-                    st.markdown(
-                        f"<div style='display:flex;align-items:center;gap:8px;"
-                        f"margin:10px 0 6px 0'>"
-                        f"<span style='background:{_tk_color};color:#FFFFFF;"
-                        f"font-family:Space Mono,monospace;font-size:11px;"
-                        f"font-weight:700;padding:2px 8px;border-radius:4px'>{_tk}</span>"
-                        f"<span style='font-size:11px;color:#6B7280'>"
-                        f"최근 {len(_articles)}건</span></div>",
-                        unsafe_allow_html=True)
-
-                    # 뉴스 카드
-                    for _art in _articles:
-                        _title     = _art.get("title", "제목 없음")
-                        _publisher = _art.get("publisher", "")
-                        _link      = _art.get("link", "#")
-                        _ts        = _art.get("providerPublishTime", 0)
-                        try:
-                            _date = datetime.fromtimestamp(_ts).strftime("%Y-%m-%d")
-                        except: _date = ""
-
-                        # 제목 길이 제한
-                        _title_disp = _title[:80] + "..." if len(_title) > 80 else _title
-
-                        st.markdown(
-                            f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
-                            f"border-radius:7px;padding:9px 14px;margin-bottom:5px;"
-                            f"display:flex;align-items:flex-start;gap:10px'>"
-                            f"<div style='flex:1'>"
-                            f"<a href='{_link}' target='_blank' "
-                            f"style='font-size:12px;font-weight:500;color:#0D1117;"
-                            f"text-decoration:none;line-height:1.5'>{_title_disp}</a>"
-                            f"<div style='margin-top:4px;display:flex;gap:8px;"
-                            f"font-size:10px;color:#9CA3AF'>"
-                            f"<span>📰 {_publisher}</span>"
-                            f"<span>🗓 {_date}</span>"
-                            f"</div></div>"
-                            f"<a href='{_link}' target='_blank' "
-                            f"style='font-size:10px;color:#3B5BA5;white-space:nowrap;"
-                            f"text-decoration:none;padding:2px 6px;border:0.5px solid #BFDBFE;"
-                            f"border-radius:4px;background:#EFF6FF'>↗ 보기</a>"
-                            f"</div>",
-                            unsafe_allow_html=True)
-
-        except Exception as _news_err:
+        if not _has_ant_key:
             st.markdown(
-                "<div style='font-size:11px;color:#9CA3AF'>뉴스 로드 실패</div>",
+                "<div style='background:#FFFBEB;border:0.5px solid #FDE68A;"
+                "border-radius:8px;padding:10px 14px;font-size:11px;color:#92400E'>"
+                "📰 뉴스 기능을 사용하려면 Streamlit Secrets에 "
+                "<b>ANTHROPIC_API_KEY</b>를 추가하세요.</div>",
                 unsafe_allow_html=True)
+        else:
+            for _tk in _news_tickers:
+                _tk_color = _ticker_badge_color(_tk)
+                with st.spinner(f"{_tk} 뉴스 검색 중..."):
+                    _articles, _err = _fetch_ticker_news(_tk)
+
+                st.markdown(
+                    f"<div style='display:flex;align-items:center;gap:8px;margin:10px 0 6px 0'>"
+                    f"<span style='background:{_tk_color};color:#FFFFFF;"
+                    f"font-family:Space Mono,monospace;font-size:11px;font-weight:700;"
+                    f"padding:2px 8px;border-radius:4px'>{_tk}</span></div>",
+                    unsafe_allow_html=True)
+
+                if _err or not _articles:
+                    st.markdown(
+                        f"<div style='font-size:11px;color:#9CA3AF;padding:4px 0'>"
+                        f"뉴스를 가져오지 못했습니다.</div>",
+                        unsafe_allow_html=True)
+                    continue
+
+                for _art in _articles:
+                    _title = str(_art.get("title", ""))[:90]
+                    _src   = _art.get("source", "")
+                    _url   = _art.get("url", "#")
+                    _date  = _art.get("date", "")
+                    if not _title: continue
+                    st.markdown(
+                        f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
+                        f"border-radius:7px;padding:9px 14px;margin-bottom:5px;"
+                        f"display:flex;align-items:flex-start;gap:10px'>"
+                        f"<div style='flex:1'>"
+                        f"<a href='{_url}' target='_blank' "
+                        f"style='font-size:12px;font-weight:500;color:#0D1117;"
+                        f"text-decoration:none;line-height:1.5'>{_title}</a>"
+                        f"<div style='margin-top:4px;display:flex;gap:8px;"
+                        f"font-size:10px;color:#9CA3AF'>"
+                        f"<span>📰 {_src}</span><span>🗓 {_date}</span>"
+                        f"</div></div>"
+                        f"<a href='{_url}' target='_blank' "
+                        f"style='font-size:10px;color:#3B5BA5;white-space:nowrap;"
+                        f"text-decoration:none;padding:2px 6px;"
+                        f"border:0.5px solid #BFDBFE;border-radius:4px;"
+                        f"background:#EFF6FF'>↗ 보기</a>"
+                        f"</div>",
+                        unsafe_allow_html=True)
 
         # 투자금 기반 포트폴리오 (V98: ATR 사이징 + GLD 헤지 표시)
         if _invest > 0:
@@ -6715,8 +6743,8 @@ with tab6:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V120</b>"
-        f" &nbsp;|&nbsp; APP_V120 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V121</b>"
+        f" &nbsp;|&nbsp; APP_V121 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

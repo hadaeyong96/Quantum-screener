@@ -3,7 +3,10 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V114
+VERSION : APP_V115
+  V115 - Windows 블루 테마 적용 (배경 #E8EEF6, 흰 카드, 파란 강조)
+         → 경기침체 탭: 범례 추가 + 검은 카드 → 흰 카드 교체
+         → 탭 활성 색상 파란색, sec-header 파란 하단선
   V114 - ⚠️ 경기침체 선행지표 탭 추가
          → 침체 위험 점수(0~100) + 7대 선행지표 카드
          → 장단기 금리 역전·Sahm Rule·실업급여·실업률 차트
@@ -259,7 +262,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V114",
+st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V115",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -298,19 +301,19 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
 
-/* BASE */
+/* BASE — Windows 블루 테마 */
 .stApp,[data-testid="stAppViewContainer"],[data-testid="stMain"],section.main
-    { background-color:#F7F8FA !important; }
+    { background-color:#E8EEF6 !important; }
 [data-testid="stHeader"]
-    { background-color:#FFFFFF !important; border-bottom:1px solid #E2E6ED !important; }
+    { background-color:#1565C0 !important; border-bottom:2px solid #0D47A1 !important; }
 body,p,span,div,label
-    { color:#1C2330 !important; font-family:'Inter',sans-serif !important; }
+    { color:#0D1117 !important; font-family:'Inter',sans-serif !important; }
 h1,h2,h3 { font-family:'Space Mono',monospace !important; color:#0D1117 !important; }
 
-/* SIDEBAR */
+/* SIDEBAR — 흰 배경 */
 [data-testid="stSidebar"]
-    { background-color:#FFFFFF !important; border-right:1px solid #E2E6ED !important; }
-[data-testid="stSidebar"] * { color:#374151 !important; }
+    { background-color:#FFFFFF !important; border-right:2px solid #BBCDE5 !important; }
+[data-testid="stSidebar"] * { color:#0D1117 !important; }
 
 /* INPUTS */
 [data-testid="stTextInput"] input,[data-testid="stTextArea"] textarea
@@ -331,26 +334,28 @@ h1,h2,h3 { font-family:'Space Mono',monospace !important; color:#0D1117 !importa
 [data-testid="stDataFrame"]
     { border:1px solid #E2E6ED !important; border-radius:8px !important; background:#FFFFFF !important; }
 
-/* TABS */
+/* TABS — Windows 탭 스타일 */
 [data-testid="stTabs"] [role="tablist"]
-    { background:#FFFFFF !important; border-bottom:1px solid #E2E6ED !important;
+    { background:#FFFFFF !important; border-bottom:2px solid #1565C0 !important;
       border-radius:0 !important; padding:0 4px !important; }
 [data-testid="stTabs"] button
-    { color:#9CA3AF !important; font-family:'Inter',sans-serif !important;
+    { color:#6B7280 !important; font-family:'Inter',sans-serif !important;
       font-size:13px !important; font-weight:500 !important; padding:10px 20px !important;
       border:none !important; border-bottom:2px solid transparent !important;
       background:transparent !important; border-radius:0 !important; }
-[data-testid="stTabs"] button:hover { color:#374151 !important; }
+[data-testid="stTabs"] button:hover
+    { color:#1565C0 !important; background:#EEF4FF !important; }
 [data-testid="stTabs"] button[aria-selected="true"]
-    { color:#0D1117 !important; border-bottom:2px solid #3B5BA5 !important; font-weight:600 !important; }
+    { color:#1565C0 !important; border-bottom:2px solid #1565C0 !important;
+      font-weight:700 !important; background:#EEF4FF !important; }
 
-/* BUTTON */
+/* BUTTON — Windows 스타일 */
 .stButton button
-    { background:#FFFFFF !important; border:1px solid #D1D5DB !important; color:#374151 !important;
+    { background:#FFFFFF !important; border:1px solid #BBCDE5 !important; color:#0D1117 !important;
       font-family:'Inter',sans-serif !important; font-size:13px !important;
-      font-weight:500 !important; border-radius:6px !important; }
+      font-weight:500 !important; border-radius:4px !important; }
 .stButton button:hover
-    { background:#F3F4F6 !important; border-color:#3B5BA5 !important; color:#0D1117 !important; }
+    { background:#EEF4FF !important; border-color:#1565C0 !important; color:#1565C0 !important; }
 
 /* MISC */
 [data-testid="stCheckbox"] label { color:#374151 !important; font-size:13px !important; }
@@ -368,9 +373,9 @@ h1,h2,h3 { font-family:'Space Mono',monospace !important; color:#0D1117 !importa
 hr { border-color:#E2E6ED !important; margin:20px 0 !important; }
 
 /* SECTION HEADER — multpl style */
-.sec-header { padding:0 0 8px 0; margin:20px 0 14px 0;
-    border-bottom:1px solid #E2E6ED; font-family:'Space Mono',monospace;
-    font-size:10px; letter-spacing:2px; color:#9CA3AF; text-transform:uppercase; }
+.sec-header { padding:4px 0 8px 0; margin:16px 0 14px 0;
+    border-bottom:2px solid #1565C0; font-family:'Space Mono',monospace;
+    font-size:10px; letter-spacing:2px; color:#1565C0; text-transform:uppercase; }
 
 /* ALERT BOXES */
 .warn-box { background:#FEF2F2; border:1px solid #FCA5A5; border-radius:6px;
@@ -398,8 +403,8 @@ hr { border-color:#E2E6ED !important; margin:20px 0 !important; }
 .stat-item .value { font-family:'Space Mono',monospace; font-size:16px; color:#374151; margin-top:4px; }
 
 /* CARDS */
-.indicator-card { background:#FFFFFF; border:1px solid #E2E6ED; border-radius:6px;
-    padding:12px 14px; margin:3px 0; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
+.indicator-card { background:#FFFFFF; border:1px solid #BBCDE5; border-radius:6px;
+    padding:12px 14px; margin:3px 0; box-shadow:0 2px 4px rgba(21,101,192,0.08); }
 .sector-ticker-box { background:#FFFFFF; border:1px solid #E2E6ED; border-radius:6px; padding:12px 16px; margin:8px 0; }
 .tier-box { background:#F9FAFB; border:1px solid #E2E6ED; border-radius:6px; padding:10px 12px; margin:6px 0; }
 .tier-label { font-family:'Space Mono',monospace; font-size:10px; color:#9CA3AF;
@@ -1023,7 +1028,7 @@ sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
     "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>"
     "QUANTUM INSTITUTIONAL OS</div>"
-    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V114 &nbsp;·&nbsp; 💻 PC VERSION</div>"
+    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V115 &nbsp;·&nbsp; 💻 PC VERSION</div>"
     "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
@@ -1111,7 +1116,7 @@ sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=
 # ─────────────────────────────────────────────────────────
 # TITLE
 # ─────────────────────────────────────────────────────────
-APP_VERSION = "V114"
+APP_VERSION = "V115"
 st.markdown(f"""
 <div style="padding:16px 0 10px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
@@ -1121,7 +1126,7 @@ st.markdown(f"""
         QUANTUM INSTITUTIONAL OS
       </span><br>
       <span style="font-size:11px;color:#6B7280;letter-spacing:2px">
-        V114  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
+        V115  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
       </span><br>
       <span style="font-size:11px;color:#9CA3AF;margin-top:4px;display:inline-block;
             border-left:3px solid #3B5BA5;padding-left:8px;line-height:1.6">
@@ -6032,7 +6037,18 @@ with tab4:
     if not _rec_signals:
         st.info("FRED API 키를 입력하면 침체 지표가 표시됩니다.")
     else:
-        st.markdown("<div style='font-size:12px;font-weight:700;color:#0D1117;margin-bottom:8px'>📊 선행지표별 상태</div>", unsafe_allow_html=True)
+        st.markdown(
+        "<div style='display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap'>"
+        "<div style='font-size:12px;font-weight:700;color:#0D1117'>📊 선행지표별 상태</div>"
+        "<div style='display:flex;align-items:center;gap:8px;font-size:10px;color:#6B7280;"
+        "background:#FFFFFF;border:1px solid #BBCDE5;border-radius:20px;padding:3px 10px'>"
+        "<span>범례:</span>"
+        "<span style='color:#15803d;font-weight:600'>🟢 안전(0~29)</span>"
+        "<span style='color:#92400E;font-weight:600'>🟡 관찰(30~49)</span>"
+        "<span style='color:#C2410C;font-weight:600'>🟠 주의(50~69)</span>"
+        "<span style='color:#B91C1C;font-weight:600'>🔴 위험(70+)</span>"
+        "</div></div>",
+        unsafe_allow_html=True)
         _sig_cols = st.columns(min(len(_rec_signals), 4))
         for i, (name, score, val, unit, icon) in enumerate(_rec_signals):
             _col = _sig_cols[i % 4]
@@ -6246,32 +6262,38 @@ with tab4:
             f"<div style='font-size:10px;color:#374151;line-height:1.5'>{thresh}</div></div>"
             f"</div></div>", unsafe_allow_html=True)
 
-    st.markdown("""
-    <div style='background:#0D1117;border-radius:10px;padding:16px 18px;
-         color:#F9FAFB;margin-top:14px'>
-      <div style='font-size:12px;font-weight:700;color:#60A5FA;margin-bottom:10px'>
-        💡 경기침체와 주식시장 — 핵심 교훈</div>
-      <div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;font-size:11px'>
-        <div style='background:#1F2937;border-radius:7px;padding:10px'>
-          <div style='color:#FCA5A5;font-weight:600;margin-bottom:4px'>🏦 2008 금융위기</div>
-          <div style='color:#D1D5DB;line-height:1.6'>장단기 역전 2006년 발생<br>주식 하락 2007년 시작<br>공식 침체 2008년 발표<br>→ <b style="color:#FDE68A">선행 18개월</b></div>
-        </div>
-        <div style='background:#1F2937;border-radius:7px;padding:10px'>
-          <div style='color:#FCA5A5;font-weight:600;margin-bottom:4px'>🦠 2020 코로나</div>
-          <div style='color:#D1D5DB;line-height:1.6'>급격한 침체·회복<br>선행지표 포착 어려움<br>연준 즉각 개입으로 회복<br>→ <b style="color:#86EFAC">유동성이 핵심</b></div>
-        </div>
-        <div style='background:#1F2937;border-radius:7px;padding:10px'>
-          <div style='color:#FCA5A5;font-weight:600;margin-bottom:4px'>📉 2022 금리인상</div>
-          <div style='color:#D1D5DB;line-height:1.6'>장단기 역전 2022년 발생<br>나스닥 -33% 하락<br>공식 침체는 미발생<br>→ <b style="color:#FDE68A">역전≠반드시 침체</b></div>
-        </div>
-      </div>
-      <div style='margin-top:10px;font-size:10px;color:#9CA3AF'>
-        ⚠️ 선행지표는 100% 정확하지 않습니다.
-        여러 지표가 동시에 경고할 때 신뢰도가 올라갑니다.
-        유동성 탭의 5단계 판단과 함께 사용하세요.
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        "<div style='background:#FFFFFF;border:1.5px solid #BBCDE5;"
+        "border-radius:10px;padding:16px 18px;margin-top:14px'>"
+        "<div style='font-size:12px;font-weight:700;color:#1565C0;margin-bottom:12px'>"
+        "💡 경기침체와 주식시장 — 핵심 교훈</div>"
+        "<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:11px'>"
+        # 2008
+        "<div style='background:#F8FAFF;border:1px solid #BBCDE5;border-radius:7px;padding:10px'>"
+        "<div style='color:#B91C1C;font-weight:700;margin-bottom:5px'>🏦 2008 금융위기</div>"
+        "<div style='color:#0D1117;line-height:1.7'>장단기 역전 2006년 발생<br>"
+        "주식 하락 2007년 시작<br>공식 침체 2008년 발표<br>"
+        "<b style='color:#1565C0'>→ 선행 18개월</b></div></div>"
+        # 2020
+        "<div style='background:#F8FAFF;border:1px solid #BBCDE5;border-radius:7px;padding:10px'>"
+        "<div style='color:#B91C1C;font-weight:700;margin-bottom:5px'>🦠 2020 코로나</div>"
+        "<div style='color:#0D1117;line-height:1.7'>급격한 침체·회복<br>"
+        "선행지표 포착 어려움<br>연준 즉각 개입으로 회복<br>"
+        "<b style='color:#15803d'>→ 유동성이 핵심</b></div></div>"
+        # 2022
+        "<div style='background:#F8FAFF;border:1px solid #BBCDE5;border-radius:7px;padding:10px'>"
+        "<div style='color:#B91C1C;font-weight:700;margin-bottom:5px'>📉 2022 금리인상</div>"
+        "<div style='color:#0D1117;line-height:1.7'>장단기 역전 2022년 발생<br>"
+        "나스닥 -33% 하락<br>공식 침체는 미발생<br>"
+        "<b style='color:#1565C0'>→ 역전≠반드시 침체</b></div></div>"
+        "</div>"
+        "<div style='margin-top:10px;padding-top:8px;border-top:1px solid #E2E6ED;"
+        "font-size:10px;color:#6B7280'>"
+        "⚠️ 선행지표는 100% 정확하지 않습니다. "
+        "여러 지표가 동시에 경고할 때 신뢰도가 올라갑니다. "
+        "유동성 탭의 5단계 판단과 함께 사용하세요."
+        "</div></div>",
+        unsafe_allow_html=True)
 
 # TAB 5 — 📆 주요 경제 이벤트
 # ════════════════════════════════════════════════════════
@@ -6393,8 +6415,8 @@ with tab5:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V114</b>"
-        f" &nbsp;|&nbsp; APP_V114 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V115</b>"
+        f" &nbsp;|&nbsp; APP_V115 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

@@ -3,7 +3,11 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V113
+VERSION : APP_V114
+  V114 - ⚠️ 경기침체 선행지표 탭 추가
+         → 침체 위험 점수(0~100) + 7대 선행지표 카드
+         → 장단기 금리 역전·Sahm Rule·실업급여·실업률 차트
+         → 초보자용 지표 해석 가이드 + 역사적 사례
   V113 - 문구 편집 모드 추가 (사이드바 버튼 → STEP1 유동성 탭 편집 패널)
          → session_state 기반 저장 (Streamlit Cloud 호환)
          → 9개 지표 드롭다운 선택·수정·저장·초기화
@@ -255,7 +259,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V113",
+st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V114",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -1019,7 +1023,7 @@ sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
     "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>"
     "QUANTUM INSTITUTIONAL OS</div>"
-    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V113 &nbsp;·&nbsp; 💻 PC VERSION</div>"
+    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V114 &nbsp;·&nbsp; 💻 PC VERSION</div>"
     "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
@@ -1107,7 +1111,7 @@ sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=
 # ─────────────────────────────────────────────────────────
 # TITLE
 # ─────────────────────────────────────────────────────────
-APP_VERSION = "V113"
+APP_VERSION = "V114"
 st.markdown(f"""
 <div style="padding:16px 0 10px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
@@ -1117,7 +1121,7 @@ st.markdown(f"""
         QUANTUM INSTITUTIONAL OS
       </span><br>
       <span style="font-size:11px;color:#6B7280;letter-spacing:2px">
-        V113  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
+        V114  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
       </span><br>
       <span style="font-size:11px;color:#9CA3AF;margin-top:4px;display:inline-block;
             border-left:3px solid #3B5BA5;padding-left:8px;line-height:1.6">
@@ -2515,11 +2519,12 @@ except Exception as _ds_err:
 # ─────────────────────────────────────────────────────────
 # 탭 정의 (V44)
 # ─────────────────────────────────────────────────────────
-tab0, tab1, tab2, tab3, tab4 = st.tabs([
+tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs([
     'STEP1 💧 유동성',
     'STEP2 📡 섹터 강도',
     'STEP3 📊 종목 선별',
     'STEP4 💰 매수 실행',
+    '⚠️ 경기침체',
     '📅 기타',
 ])
 
@@ -6010,8 +6015,8 @@ with tab4:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V113</b>"
-        f" &nbsp;|&nbsp; APP_V113 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V114</b>"
+        f" &nbsp;|&nbsp; APP_V114 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

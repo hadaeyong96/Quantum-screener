@@ -3,7 +3,9 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V117
+VERSION : APP_V118
+  V118 - ⚙️ 문구편집 탭 신설 (탭 목록 맨 끝)
+         → 사이드바/STEP1 버튼 제거, 전용 탭으로 통합
   V117 - 사이드바 간소화
          → 문구 편집 버튼: 사이드바 제거 → STEP1 탭 내부로 이동
          → API 키 설정: 사이드바 제거 (Streamlit Secrets로 관리)
@@ -268,7 +270,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V117",
+st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V118",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -1032,7 +1034,7 @@ sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
     "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>"
     "QUANTUM INSTITUTIONAL OS</div>"
-    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V117 &nbsp;·&nbsp; 💻 PC VERSION</div>"
+    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V118 &nbsp;·&nbsp; 💻 PC VERSION</div>"
     "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
@@ -1120,7 +1122,7 @@ sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=
 # ─────────────────────────────────────────────────────────
 # TITLE
 # ─────────────────────────────────────────────────────────
-APP_VERSION = "V117"
+APP_VERSION = "V118"
 st.markdown(f"""
 <div style="padding:16px 0 10px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
@@ -1130,7 +1132,7 @@ st.markdown(f"""
         QUANTUM INSTITUTIONAL OS
       </span><br>
       <span style="font-size:11px;color:#6B7280;letter-spacing:2px">
-        V117  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
+        V118  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
       </span><br>
       <span style="font-size:11px;color:#9CA3AF;margin-top:4px;display:inline-block;
             border-left:3px solid #3B5BA5;padding-left:8px;line-height:1.6">
@@ -2473,13 +2475,14 @@ except Exception as _ds_err:
 # ─────────────────────────────────────────────────────────
 # 탭 정의 (V44)
 # ─────────────────────────────────────────────────────────
-tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     'STEP1 💧 유동성',
     'STEP2 📡 섹터 강도',
     'STEP3 📊 종목 선별',
     'STEP4 💰 매수 실행',
     '⚠️ 경기침체',
     '📆 경제 이벤트',
+    '⚙️ 문구편집',
 ])
 
 # ── V93: 지표 설명 expander 헬퍼 ─────────────────────────
@@ -2864,16 +2867,7 @@ with tab0:
     _s0 = LIQ_ACTION.get("stage", 0)
     _render_stepbar(1, _s0, 0)
 
-    # ── ✏️ 편집 모드 토글 (STEP1 탭 안에서 직접 제어) ────────
-    _em_now = st.session_state.get("edit_mode", False)
-    if st.button(
-        "✏️ 문구 편집 ON" if not _em_now else "✏️ 문구 편집 종료",
-        key="edit_mode_toggle_tab", type="secondary"
-    ):
-        st.session_state["edit_mode"] = not _em_now
-        st.rerun()
-
-    # ── ✏️ 편집 모드 패널 (edit_mode ON일 때만 표시) ────────
+    # ── ✏️ 편집 모드 패널 (⚙️ 문구편집 탭에서 edit_mode ON 시 표시) ──
     if st.session_state.get("edit_mode", False):
         _EDIT_DEFAULTS = {
             "FedFunds": {
@@ -6370,11 +6364,119 @@ with tab5:
 
 # ════════════════════════════════════════════════════════
 # ════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════
+# TAB 6 — ⚙️ 문구편집
+# ════════════════════════════════════════════════════════
+with tab6:
+    st.markdown('<div class="sec-header">⚙️ 문구 편집</div>',
+                unsafe_allow_html=True)
+
+    _em_cur = st.session_state.get("edit_mode", False)
+
+    # ON/OFF 토글 버튼
+    _btn_label = "⚙️ 편집 모드 시작" if not _em_cur else "⚙️ 편집 모드 종료"
+    _btn_help  = "클릭하면 아래 패널에서 지표 설명을 수정할 수 있습니다." if not _em_cur else "편집을 마쳤으면 클릭해서 종료하세요."
+    if st.button(_btn_label, key="tab6_edit_toggle", help=_btn_help):
+        st.session_state["edit_mode"] = not _em_cur
+        st.rerun()
+
+    if not _em_cur:
+        # 비활성 상태 안내
+        st.markdown(
+            "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+            "border-radius:10px;padding:20px 24px;margin-top:12px;text-align:center'>"
+            "<div style='font-size:32px;margin-bottom:10px'>⚙️</div>"
+            "<div style='font-size:14px;font-weight:600;color:#374151;margin-bottom:6px'>"
+            "유동성 지표 설명 문구 편집</div>"
+            "<div style='font-size:12px;color:#6B7280;line-height:1.7'>"
+            "위 <b>⚙️ 편집 모드 시작</b> 버튼을 클릭하면<br>"
+            "9개 유동성 지표의 설명 문구를<br>"
+            "앱에서 직접 수정·저장할 수 있습니다.</div>"
+            "<div style='font-size:11px;color:#9CA3AF;margin-top:12px'>"
+            "수정 후 STEP1 💧 유동성 탭에서 변경 내용을 확인하세요.</div>"
+            "</div>",
+            unsafe_allow_html=True)
+    else:
+        # 편집 패널
+        st.markdown(
+            "<div style='background:#FFFFFF;border:1.5px solid #3B5BA5;"
+            "border-radius:10px;padding:14px 18px;margin-bottom:14px'>"
+            "<div style='font-size:13px;font-weight:700;color:#3B5BA5;margin-bottom:4px'>"
+            "⚙️ 편집 모드 활성</div>"
+            "<div style='font-size:11px;color:#374151'>"
+            "수정할 지표 선택 → 내용 편집 → 💾 저장 → STEP1 탭에서 확인</div></div>",
+            unsafe_allow_html=True)
+
+        _EDIT_DEFAULTS_T6 = {
+            "FedFunds":     {"title":"기준금리가 오르면 왜 주가가 하락할까?","definition":"미국 중앙은행(연준)이 정하는 은행 간 하룻밤 대출 금리입니다. 모든 금리의 기준이 되며 경제 전체의 돈값을 결정합니다.\n예시: 기준금리 5% = 은행들이 서로 돈을 빌릴 때 연 5% 이자를 냅니다.","up_title":"📈 기준금리 올리면 (긴축)","up_flow":["돈 빌리는 이자 비쌈","기업이 투자 줄임","소비자도 소비 줄임","→ 기업 이익 감소 → 주가 하락"],"dn_title":"📉 기준금리 내리면 (완화)","dn_flow":["대출 이자 저렴해짐","기업이 마음껏 투자","소비자 지갑이 열림","→ 기업 이익 증가 → 주가 상승"],"tip":"💡 0% 이하(제로금리)이면 성장주 최적 환경. 5% 이상이면 대출 부담 극대화.","history":"2020년: 0%로 인하 → 나스닥 2년간 +100%\n2022년: 0%→5.25%로 급인상 → 나스닥 -33%\n2019년: 3회 예방적 인하 → 주가 단기 랠리"},
+            "M2":           {"title":"M2가 늘면 왜 주가가 오를까?","definition":"시장에 풀린 돈의 총량입니다. 현금 + 예금 + 저축 + 머니마켓펀드를 합산합니다.\n수영장 물처럼 M2가 늘어나면 자산 가격 수위가 올라갑니다.","up_title":"📈 M2 증가하면","up_flow":["은행에 돈이 많아짐","대출이 쉬워짐","기업이 투자 늘림","→ 주가 상승"],"dn_title":"📉 M2 감소하면","dn_flow":["시장에서 돈이 빠짐","대출 어려워짐","기업 투자 줄어듦","→ 주가 하락"],"tip":"💡 M2는 후행 지표입니다. 오늘 늘어도 시장 반영은 3~6개월 후일 수 있습니다.","history":"2020~21년: M2 +27% 급증 → 나스닥 +100%\n2022년: 사상 첫 M2 감소 → 나스닥 -33%\n2008~09년: QE로 M2 급증 → 자산 가격 회복"},
+            "RRP":          {"title":"역레포(RRP)가 줄면 왜 시장에 좋을까?","definition":"은행·머니마켓펀드가 남는 돈을 연준에 하룻밤 맡기고 이자를 받는 제도입니다.\nRRP 잔고 = 연준 금고에 잠든 돈. 이 돈이 줄어들면 시장으로 흘러들어옵니다.","up_title":"📉 RRP 높으면 (나쁨)","up_flow":["은행이 남는 돈을 연준에 보관 중","그 돈이 주식·채권 시장에 안 들어옴","시장 유동성 줄어듦","→ 자산 가격 정체"],"dn_title":"📈 RRP 줄어들면 (좋음)","dn_flow":["은행이 연준에서 돈을 빼서 시장에 투자","주식·채권 시장으로 돈 유입","매수 압력 증가","→ 자산 가격 상승"],"tip":"💡 RRP가 0에 가까워지면 새로운 유동성 공급원이 줄어드는 신호이기도 합니다.","history":"2022~23년: RRP 2.5조$ 최고점 → 시장 침체\n2023~24년: RRP 2.5조→0으로 감소 → 나스닥 반등"},
+            "TGA":          {"title":"재무부 계좌(TGA)가 내려가면 왜 시장에 좋을까?","definition":"미국 정부가 연준에 보유한 국가 통장입니다.\n세금이 걷히면 잔고 증가(시중 돈 흡수), 정부가 지출하면 잔고 감소(시장에 돈 공급).","up_title":"📉 TGA 높으면 (나쁨)","up_flow":["정부가 세금을 걷어서 쌓아둔 것","시중에서 돈이 정부 금고로 흡수됨","시장 유동성 감소","→ 자산 가격 압박"],"dn_title":"📈 TGA 낮으면 (좋음)","dn_flow":["정부가 지출 중","정부 돈이 시장으로 나옴","시중 유동성 증가","→ 자산 가격 상승"],"tip":"💡 부채한도 협상 타결 후 국채 발행 → TGA 급증 패턴이 반복됩니다.","history":"2020년: 코로나 재정지출로 TGA 급감 → 자산 가격 급등\n2023년: 부채한도 협상 후 TGA 급증 → 시장 변동성 확대"},
+            "Reserves":     {"title":"은행 준비금이 충분해야 하는 이유","definition":"시중 은행들이 연준에 예치해야 하는 최소 자금입니다.\n준비금이 충분해야 은행 간 자금 거래가 원활합니다. 3조$ 이상이면 안전, 2조$ 이하면 위험 신호.","up_title":"📈 준비금 충분하면 (좋음)","up_flow":["은행이 여유 자금 보유","기업·가계에 대출 잘 해줌","경제 활동 활발해짐","→ 주가 상승"],"dn_title":"📉 준비금 부족하면 (위험)","dn_flow":["은행들이 서로 돈 빌려주기 꺼림","단기 금리가 갑자기 폭등","신용 경색 발생","→ 2019년 레포 위기 재발 위험"],"tip":"💡 연준은 준비금이 너무 줄면 자산 매입(QE)으로 보충합니다.","history":"2019년: 준비금 1.5조$까지 감소 → 레포 금리 하루 만에 10% 폭등\n2020~21년: QE로 준비금 급증 → 금융 시스템 안정"},
+            "RealRate":     {"title":"실질금리가 오르면 왜 나스닥이 하락할까?","definition":"명목금리에서 물가(CPI)를 뺀 금리입니다.\n예시: 기준금리 5% - 물가 3% = 실질금리 2%\n0% 이하이면 현금 보유가 손실 → 주식으로 자금 이동.","up_title":"📉 실질금리 높으면 (나쁨)","up_flow":["채권만 들고 있어도 실질 이익 발생","굳이 위험한 주식 살 필요 없음","특히 PER 50배 이상 성장주가 타격","→ 나스닥 하락"],"dn_title":"📈 실질금리 낮거나 마이너스면 (좋음)","dn_flow":["채권 실질 수익이 없거나 손실","더 높은 수익 찾아 주식으로 이동","특히 고성장 기술주 선호","→ 나스닥 상승"],"tip":"💡 실질금리 0% 기준선이 핵심. 0% 이상이면 성장주 역풍, 0% 이하이면 순풍.","history":"2020~21년: 실질금리 -1%까지 하락 → 나스닥 +100%\n2022년: 실질금리 -1.5%→+4% 급등 → NVDA·META -70%"},
+            "CreditSpread": {"title":"크레딧 스프레드가 벌어지면 왜 위험할까?","definition":"회사채 금리와 국채 금리의 차이입니다.\n예시: 국채 4% / 회사채 6% → 스프레드 2% = 기업 위험 프리미엄\n스프레드가 클수록 시장이 기업 부도를 걱정한다는 신호입니다.","up_title":"📉 스프레드 넓어지면 (위험 신호)","up_flow":["투자자들이 기업 부도를 걱정하기 시작","회사채를 사려는 사람이 줄어듦","기업이 돈 빌리기 어려워짐","투자·고용 감소 → 경기 둔화 우려","→ 주식시장 하락 압력 증가"],"dn_title":"📈 스프레드 좁아지면 (긍정 신호)","dn_flow":["투자자들이 기업 위험을 덜 걱정","회사채 잘 팔리고 기업 자금 조달 원활","투자 확대 → 시장 심리 개선","→ 주식시장 상승 분위기 가능성"],"tip":"💡 크레딧 스프레드 = 시장 공포 지표. 주식 하락 전 선행 신호로 자주 활용됨.","history":"2008년 금융위기: 하이일드 스프레드 22%까지 급등 → S&P500 -57% 폭락\n2020년 코로나 쇼크: 스프레드 급등 → 연준 유동성 공급 후 빠르게 안정\n2022년 금리 인상기: 스프레드 확대 → 나스닥 -33% 조정"},
+            "CPI":          {"title":"CPI(물가)가 오르면 왜 주가가 하락할까?","definition":"소비자들이 실생활에서 구매하는 물건값의 변화를 측정합니다.\n장바구니·집세·의료비 등 포함. 연준 목표는 2%.","up_title":"📈 CPI 높으면 (물가 상승)","up_flow":["물가가 오른다 = 돈의 가치가 떨어진다","연준이 금리를 올려서 물가를 잡으려 함","금리 오르면 기업 대출 비용 증가","→ 기업 이익 감소 → 주가 하락"],"dn_title":"📉 CPI 낮으면 (물가 안정)","dn_flow":["물가가 안정됐다 = 연준이 금리 안 올려도 됨","오히려 경기 부양 위해 금리 인하 가능","대출 비용 낮아짐 → 기업 투자 늘어남","→ 기업 이익 증가 → 주가 상승"],"tip":"💡 Core CPI(식품·에너지 제외)가 더 중요합니다. 매달 둘째 주 발표.","history":"2021~22년: CPI 9.1%까지 급등 → 연준 급격히 금리 인상 → 나스닥 -33%\n2024년: CPI 하락 추세 → 금리 인하 기대 → 증시 회복"},
+            "BondYield":    {"title":"미국 채권금리가 오르면 왜 나스닥이 하락할까?","definition":"미국 국채를 사면 받는 이자율입니다. 특히 10년물 금리는 전 세계 금융의 기준 할인율입니다.\n채권금리가 오르면 안전한 채권이 매력적이 되어 돈이 주식에서 채권으로 이동합니다.","up_title":"📈 채권금리 오르면","up_flow":["미국 국채 이자가 많아짐","안전한데 이자도 높으니 채권으로 돈 이동","특히 전 세계 돈이 미국 채권으로 몰림","→ 주식 팔고 채권 사기 → 주가 하락"],"dn_title":"📉 채권금리 내리면","dn_flow":["채권 이자가 낮아 매력 없음","더 높은 수익 찾아 주식으로 이동","특히 고성장 기술주 선호 증가","→ 나스닥 자금 유입 → 주가 상승"],"tip":"💡 4% 이하: 주식 우호 / 4.5% 이상: 성장주 압박.","history":"2022년: 10년물 1.5%→4.5% 급등 → 나스닥 -33%\n2020년: 0.5%까지 하락 → 주식 대규모 랠리"},
+        }
+        _edit_keys_t6 = [
+            ("FedFunds","1️⃣ 기준금리"), ("M2","2️⃣ M2 통화량"),
+            ("RRP","3️⃣ 역레포 RRP"), ("TGA","4️⃣ TGA 재무부"),
+            ("Reserves","5️⃣ 은행 준비금"), ("RealRate","6️⃣ 실질금리"),
+            ("CreditSpread","7️⃣ 크레딧 스프레드"),
+            ("CPI","8️⃣ CPI 물가"), ("BondYield","9️⃣ 채권금리"),
+        ]
+        _sel_t6 = st.selectbox(
+            "수정할 지표",
+            [k for k, _ in _edit_keys_t6],
+            format_func=lambda k: dict(_edit_keys_t6)[k],
+            key="ep_sel_t6"
+        )
+        _saved_ep_t6 = _load_explains()
+        _cur_ep_t6   = {**_EDIT_DEFAULTS_T6.get(_sel_t6, {}), **_saved_ep_t6.get(_sel_t6, {})}
+
+        # 정의 + 역사
+        _ndef_t6  = st.text_area("📘 정의 (용어 설명)",
+                                  value=_cur_ep_t6.get("definition",""),
+                                  height=80, key=f"ep_def_t6_{_sel_t6}")
+        _nhist_t6 = st.text_area("📚 역사적 사례 (한 줄에 하나씩)",
+                                   value=_cur_ep_t6.get("history",""),
+                                   height=80, key=f"ep_hist_t6_{_sel_t6}")
+        _ec1_t6, _ec2_t6 = st.columns(2)
+        with _ec1_t6:
+            _nt_t6  = st.text_input("📌 제목",          value=_cur_ep_t6.get("title",""),    key=f"ep_title_t6_{_sel_t6}")
+            _nut_t6 = st.text_input("📈 상승 시 제목",   value=_cur_ep_t6.get("up_title",""), key=f"ep_up_title_t6_{_sel_t6}")
+            _nuf_t6 = st.text_area( "📈 상승 시 흐름 (한 줄에 하나씩)",
+                                     value="\n".join(_cur_ep_t6.get("up_flow",[])),
+                                     height=120, key=f"ep_up_flow_t6_{_sel_t6}")
+        with _ec2_t6:
+            _ntip_t6 = st.text_input("💡 핵심 팁",        value=_cur_ep_t6.get("tip",""),      key=f"ep_tip_t6_{_sel_t6}")
+            _ndt_t6  = st.text_input("📉 하락 시 제목",   value=_cur_ep_t6.get("dn_title",""), key=f"ep_dn_title_t6_{_sel_t6}")
+            _ndf_t6  = st.text_area( "📉 하락 시 흐름 (한 줄에 하나씩)",
+                                      value="\n".join(_cur_ep_t6.get("dn_flow",[])),
+                                      height=120, key=f"ep_dn_flow_t6_{_sel_t6}")
+        _sc1_t6, _sc2_t6 = st.columns(2)
+        with _sc1_t6:
+            if st.button("💾 저장", key=f"ep_save_t6_{_sel_t6}", use_container_width=True):
+                _saved_ep_t6[_sel_t6] = {
+                    "definition": _ndef_t6, "history": _nhist_t6,
+                    "title": _nt_t6, "up_title": _nut_t6,
+                    "up_flow":  [l.strip() for l in _nuf_t6.splitlines() if l.strip()],
+                    "dn_title": _ndt_t6,
+                    "dn_flow":  [l.strip() for l in _ndf_t6.splitlines() if l.strip()],
+                    "tip": _ntip_t6,
+                }
+                st.success("✅ 저장됐습니다! STEP1 유동성 탭에서 확인하세요.") if _save_explains(_saved_ep_t6) else st.error("❌ 저장 실패")
+        with _sc2_t6:
+            if st.button("↩️ 기본값 초기화", key=f"ep_reset_t6_{_sel_t6}", use_container_width=True):
+                _saved_ep_t6.pop(_sel_t6, None)
+                _save_explains(_saved_ep_t6)
+                st.success("✅ 초기화 완료")
+
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V117</b>"
-        f" &nbsp;|&nbsp; APP_V117 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V118</b>"
+        f" &nbsp;|&nbsp; APP_V118 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

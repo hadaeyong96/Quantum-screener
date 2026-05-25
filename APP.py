@@ -3,7 +3,11 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V118
+VERSION : APP_V119
+  V119 - 경기침체 탭 차트 7개 완성
+         → ⑤ 산업생산지수(INDPRO) 차트 추가
+         → ⑥ 소비자심리지수(UMCSENT) 차트 추가
+         → ⑦ 크레딧 스프레드 차트 추가
   V118 - ⚙️ 문구편집 탭 신설 (탭 목록 맨 끝)
          → 사이드바/STEP1 버튼 제거, 전용 탭으로 통합
   V117 - 사이드바 간소화
@@ -270,7 +274,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V118",
+st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V119",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -1034,7 +1038,7 @@ sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
     "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>"
     "QUANTUM INSTITUTIONAL OS</div>"
-    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V118 &nbsp;·&nbsp; 💻 PC VERSION</div>"
+    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V119 &nbsp;·&nbsp; 💻 PC VERSION</div>"
     "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
@@ -1122,7 +1126,7 @@ sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=
 # ─────────────────────────────────────────────────────────
 # TITLE
 # ─────────────────────────────────────────────────────────
-APP_VERSION = "V118"
+APP_VERSION = "V119"
 st.markdown(f"""
 <div style="padding:16px 0 10px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
@@ -1132,7 +1136,7 @@ st.markdown(f"""
         QUANTUM INSTITUTIONAL OS
       </span><br>
       <span style="font-size:11px;color:#6B7280;letter-spacing:2px">
-        V118  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
+        V119  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
       </span><br>
       <span style="font-size:11px;color:#9CA3AF;margin-top:4px;display:inline-block;
             border-left:3px solid #3B5BA5;padding-left:8px;line-height:1.6">
@@ -6167,6 +6171,143 @@ with tab4:
         else:
             st.info("FRED API 키 필요")
 
+    # ── 2행: 산업생산 + 소비자심리 ──────────────────────────
+    _ch5, _ch6 = st.columns(2)
+    with _ch5:
+        st.markdown(
+            "<div style='font-size:11px;font-weight:600;color:#374151;margin-bottom:4px'>"
+            "⑤ 산업생산지수 (INDPRO)</div>"
+            "<div style='font-size:10px;color:#9CA3AF;margin-bottom:6px'>"
+            "전분기 대비 감소 = 경기 둔화 신호. 3개월 연속 감소 시 침체 가능성 ↑</div>",
+            unsafe_allow_html=True)
+        _indpro = _rec_data.get("INDPRO")
+        if _indpro is not None and len(_indpro) > 10:
+            import plotly.graph_objects as _go3
+            _s5p = _indpro[_indpro.index >= pd.Timestamp.now() - pd.DateOffset(years=5)]
+            _fig_p = _go3.Figure()
+            _fig_p.add_trace(_go3.Scatter(
+                x=_s5p.index, y=_s5p.values,
+                mode='lines', line=dict(color='#059669', width=2.5),
+                fill='tozeroy', fillcolor='rgba(5,150,105,0.08)',
+                hovertemplate='%{x|%Y-%m}<br>%{y:.1f}<extra></extra>'))
+            # 전년 대비 변화율 보조선
+            _pv = float(_indpro.iloc[-1])
+            _pp = float(_indpro.iloc[-4]) if len(_indpro) >= 4 else _pv
+            _pchg = (_pv - _pp) / _pp * 100 if _pp != 0 else 0
+            _ptrend = f'↑ +{_pchg:.1f}%' if _pchg > 0 else f'↓ {_pchg:.1f}%'
+            _fig_p.add_annotation(
+                x=_s5p.index[-1], y=_pv,
+                text=f'  현재 {_pv:.1f} ({_ptrend})',
+                showarrow=True, arrowhead=2, arrowwidth=2,
+                arrowcolor='#059669', ax=80, ay=0,
+                font=dict(size=11, color='#059669', family='Space Mono'),
+                bgcolor='rgba(255,255,255,0.95)',
+                bordercolor='#059669', borderwidth=1.5, borderpad=3)
+            _fig_p.update_layout(
+                template='plotly_white', height=220,
+                margin=dict(l=0, r=100, t=8, b=0),
+                xaxis=dict(gridcolor='#EBEDF0', tickformat='%Y'),
+                yaxis=dict(gridcolor='#EBEDF0', title='지수'),
+                plot_bgcolor='#FFFFFF', paper_bgcolor='#FAFBFC',
+                hovermode='x unified')
+            st.plotly_chart(_fig_p, use_container_width=True, key='rec_indpro_chart')
+        else:
+            st.info("FRED API 키 필요")
+
+    with _ch6:
+        st.markdown(
+            "<div style='font-size:11px;font-weight:600;color:#374151;margin-bottom:4px'>"
+            "⑥ 소비자심리지수 (UMCSENT)</div>"
+            "<div style='font-size:10px;color:#9CA3AF;margin-bottom:6px'>"
+            "60 이하 = 침체 우려. 소비 둔화 → 기업 매출 감소 → 주가 하락</div>",
+            unsafe_allow_html=True)
+        _umcsent = _rec_data.get("UMCSENT")
+        if _umcsent is not None and len(_umcsent) > 10:
+            _s5m = _umcsent[_umcsent.index >= pd.Timestamp.now() - pd.DateOffset(years=5)]
+            _fig_m = _go3.Figure()
+            _fig_m.add_trace(_go3.Scatter(
+                x=_s5m.index, y=_s5m.values,
+                mode='lines', line=dict(color='#7C3AED', width=2.5),
+                fill='tozeroy', fillcolor='rgba(124,58,237,0.08)',
+                hovertemplate='%{x|%Y-%m}<br>%{y:.1f}<extra></extra>'))
+            _fig_m.add_hline(y=70, line_color='#F59E0B', line_width=1.5, line_dash='dot')
+            _fig_m.add_annotation(x=0.01, y=70, xref='paper', yref='y',
+                text=' 주의선 70 ', showarrow=False,
+                font=dict(size=10, color='#F59E0B'),
+                bgcolor='rgba(255,255,255,0.9)', xanchor='left', yanchor='bottom')
+            _fig_m.add_hline(y=60, line_color='#E53E3E', line_width=1.5, line_dash='dash')
+            _fig_m.add_annotation(x=0.01, y=60, xref='paper', yref='y',
+                text=' 위험선 60 ', showarrow=False,
+                font=dict(size=10, color='#E53E3E'),
+                bgcolor='rgba(255,255,255,0.9)', xanchor='left', yanchor='bottom')
+            _mv = float(_umcsent.iloc[-1])
+            _fig_m.add_annotation(
+                x=_s5m.index[-1], y=_mv,
+                text=f'  현재 {_mv:.1f}',
+                showarrow=True, arrowhead=2, arrowwidth=2,
+                arrowcolor='#7C3AED', ax=65, ay=0,
+                font=dict(size=11, color='#7C3AED', family='Space Mono'),
+                bgcolor='rgba(255,255,255,0.95)',
+                bordercolor='#7C3AED', borderwidth=1.5, borderpad=3)
+            _fig_m.update_layout(
+                template='plotly_white', height=220,
+                margin=dict(l=0, r=80, t=8, b=0),
+                xaxis=dict(gridcolor='#EBEDF0', tickformat='%Y'),
+                yaxis=dict(gridcolor='#EBEDF0'),
+                plot_bgcolor='#FFFFFF', paper_bgcolor='#FAFBFC',
+                hovermode='x unified')
+            st.plotly_chart(_fig_m, use_container_width=True, key='rec_umcsent_chart')
+        else:
+            st.info("FRED API 키 필요")
+
+    # ── 3행: 크레딧 스프레드 (단독, 전체 너비) ───────────────
+    st.markdown(
+        "<div style='font-size:11px;font-weight:600;color:#374151;margin-bottom:4px'>"
+        "⑦ 크레딧 스프레드 (BAMLH0A0HYM2)</div>"
+        "<div style='font-size:10px;color:#9CA3AF;margin-bottom:6px'>"
+        "5% 이상 = 경고. 주식시장 하락 3~6개월 전 먼저 반응하는 경우가 많음</div>",
+        unsafe_allow_html=True)
+    _cs_rec = fred_data.get("CreditSpread")
+    if _cs_rec is not None and len(_cs_rec) > 10:
+        _cs_hist = fred_history.get("CreditSpread")
+        _cs_src  = _cs_hist if (_cs_hist is not None and len(_cs_hist) > 100) else _cs_rec
+        _s5c = _cs_src[_cs_src.index >= pd.Timestamp.now() - pd.DateOffset(years=5)]
+        _fig_c = _go3.Figure()
+        _fig_c.add_trace(_go3.Scatter(
+            x=_s5c.index, y=_s5c.values,
+            mode='lines', line=dict(color='#DC2626', width=2.5),
+            fill='tozeroy', fillcolor='rgba(220,38,38,0.08)',
+            hovertemplate='%{x|%Y-%m}<br>%{y:.2f}%<extra></extra>'))
+        _fig_c.add_hline(y=3.5, line_color='#059669', line_width=1.5, line_dash='dash')
+        _fig_c.add_annotation(x=0.01, y=3.5, xref='paper', yref='y',
+            text=' 안정 3.5% ', showarrow=False,
+            font=dict(size=10, color='#059669'),
+            bgcolor='rgba(255,255,255,0.9)', xanchor='left', yanchor='bottom')
+        _fig_c.add_hline(y=5.0, line_color='#E53E3E', line_width=1.5, line_dash='dot')
+        _fig_c.add_annotation(x=0.01, y=5.0, xref='paper', yref='y',
+            text=' 경고 5% ', showarrow=False,
+            font=dict(size=10, color='#E53E3E'),
+            bgcolor='rgba(255,255,255,0.9)', xanchor='left', yanchor='bottom')
+        _csv = float(_cs_rec.iloc[-1])
+        _fig_c.add_annotation(
+            x=_s5c.index[-1], y=_csv,
+            text=f'  현재 {_csv:.2f}%',
+            showarrow=True, arrowhead=2, arrowwidth=2,
+            arrowcolor='#DC2626', ax=65, ay=0,
+            font=dict(size=11, color='#DC2626', family='Space Mono'),
+            bgcolor='rgba(255,255,255,0.95)',
+            bordercolor='#DC2626', borderwidth=1.5, borderpad=3)
+        _fig_c.update_layout(
+            template='plotly_white', height=220,
+            margin=dict(l=0, r=85, t=8, b=0),
+            xaxis=dict(gridcolor='#EBEDF0', tickformat='%Y'),
+            yaxis=dict(gridcolor='#EBEDF0', ticksuffix='%'),
+            plot_bgcolor='#FFFFFF', paper_bgcolor='#FAFBFC',
+            hovermode='x unified')
+        st.plotly_chart(_fig_c, use_container_width=True, key='rec_cs_chart')
+    else:
+        st.info("FRED API 키 필요")
+
     st.markdown("<hr style='border-color:#E2E6ED;margin:14px 0'>", unsafe_allow_html=True)
     st.markdown("<div style='font-size:12px;font-weight:700;color:#0D1117;margin-bottom:10px'>📚 선행지표 해석 가이드</div>", unsafe_allow_html=True)
 
@@ -6475,8 +6616,8 @@ with tab6:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V118</b>"
-        f" &nbsp;|&nbsp; APP_V118 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V119</b>"
+        f" &nbsp;|&nbsp; APP_V119 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

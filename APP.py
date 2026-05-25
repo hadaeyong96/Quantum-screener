@@ -3,7 +3,10 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V116
+VERSION : APP_V117
+  V117 - 사이드바 간소화
+         → 문구 편집 버튼: 사이드바 제거 → STEP1 탭 내부로 이동
+         → API 키 설정: 사이드바 제거 (Streamlit Secrets로 관리)
   V116 - 테마 원복 + 전체 상자 흰 배경 통일
          → 사이드바 버튼 문구 명확화 (▶/▼ 기호)
          → 경기침체 탭 상자 배경 흰색 통일
@@ -265,7 +268,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V116",
+st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V117",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -1029,7 +1032,7 @@ sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
     "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>"
     "QUANTUM INSTITUTIONAL OS</div>"
-    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V116 &nbsp;·&nbsp; 💻 PC VERSION</div>"
+    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V117 &nbsp;·&nbsp; 💻 PC VERSION</div>"
     "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
@@ -1117,7 +1120,7 @@ sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=
 # ─────────────────────────────────────────────────────────
 # TITLE
 # ─────────────────────────────────────────────────────────
-APP_VERSION = "V116"
+APP_VERSION = "V117"
 st.markdown(f"""
 <div style="padding:16px 0 10px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
@@ -1127,7 +1130,7 @@ st.markdown(f"""
         QUANTUM INSTITUTIONAL OS
       </span><br>
       <span style="font-size:11px;color:#6B7280;letter-spacing:2px">
-        V116  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
+        V117  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
       </span><br>
       <span style="font-size:11px;color:#9CA3AF;margin-top:4px;display:inline-block;
             border-left:3px solid #3B5BA5;padding-left:8px;line-height:1.6">
@@ -2154,70 +2157,15 @@ if sb.button("🔄 데이터 새로고침", use_container_width=True, key="sb_re
     st.cache_data.clear()
     st.rerun()
 
-sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=True)
-# ── ✏️ 문구 편집 모드 ─────────────────────────────────────
+# ── edit_mode session_state 초기화 (탭 내부에서 사용) ────
 if "edit_mode" not in st.session_state:
     st.session_state["edit_mode"] = False
-_em = st.session_state["edit_mode"]
-if sb.button(
-    "✏️ 문구 편집 ON" if not _em else "✏️ 편집 중 (클릭해서 끄기)",
-    use_container_width=True, key="toggle_edit_mode"
-):
-    st.session_state["edit_mode"] = not _em
-    st.rerun()
-if st.session_state["edit_mode"]:
-    sb.markdown(
-        "<div style='font-size:10px;color:#D97706;background:#FFFBEB;"
-        "border-radius:4px;padding:4px 8px;margin-top:2px'>"
-        "📝 STEP1 유동성 탭 상단에서 편집하세요</div>",
-        unsafe_allow_html=True)
+
 sb.markdown(f"<div style='font-size:9px;color:#9CA3AF;margin-top:4px'>"
             f"🕐 {datetime.now().strftime('%H:%M:%S')}</div>", unsafe_allow_html=True)
 
-
-
-# ── API 키 설정 (사이드바 맨 하단) ───────────────────────
-
-
-# 투자금 — 포트폴리오 탭에서 관리 (사이드바 제거)
-
-# API KEY — 세션 토글 버튼 방식 (V93: expander 버그 우회)
-if "show_api" not in st.session_state:
-    st.session_state["show_api"] = not(_kr_has or _sec_ok or _cfg_has)
-
-sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=True)
-if sb.button(
-    "▶ API 키 설정 열기" if not st.session_state["show_api"] else "▼ API 키 설정 닫기",
-    key="sb_api_toggle", use_container_width=True):
-    st.session_state["show_api"] = not st.session_state["show_api"]
-    st.rerun()
-
-if st.session_state.get("show_api"):
-    sb.markdown(
-        "<div style='background:#F9FAFB;border:0.5px solid #E2E6ED;"
-        "border-radius:7px;padding:10px 10px;margin-top:4px'>",
-        unsafe_allow_html=True)
-    FRED_API_KEY = sb.text_input("FRED API KEY", value=_saved_fred, type="password",
-        key="sb_fred", placeholder="FRED API Key…")
-    BOT_TOKEN  = sb.text_input("BOT TOKEN", value=_saved_bot, type="password",
-        key="sb_bot", placeholder="Telegram Bot Token…")
-    CHAT_ID    = sb.text_input("CHAT ID", value=_saved_chat,
-        key="sb_chat", placeholder="Chat ID…")
-    _s1, _s2 = sb.columns(2)
-    if _s1.button("저장", key="sb_save", use_container_width=True):
-        ok, msg = _save_all(FRED_API_KEY, BOT_TOKEN, CHAT_ID)
-        (sb.success if ok else sb.error)(msg)
-        if ok: st.rerun()
-    if _s2.button("삭제", key="sb_del", use_container_width=True):
-        ok, msg = _delete_all()
-        (sb.info if ok else sb.error)(msg)
-        if ok: st.rerun()
-    sb.markdown("</div>", unsafe_allow_html=True)
-
-# 값 보장
-if not FRED_API_KEY: FRED_API_KEY = _saved_fred
-if not BOT_TOKEN:    BOT_TOKEN    = _saved_bot
-if not CHAT_ID:      CHAT_ID      = _saved_chat
+# API 키는 Streamlit Cloud Secrets로 관리 (사이드바 입력 제거)
+# secrets.toml: FRED_API_KEY / BOT_TOKEN / CHAT_ID
 
 
 # ─── 사이드바 마켓 패널 업데이트 (V92) ────────────────────
@@ -2916,6 +2864,15 @@ with tab0:
     _s0 = LIQ_ACTION.get("stage", 0)
     _render_stepbar(1, _s0, 0)
 
+    # ── ✏️ 편집 모드 토글 (STEP1 탭 안에서 직접 제어) ────────
+    _em_now = st.session_state.get("edit_mode", False)
+    if st.button(
+        "✏️ 문구 편집 ON" if not _em_now else "✏️ 문구 편집 종료",
+        key="edit_mode_toggle_tab", type="secondary"
+    ):
+        st.session_state["edit_mode"] = not _em_now
+        st.rerun()
+
     # ── ✏️ 편집 모드 패널 (edit_mode ON일 때만 표시) ────────
     if st.session_state.get("edit_mode", False):
         _EDIT_DEFAULTS = {
@@ -3089,7 +3046,7 @@ with tab0:
             1. <a href="https://fred.stlouisfed.org/docs/api/api_key.html" target="_blank"
                style="color:#1D4ED8;font-weight:600">fred.stlouisfed.org</a> 접속 →
             2. 계정 생성 → 3. API 키 발급 →
-            4. 왼쪽 사이드바 [🔑 API 키 설정]에 입력 후 [💾 저장]<br><br>
+            4. Streamlit Cloud → 앱 설정 → Secrets에 입력<br>   형식: FRED_API_KEY = "키값"<br><br>
             <b>FRED API 없이도 동작하는 기능:</b>
             📊 종목테이블 탭 (RS·AI Score·브레이크아웃) &nbsp;|&nbsp;
             📄 보고서 탭 (기본 판단)
@@ -6416,8 +6373,8 @@ with tab5:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V116</b>"
-        f" &nbsp;|&nbsp; APP_V116 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V117</b>"
+        f" &nbsp;|&nbsp; APP_V117 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

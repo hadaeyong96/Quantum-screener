@@ -431,25 +431,35 @@ def load_fred(api_key, _bust=0):
 
 @st.cache_data(ttl=900, show_spinner=False)
 def load_market(_bust=0):
-    """QQQ·VIX 시장 데이터"""
+    """QQQ 시장 데이터 + FRED VIX"""
+    out = {}
+    # QQQ / SPY
     try:
-        raw = yf.download(
-            ["QQQ","SPY","^VIX"],
-            period="1y", interval="1d",
-            auto_adjust=True, progress=False, threads=True
-        )
-        out = {}
-        for tk in ["QQQ","SPY"]:
-            try: out[tk] = raw["Close"][tk].dropna()
-            except Exception: pass
+        for tk in ["QQQ", "SPY"]:
+            _d = yf.download(tk, period="1y", interval="1d",
+                auto_adjust=True, progress=False)
+            if not _d.empty and "Close" in _d.columns:
+                out[tk] = _d["Close"].dropna()
+    except Exception: pass
+    # VIX — FRED VIXCLS (가장 안정적)
+    try:
+        _fred_key = ""
+        try: _fred_key = st.secrets.get("FRED_API_KEY","")
+        except: pass
+        if _fred_key:
+            _vix_s = _fred_series("VIXCLS", _fred_key, start="2024-01-01")
+            if _vix_s is not None and len(_vix_s) > 0:
+                out["^VIX"] = _vix_s
+    except Exception: pass
+    # VIX — yfinance 백업
+    if "^VIX" not in out:
         try:
-            vix = yf.download("^VIX", period="30d",
-                auto_adjust=True, progress=False)["Close"].dropna()
-            out["^VIX"] = vix
+            _vd = yf.download("^VIX", period="30d",
+                auto_adjust=True, progress=False)
+            if not _vd.empty and "Close" in _vd.columns:
+                out["^VIX"] = _vd["Close"].dropna()
         except Exception: pass
-        return out
-    except Exception:
-        return {}
+    return out
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def load_stocks(_bust=0):
@@ -708,7 +718,7 @@ def calc_rec_score(fred: dict) -> float:
 def build_market_ctx(liq_stage, rec_score, mkt_data):
     """시장 컨텍스트 생성"""
     ctx = {"liq_stage":liq_stage,"rec_risk":rec_score,
-           "vix":20,"qqq_trend":"NEUTRAL","mkt_drop":0}
+           "vix":20.0,"qqq_trend":"NEUTRAL","mkt_drop":0}
     try:
         vix = mkt_data.get("^VIX", mkt_data.get("VIX"))
         if vix is not None and len(vix)>0:

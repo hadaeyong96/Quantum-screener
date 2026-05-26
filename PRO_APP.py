@@ -91,28 +91,61 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+/* BASE — 라이트 테마 */
 .stApp,[data-testid="stAppViewContainer"],[data-testid="stMain"],section.main
-    { background-color:#0A0E1A !important; }
+    { background-color:#F7F8FA !important; }
+[data-testid="stHeader"]
+    { background-color:#FFFFFF !important; border-bottom:1px solid #E2E6ED !important; }
 body,p,span,div,label
-    { color:#E2E8F0 !important; font-family:'Space Mono',monospace !important; }
+    { color:#0D1117 !important; font-family:'Inter',sans-serif !important; }
+h1,h2,h3
+    { font-family:'Space Mono',monospace !important; color:#0D1117 !important; }
+
+/* SIDEBAR */
 [data-testid="stSidebar"]
-    { background-color:#0D1117 !important; }
+    { background-color:#FFFFFF !important; border-right:1px solid #E2E6ED !important; }
+[data-testid="stSidebar"] *
+    { color:#374151 !important; }
+
+/* TABS */
 [data-testid="stTabs"] [role="tablist"]
-    { background:#0D1117 !important; border-bottom:1px solid #1E2D3D !important; }
+    { background:#FFFFFF !important; border-bottom:2px solid #E2E6ED !important; }
 [data-testid="stTabs"] button
-    { color:#4A6FA5 !important; font-family:'Space Mono',monospace !important;
-      font-size:12px !important; font-weight:600 !important; }
+    { color:#6B7280 !important; font-family:'Inter',sans-serif !important;
+      font-size:13px !important; font-weight:500 !important;
+      padding:10px 20px !important; background:transparent !important;
+      border:none !important; border-bottom:2px solid transparent !important; }
+[data-testid="stTabs"] button:hover
+    { color:#0D1117 !important; background:#F3F4F6 !important; }
 [data-testid="stTabs"] button[aria-selected="true"]
-    { color:#00D4FF !important; border-bottom:2px solid #00D4FF !important; }
+    { color:#0D1117 !important; border-bottom:2px solid #374151 !important;
+      font-weight:700 !important; background:#F9FAFB !important; }
+
+/* BUTTON */
 .stButton button
-    { background:#0D1117 !important; border:1px solid #1E2D3D !important;
-      color:#00D4FF !important; font-family:'Space Mono',monospace !important;
-      font-size:11px !important; border-radius:3px !important; }
+    { background:#FFFFFF !important; border:1px solid #D1D5DB !important;
+      color:#374151 !important; font-family:'Inter',sans-serif !important;
+      font-size:11px !important; font-weight:500 !important;
+      border-radius:3px !important; padding:4px 10px !important; }
 .stButton button:hover
-    { border-color:#00D4FF !important; background:#0A1628 !important; }
-[data-testid="stDataFrame"] { background:#0D1117 !important; }
-hr { border-color:#1E2D3D !important; }
-div[data-testid="metric-container"] { background:#0D1117 !important; }
+    { background:#F3F4F6 !important; border-color:#9CA3AF !important;
+      color:#0D1117 !important; }
+
+/* DATAFRAME */
+[data-testid="stDataFrame"]
+    { background:#FFFFFF !important; border:1px solid #E2E6ED !important;
+      border-radius:3px !important; }
+
+/* METRIC */
+div[data-testid="metric-container"]
+    { background:#FFFFFF !important; border:1px solid #E2E6ED !important;
+      border-radius:3px !important; padding:8px !important; }
+
+/* HR */
+hr { border-color:#E2E6ED !important; }
+
+/* SPINNER */
+.stSpinner > div { border-top-color:#9CA3AF !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -686,8 +719,8 @@ st.markdown(
     f"align-items:center;padding:6px 0;border-bottom:1px solid #1E2D3D;"
     f"margin-bottom:12px'>"
     f"<span style='font-family:Space Mono,monospace;font-size:14px;"
-    f"font-weight:700;color:#00D4FF'>⚡ QUANTUM PRO</span>"
-    f"<span style='font-size:10px;color:#4A6FA5'>{PRO_VERSION} &nbsp;|&nbsp; "
+    f"font-weight:700;color:#0D1117'>⚡ QUANTUM PRO</span>"
+    f"<span style='font-size:10px;color:#6B7280'>{PRO_VERSION} &nbsp;|&nbsp; "
     f"{datetime.now().strftime('%Y-%m-%d %H:%M')}</span>"
     f"</div>",
     unsafe_allow_html=True)
@@ -713,12 +746,12 @@ with st.sidebar:
         st.session_state["pro_results"] = []
         st.cache_data.clear()
         st.rerun()
-    st.markdown(f"<div style='font-size:9px;color:#4A6FA5;margin-top:4px'>"
+    st.markdown(f"<div style='font-size:9px;color:#6B7280;margin-top:4px'>"
                 f"🕐 {datetime.now().strftime('%H:%M:%S')}</div>",
                 unsafe_allow_html=True)
     st.markdown("---")
     _ck = st.session_state["cache_key"]
-    st.markdown(f"<div style='font-size:9px;color:#4A6FA5'>"
+    st.markdown(f"<div style='font-size:9px;color:#6B7280'>"
                 f"FRED: {'✅' if FRED_API_KEY else '❌'}<br>"
                 f"Sheets: {'✅' if _GS_OK else '❌'}<br>"
                 f"Cache: #{_ck}</div>", unsafe_allow_html=True)
@@ -750,56 +783,33 @@ with t_market:
     # ── 핵심 지표 카드 ───────────────────────────────────
     c1,c2,c3,c4 = st.columns(4)
 
-    # 유동성
-    _lc = "#00D4FF" if liq_stage>=4 else ("#F59E0B" if liq_stage==3 else "#EF4444")
-    c1.markdown(
-        f"<div style='background:#0D1117;border:1px solid {_lc};"
-        f"border-radius:6px;padding:12px;text-align:center'>"
-        f"<div style='font-size:10px;color:#4A6FA5'>유동성 단계</div>"
-        f"<div style='font-size:32px;font-weight:700;color:{_lc}'>{liq_stage}</div>"
-        f"<div style='font-size:11px;color:{_lc}'>{liq_score:.0f}/100</div>"
-        f"</div>", unsafe_allow_html=True)
+    # ── 핵심 지표 — 엑셀형 소형 카드 ──────────────────────
+    _lc = "#B91C1C" if liq_stage<=2 else ("#92400E" if liq_stage==3 else "#166534")
+    _rc = "#B91C1C" if rec_score>=70 else ("#92400E" if rec_score>=50 else ("#92400E" if rec_score>=30 else "#166534"))
+    _vc = "#B91C1C" if mkt_ctx["vix"]>=28 else ("#92400E" if mkt_ctx["vix"]>=20 else "#166534")
+    _qc = "#166534" if mkt_ctx["qqq_trend"]=="BULL" else ("#B91C1C" if mkt_ctx["qqq_trend"]=="BEAR" else "#374151")
+    _qi = "BULL" if mkt_ctx["qqq_trend"]=="BULL" else ("BEAR" if mkt_ctx["qqq_trend"]=="BEAR" else "NEUTRAL")
 
-    # 경기침체
-    _rc = "#EF4444" if rec_score>=70 else ("#F59E0B" if rec_score>=50 else
-           ("#FBBF24" if rec_score>=30 else "#10B981"))
-    c2.markdown(
-        f"<div style='background:#0D1117;border:1px solid {_rc};"
-        f"border-radius:6px;padding:12px;text-align:center'>"
-        f"<div style='font-size:10px;color:#4A6FA5'>침체 위험</div>"
-        f"<div style='font-size:32px;font-weight:700;color:{_rc}'>{rec_score:.0f}</div>"
-        f"<div style='font-size:11px;color:{_rc}'>/100</div>"
-        f"</div>", unsafe_allow_html=True)
+    def _mini_card(col, label, val, sub, color):
+        col.markdown(
+            f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+            f"border-radius:3px;padding:5px 8px;margin:0'>"
+            f"<div style='font-size:9px;color:#9CA3AF;line-height:1.2'>{label}</div>"
+            f"<div style='font-size:18px;font-weight:700;color:{color};line-height:1.3'>{val}</div>"
+            f"<div style='font-size:9px;color:#6B7280;line-height:1.2'>{sub}</div>"
+            f"</div>", unsafe_allow_html=True)
 
-    # VIX
-    _vc = "#EF4444" if mkt_ctx["vix"]>=28 else ("#F59E0B" if mkt_ctx["vix"]>=20 else "#10B981")
-    c3.markdown(
-        f"<div style='background:#0D1117;border:1px solid {_vc};"
-        f"border-radius:6px;padding:12px;text-align:center'>"
-        f"<div style='font-size:10px;color:#4A6FA5'>VIX</div>"
-        f"<div style='font-size:32px;font-weight:700;color:{_vc}'>{mkt_ctx['vix']:.1f}</div>"
-        f"<div style='font-size:11px;color:{_vc}'>변동성</div>"
-        f"</div>", unsafe_allow_html=True)
+    _mini_card(c1, "유동성", f"{liq_stage}단계", f"{liq_score:.0f}점/100", _lc)
+    _mini_card(c2, "침체위험", f"{rec_score:.0f}점", "/100", _rc)
+    _mini_card(c3, "VIX", f"{mkt_ctx['vix']:.1f}", "변동성지수", _vc)
+    _mini_card(c4, "QQQ추세", _qi, f"{mkt_ctx['mkt_drop']:+.1f}% (52W)", _qc)
 
-    # QQQ 추세
-    _qc = "#10B981" if mkt_ctx["qqq_trend"]=="BULL" else (
-          "#EF4444" if mkt_ctx["qqq_trend"]=="BEAR" else "#4A6FA5")
-    _qi = "📈" if mkt_ctx["qqq_trend"]=="BULL" else (
-          "📉" if mkt_ctx["qqq_trend"]=="BEAR" else "➡️")
-    c4.markdown(
-        f"<div style='background:#0D1117;border:1px solid {_qc};"
-        f"border-radius:6px;padding:12px;text-align:center'>"
-        f"<div style='font-size:10px;color:#4A6FA5'>QQQ 추세</div>"
-        f"<div style='font-size:28px;font-weight:700;color:{_qc}'>{_qi}</div>"
-        f"<div style='font-size:11px;color:{_qc}'>{mkt_ctx['qqq_trend']}"
-        f" ({mkt_ctx['mkt_drop']:+.1f}%)</div>"
-        f"</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
     # ── 유동성 상세 ──────────────────────────────────────
     st.markdown(
-        "<div style='font-size:11px;color:#00D4FF;"
+        "<div style='font-size:11px;color:#374151;"
         "font-family:Space Mono,monospace;margin-bottom:8px'>"
         "LIQUIDITY BREAKDOWN</div>",
         unsafe_allow_html=True)
@@ -840,12 +850,12 @@ with t_market:
                     "ELITE·STRONG 우선 진입","손절 -8% 표준"]
 
     st.markdown(
-        f"<div style='background:#0D1117;border:1px solid {_a_color};"
-        f"border-radius:6px;padding:12px'>"
+        f"<div style='background:#FFFFFF;border:1px solid {_a_color};"
+        f"border-radius:3px;padding:6px 8px'>"
         f"<div style='font-size:12px;font-weight:700;color:{_a_color};"
-        f"margin-bottom:8px'>{_a_title}</div>"
+        f"margin-bottom:4px'>{_a_title}</div>"
         + "".join(
-            f"<div style='font-size:11px;color:#94A3B8;padding:2px 0'>"
+            f"<div style='font-size:11px;color:#374151;padding:2px 0'>"
             f"<span style='color:{_a_color};margin-right:6px'>→</span>{a}</div>"
             for a in _actions)
         + "</div>",
@@ -854,7 +864,7 @@ with t_market:
     # ── FRED 실시간 주요 수치 ──────────────────────────
     st.markdown("---")
     st.markdown(
-        "<div style='font-size:11px;color:#00D4FF;"
+        "<div style='font-size:11px;color:#374151;"
         "font-family:Space Mono,monospace;margin-bottom:8px'>"
         "FRED LIVE DATA</div>",
         unsafe_allow_html=True)
@@ -895,8 +905,8 @@ with t_leaders:
     # 유동성 단계 경고
     if _liq_stage <= 2:
         st.markdown(
-            "<div style='background:#0D1117;border:1px solid #EF4444;"
-            "border-radius:6px;padding:10px;margin-bottom:10px;"
+            "<div style='background:#FFFFFF;border:1px solid #EF4444;"
+            "border-radius:3px;padding:10px;margin-bottom:10px;"
             "font-size:12px;color:#EF4444;font-weight:700'>"
             "🚨 유동성 2단계 이하 — 신규 매수 금지 구간</div>",
             unsafe_allow_html=True)
@@ -971,7 +981,7 @@ with t_leaders:
 
     # ── 메인 테이블 ──────────────────────────────────────
     st.markdown(
-        "<div style='font-size:11px;color:#00D4FF;"
+        "<div style='font-size:11px;color:#374151;"
         "font-family:Space Mono,monospace;margin-bottom:6px'>"
         f"MA200 위 종목 ({len(_fdf)}개) — Leader Score 순위</div>",
         unsafe_allow_html=True)
@@ -1009,16 +1019,42 @@ with t_leaders:
         hide_index=False,
     )
 
-    # ── MA200 이하 종목 (참고용) ─────────────────────────
-    with st.expander(f"⛔ MA200 이하 종목 ({len(df_below)}개) — 매수 금지"):
+
+    # ── MA200 이하 종목 — session_state 토글 (expander 사용 금지) ──
+    if "show_ma200_below" not in st.session_state:
+        st.session_state["show_ma200_below"] = False
+    _btn_lbl = (
+        f"▼ MA200 이하 종목 ({len(df_below)}개) 숨기기"
+        if st.session_state["show_ma200_below"]
+        else f"▶ MA200 이하 종목 ({len(df_below)}개) — 매수 금지"
+    )
+    if st.button(_btn_lbl, key="toggle_ma200_below"):
+        st.session_state["show_ma200_below"] = not st.session_state["show_ma200_below"]
+        st.rerun()
+    if st.session_state["show_ma200_below"]:
+        st.markdown(
+            "<div style='background:#FEF2F2;border:1px solid #FECACA;"
+            "border-radius:3px;padding:8px 12px;margin-bottom:6px;"
+            "font-size:11px;color:#B91C1C;font-weight:600'>"
+            "⛔ 아래 종목은 MA200 이하 — 등급 무관 매수 금지</div>",
+            unsafe_allow_html=True)
         _db = df_below[["Ticker","Sector","RS","HighDist","EntryPrice"]].copy()
-        st.dataframe(_db, use_container_width=True, hide_index=True)
+        _db.columns = ["Ticker","섹터","RS","신고가%","현재가"]
+        st.dataframe(
+            _db, use_container_width=True, hide_index=True,
+            column_config={
+                "Ticker":  st.column_config.TextColumn("Ticker",  width="small"),
+                "섹터":    st.column_config.TextColumn("섹터",    width="small"),
+                "RS":      st.column_config.NumberColumn("RS",    format="%.1f", width="small"),
+                "신고가%": st.column_config.NumberColumn("신고가%", format="%.1f", width="small"),
+                "현재가":  st.column_config.NumberColumn("현재가", format="$%.2f"),
+            })
 
     st.markdown("---")
 
     # ── Google Sheets 저장 ───────────────────────────────
     st.markdown(
-        "<div style='font-size:11px;color:#00D4FF;"
+        "<div style='font-size:11px;color:#374151;"
         "font-family:Space Mono,monospace;margin-bottom:6px'>"
         "SAVE TO SHEETS</div>",
         unsafe_allow_html=True)
@@ -1026,8 +1062,8 @@ with t_leaders:
     _save_c1, _save_c2 = st.columns([2,1])
     with _save_c1:
         st.markdown(
-            f"<div style='font-size:10px;color:#4A6FA5'>"
-            f"저장 탭: <b style='color:#00D4FF'>History_PRO</b> &nbsp;|&nbsp; "
+            f"<div style='font-size:10px;color:#6B7280'>"
+            f"저장 탭: <b style='color:#374151'>History_PRO</b> &nbsp;|&nbsp; "
             f"오늘 날짜 + 종목별 1행 + 진입가 포함</div>",
             unsafe_allow_html=True)
     with _save_c2:
@@ -1053,21 +1089,21 @@ with t_leaders:
     if not _elite.empty:
         st.markdown("---")
         st.markdown(
-            "<div style='font-size:11px;color:#00D4FF;"
+            "<div style='font-size:11px;color:#374151;"
             "font-family:Space Mono,monospace;margin-bottom:6px'>"
             "TOP 5 SIGNAL DETAIL</div>",
             unsafe_allow_html=True)
         for _, row in _elite.iterrows():
             _gc = "#00D4FF" if "ELITE" in str(row["LeaderGrade"]) else "#10B981"
             st.markdown(
-                f"<div style='background:#0D1117;border:1px solid {_gc};"
-                f"border-radius:4px;padding:8px 12px;margin-bottom:4px;"
+                f"<div style='background:#FFFFFF;border:1px solid {_gc};"
+                f"border-radius:4px;padding:4px 8px;margin-bottom:3px;"
                 f"display:flex;gap:12px;align-items:center'>"
                 f"<span style='color:{_gc};font-weight:700;min-width:60px'>"
                 f"{row['Ticker']}</span>"
-                f"<span style='color:#94A3B8;font-size:10px'>{row.get('LeaderGrade','')}</span>"
-                f"<span style='color:#4A6FA5;font-size:10px'>점수:{row.get('LeaderScore',0):.0f}</span>"
-                f"<span style='color:#64748B;font-size:9px'>{row.get('Signal','')[:80]}</span>"
+                f"<span style='color:#374151;font-size:10px'>{row.get('LeaderGrade','')}</span>"
+                f"<span style='color:#6B7280;font-size:10px'>점수:{row.get('LeaderScore',0):.0f}</span>"
+                f"<span style='color:#6B7280;font-size:9px'>{row.get('Signal','')[:80]}</span>"
                 f"</div>",
                 unsafe_allow_html=True)
 
@@ -1076,7 +1112,7 @@ with t_leaders:
 # ════════════════════════════════════════════════════════════
 with t_backtest:
     st.markdown(
-        "<div style='font-size:11px;color:#00D4FF;"
+        "<div style='font-size:11px;color:#374151;"
         "font-family:Space Mono,monospace;margin-bottom:10px'>"
         "BACKTEST — History_PRO 누적 데이터 분석</div>",
         unsafe_allow_html=True)
@@ -1086,9 +1122,9 @@ with t_backtest:
 
     if hist.empty:
         st.markdown(
-            "<div style='background:#0D1117;border:1px solid #1E2D3D;"
-            "border-radius:6px;padding:20px;text-align:center;"
-            "color:#4A6FA5;font-size:11px'>"
+            "<div style='background:#FFFFFF;border:1px solid #1E2D3D;"
+            "border-radius:3px;padding:10px;text-align:center;"
+            "color:#6B7280;font-size:11px'>"
             "📊 아직 데이터 없음<br><br>"
             "LEADERS 탭에서 💾 Sheets 저장을 실행하면<br>"
             "매일 데이터가 쌓이고 여기서 분석할 수 있습니다.<br><br>"
@@ -1140,7 +1176,7 @@ with t_backtest:
         _b3.metric("평균 수익률", f"{_avg_ret:+.2f}%")
         _b4.metric("기간", f"{hist['Days'].max():.0f}일")
         st.markdown(
-            f"<div style='font-size:10px;color:#4A6FA5;margin-bottom:10px'>"
+            f"<div style='font-size:10px;color:#6B7280;margin-bottom:10px'>"
             f"데이터 기간: {_days_range}</div>",
             unsafe_allow_html=True)
 
@@ -1148,7 +1184,7 @@ with t_backtest:
 
         # ── 등급별 수익률 분석 ────────────────────────────
         st.markdown(
-            "<div style='font-size:11px;color:#00D4FF;"
+            "<div style='font-size:11px;color:#374151;"
             "font-family:Space Mono,monospace;margin-bottom:6px'>"
             "GRADE별 성과 분석</div>",
             unsafe_allow_html=True)
@@ -1184,7 +1220,7 @@ with t_backtest:
 
         # ── MA200 필터 효과 검증 ──────────────────────────
         st.markdown(
-            "<div style='font-size:11px;color:#00D4FF;"
+            "<div style='font-size:11px;color:#374151;"
             "font-family:Space Mono,monospace;margin-bottom:6px'>"
             "MA200 필터 효과 검증</div>",
             unsafe_allow_html=True)
@@ -1214,7 +1250,7 @@ with t_backtest:
 
         # ── 전체 기록 테이블 ──────────────────────────────
         st.markdown(
-            "<div style='font-size:11px;color:#00D4FF;"
+            "<div style='font-size:11px;color:#374151;"
             "font-family:Space Mono,monospace;margin-bottom:6px'>"
             "전체 기록</div>",
             unsafe_allow_html=True)

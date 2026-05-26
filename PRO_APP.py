@@ -217,7 +217,8 @@ def _get_sheet(debug=False):
         if debug: return _sh, "OK"
         return _sh
     except Exception as e:
-        if debug: return None, f"Sheets 열기 실패: {e}"
+        _err_detail = f"Sheets 열기 실패: {type(e).__name__}: {e} | URL={_url[:50] if _url else 'EMPTY'}"
+        if debug: return None, _err_detail
         return None
 
 def _get_or_create_tab(sh, tab_name):

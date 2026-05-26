@@ -31,7 +31,7 @@ SHEET_SCOPES  = [
     "https://www.googleapis.com/auth/drive",
 ]
 SHEET_HEADER  = [
-    "Date","Ticker","EntryPrice","LeaderScore","LeaderGrade",
+    "Date","Ticker","Name","EntryPrice","LeaderScore","LeaderGrade",
     "RS","MA200","AccScore","LiqStage","RecRisk",
     "EPS","CondCount","Breakout","VolSurge","Sector"
 ]
@@ -41,21 +41,23 @@ SCREEN_TICKERS = [
     # 빅테크 / AI
     "NVDA","MSFT","META","AMZN","GOOGL","AAPL","TSLA","NFLX","COST",
     # 반도체
-    "AVGO","AMD","QCOM","TXN","AMAT","MU","MRVL","LRCX","KLAC","NXPI","ADI",
+    "AVGO","AMD","QCOM","TXN","AMAT","MU","MRVL","LRCX","KLAC","NXPI","ADI","SMCI","QRVO",
     # 소프트웨어 / 클라우드
     "NOW","ADBE","CRM","ORCL","INTU","CDNS","SNPS","WDAY","TEAM","ANSS",
     # 사이버보안
-    "PANW","CRWD","FTNT","ZS","CYBR",
-    # 데이터 / AI 플랫폼
-    "PLTR","DDOG","MDB","SNOW","HUBS","GTLB",
+    "PANW","CRWD","FTNT","ZS","CYBR","S","OKTA",
+    # AI / 데이터 플랫폼
+    "PLTR","DDOG","MDB","SNOW","HUBS","GTLB","TTD","APP",
     # 헬스케어
-    "ISRG","DXCM","IDXX","GEHC","MRNA","REGN","BIIB",
-    # 소비 / 여행
-    "BKNG","ABNB","LULU","MELI","SBUX","PCAR",
+    "ISRG","DXCM","IDXX","GEHC","MRNA","REGN","BIIB","VEEV","PODD",
+    # 소비 / 여행 / 모빌리티
+    "BKNG","ABNB","LULU","MELI","SBUX","UBER","DASH","CELH","DUOL",
     # 금융 / 핀테크
-    "PYPL","COIN","APP","AXON",
-    # 통신 / 기타
-    "CMCSA","TMUS","FANG","CEG","SMCI",
+    "PYPL","COIN","AXON","AFRM","SOFI",
+    # 방산 / 산업재
+    "LMT","RTX","NOC","CPRT","CTAS","PCAR","ODFL",
+    # 에너지 / 기타
+    "FANG","CEG","VST","TMUS","CMCSA",
 ]
 
 SECTOR_MAP = {
@@ -77,6 +79,38 @@ SECTOR_MAP = {
     "SBUX":"소비재","PCAR":"산업재","PYPL":"핀테크","COIN":"핀테크",
     "APP":"소프트웨어","AXON":"산업재","CMCSA":"미디어","TMUS":"통신",
     "FANG":"에너지","CEG":"에너지","SMCI":"반도체",
+    # 신규 추가
+    "QRVO":"반도체","S":"사이버보안","OKTA":"사이버보안",
+    "TTD":"AI플랫폼","VEEV":"헬스케어","PODD":"헬스케어",
+    "UBER":"모빌리티","DASH":"모빌리티","CELH":"소비재","DUOL":"교육",
+    "AFRM":"핀테크","SOFI":"핀테크",
+    "LMT":"방산","RTX":"방산","NOC":"방산",
+    "CPRT":"산업재","CTAS":"산업재","ODFL":"산업재",
+    "VST":"에너지",
+}
+
+# 회사명 사전
+COMPANY_NAME = {
+    "NVDA":"엔비디아","MSFT":"마이크로소프트","META":"메타","AMZN":"아마존",
+    "GOOGL":"알파벳","AAPL":"애플","TSLA":"테슬라","NFLX":"넷플릭스","COST":"코스트코",
+    "AVGO":"브로드컴","AMD":"AMD","QCOM":"퀄컴","TXN":"텍사스인스트루먼트",
+    "AMAT":"어플라이드머티리얼즈","MU":"마이크론","MRVL":"마벨테크","LRCX":"램리서치",
+    "KLAC":"KLA","NXPI":"NXP반도체","ADI":"아날로그디바이스","SMCI":"슈퍼마이크로",
+    "QRVO":"코르보","NOW":"서비스나우","ADBE":"어도비","CRM":"세일즈포스",
+    "ORCL":"오라클","INTU":"인튜이트","CDNS":"케이던스","SNPS":"시놉시스",
+    "WDAY":"워크데이","TEAM":"아틀라시안","ANSS":"앤시스","PANW":"팔로알토",
+    "CRWD":"크라우드스트라이크","FTNT":"포티넷","ZS":"지스케일러","CYBR":"사이버아크",
+    "S":"센티넬원","OKTA":"옥타","PLTR":"팔란티어","DDOG":"데이터독","MDB":"몽고DB",
+    "SNOW":"스노우플레이크","HUBS":"허브스팟","GTLB":"깃랩","TTD":"더트레이드데스크",
+    "APP":"앱러빈","ISRG":"인튜이티브서지컬","DXCM":"덱스컴","IDXX":"아이덱스",
+    "GEHC":"GE헬스케어","MRNA":"모더나","REGN":"리제네론","BIIB":"바이오젠",
+    "VEEV":"비바시스템즈","PODD":"인슐렛","BKNG":"부킹홀딩스","ABNB":"에어비앤비",
+    "LULU":"룰루레몬","MELI":"메르카도리브레","SBUX":"스타벅스","UBER":"우버",
+    "DASH":"도어대시","CELH":"셀시우스","DUOL":"듀오링고","PYPL":"페이팔",
+    "COIN":"코인베이스","AXON":"액슨","AFRM":"어펌","SOFI":"소파이",
+    "LMT":"록히드마틴","RTX":"레이시온","NOC":"노스롭그루먼","CPRT":"코파트",
+    "CTAS":"신타스","PCAR":"팩카","ODFL":"올드도미니언","FANG":"다이아몬드백에너지",
+    "CEG":"콘스텔레이션에너지","VST":"비스트라","TMUS":"T-모바일","CMCSA":"컴캐스트",
 }
 
 # ═══════════════════════════════════════════════════════════
@@ -257,6 +291,7 @@ def save_pro_results(rows: list, liq_stage: int, rec_risk: float):
             new_rows.append([
                 today,
                 r.get("Ticker",""),
+                r.get("Name", COMPANY_NAME.get(r.get("Ticker",""), "")),
                 r.get("EntryPrice", 0),
                 r.get("LeaderScore", 0),
                 r.get("LeaderGrade",""),
@@ -632,6 +667,7 @@ def load_stocks(_bust=0):
 
             results.append({
                 "Ticker":      tk,
+                "Name":        COMPANY_NAME.get(tk, tk),
                 "Sector":      SECTOR_MAP.get(tk,"기타"),
                 "EntryPrice":  round(cur, 2),
                 "RS":          rs,
@@ -1020,7 +1056,7 @@ with t_leaders:
         f"MA200 위 종목 ({len(_fdf)}개) — Leader Score 순위</div>",
         unsafe_allow_html=True)
 
-    _disp_cols = ["Ticker","Sector","LeaderGrade","LeaderScore","AccScore",
+    _disp_cols = ["Ticker","Name","Sector","LeaderGrade","LeaderScore","AccScore",
                   "RS","HighDist","VolRatio","EPS","RSI",
                   "Breakout","VolSurge","Consec","EntryPrice","CondCount"]
     _disp = _fdf[[c for c in _disp_cols if c in _fdf.columns]].copy()
@@ -1035,6 +1071,7 @@ with t_leaders:
         use_container_width=True,
         column_config={
             "Ticker":      st.column_config.TextColumn("Ticker",   width="small"),
+            "Name":        st.column_config.TextColumn("회사명",   width="medium"),
             "Sector":      st.column_config.TextColumn("섹터",     width="small"),
             "LeaderGrade": st.column_config.TextColumn("🏆등급",   width="small"),
             "LeaderScore": st.column_config.NumberColumn("리더점수", format="%.0f"),

@@ -193,16 +193,31 @@ def _fred_series(sid, api_key, start="2018-01-01"):
 # ═══════════════════════════════════════════════════════════
 # Google Sheets
 # ═══════════════════════════════════════════════════════════
-def _get_sheet():
-    if not _GS_OK: return None
+def _get_sheet(debug=False):
+    if not _GS_OK:
+        if debug: return None, "gspread 미설치"
+        return None
     try:
         _cd = dict(st.secrets["gcp_service_account"])
+    except Exception as e:
+        if debug: return None, f"gcp_service_account 키 없음: {e}"
+        return None
+    try:
         _cr = Credentials.from_service_account_info(_cd, scopes=SHEET_SCOPES)
         _gc = gspread.authorize(_cr)
+    except Exception as e:
+        if debug: return None, f"인증 실패: {e}"
+        return None
+    try:
         _url = st.secrets.get("SHEETS_URL","")
-        if not _url: return None
-        return _gc.open_by_url(_url)
-    except Exception:
+        if not _url:
+            if debug: return None, "SHEETS_URL 없음"
+            return None
+        _sh = _gc.open_by_url(_url)
+        if debug: return _sh, "OK"
+        return _sh
+    except Exception as e:
+        if debug: return None, f"Sheets 열기 실패: {e}"
         return None
 
 def _get_or_create_tab(sh, tab_name):
@@ -1068,21 +1083,29 @@ with t_leaders:
             unsafe_allow_html=True)
     with _save_c2:
         if st.button("💾 Sheets 저장", use_container_width=True, key="pro_save"):
-            # MA200 위 + WATCH 이상만 저장
-            _save_rows = [
-                r for r in _scored
-                if r.get("MA200") and r.get("LeaderScore",0) >= 80
-            ]
-            with st.spinner("저장 중..."):
-                _ok, _msg = save_pro_results(
-                    _save_rows,
-                    st.session_state.get("liq_stage", 3),
-                    st.session_state.get("rec_score", 50),
-                )
-            if _ok:
-                st.success(f"✅ {_msg}")
+            # ── 연결 진단 먼저 ──
+            _sh_diag, _diag_msg = _get_sheet(debug=True)
+            if _sh_diag is None:
+                st.error(f"❌ Sheets 연결 실패: {_diag_msg}")
             else:
-                st.error(f"❌ {_msg}")
+                # MA200 위 + WATCH 이상만 저장
+                _save_rows = [
+                    r for r in _scored
+                    if r.get("MA200") and r.get("LeaderScore",0) >= 80
+                ]
+                if not _save_rows:
+                    st.warning("저장할 종목 없음 (MA200 위 + 80점↑ 조건 미충족)")
+                else:
+                    with st.spinner(f"{len(_save_rows)}개 저장 중..."):
+                        _ok, _msg = save_pro_results(
+                            _save_rows,
+                            st.session_state.get("liq_stage", 3),
+                            st.session_state.get("rec_score", 50),
+                        )
+                    if _ok:
+                        st.success(f"✅ {_msg}")
+                    else:
+                        st.error(f"❌ {_msg}")
 
     # ── Signal 상세 (ELITE만) ────────────────────────────
     _elite = df_above[df_above["LeaderGrade"].str.contains("ELITE|STRONG")].head(5)

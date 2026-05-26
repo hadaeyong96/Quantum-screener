@@ -438,8 +438,16 @@ def load_market(_bust=0):
         for tk in ["QQQ", "SPY"]:
             _d = yf.download(tk, period="1y", interval="1d",
                 auto_adjust=True, progress=False)
-            if not _d.empty and "Close" in _d.columns:
-                out[tk] = _d["Close"].dropna()
+            if _d.empty: continue
+            # 단일 종목은 컬럼이 단순 또는 멀티레벨 둘 다 가능
+            if isinstance(_d.columns, pd.MultiIndex):
+                _close = _d["Close"][tk].dropna()
+            elif "Close" in _d.columns:
+                _close = _d["Close"].dropna()
+            else:
+                continue
+            if len(_close) > 10:
+                out[tk] = _close
     except Exception: pass
     # VIX — FRED VIXCLS (가장 안정적)
     try:

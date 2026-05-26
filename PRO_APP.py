@@ -338,11 +338,13 @@ def load_pro_history():
 # ═══════════════════════════════════════════════════════════
 # INSTITUTIONAL LEADER ENGINE
 # ═══════════════════════════════════════════════════════════
-def calculate_leader_score(row: dict, mctx: dict) -> dict:
+def calculate_leader_score(row: dict, mctx: dict, cfg: dict = None) -> dict:
     """
     기관형 리더주 종합 점수 (CLAUDE_RULES.md v2)
     12단계 평가 → score / grade / reasons / acc_score
+    cfg: 설정탭 가중치 (없으면 기본값)
     """
+    if cfg is None: cfg = {}
     score   = 0
     reasons = []
 
@@ -352,40 +354,52 @@ def calculate_leader_score(row: dict, mctx: dict) -> dict:
     trend = mctx.get("qqq_trend", "NEUTRAL")
     drop  = mctx.get("mkt_drop", 0)
 
+    # 설정값 로드 (기본값 fallback)
+    _rs95_w    = cfg.get("cfg_rs95_w",    35)
+    _rs90_w    = cfg.get("cfg_rs90_w",    25)
+    _rs80_w    = cfg.get("cfg_rs80_w",    15)
+    _ma200_pen = cfg.get("cfg_ma200_pen", 40)
+    _ma200_bon = cfg.get("cfg_ma200_bon", 20)
+    _vol_w     = cfg.get("cfg_vol_w",     25)
+    _hd_w      = cfg.get("cfg_hd_w",     25)
+    _surv_w    = cfg.get("cfg_survive_w", 35)
+    _vix_warn  = cfg.get("cfg_vix_warn",  28)
+    _rec_max   = cfg.get("cfg_rec_max",   70)
+
     # 1. 시장 환경
     if liq <= 2:   score -= 20; reasons.append("유동성위험")
     elif liq >= 4: score += 10; reasons.append("💧유동성우호")
-    if rec >= 70:  score -= 25; reasons.append("침체위험")
-    elif rec <= 35: score += 10
-    if vix >= 28:  score -= 25; reasons.append("VIX급등")
-    elif vix <= 18: score += 5
-    if trend == "BULL": score += 10; reasons.append("📈상승추세")
-    elif trend == "BEAR": score -= 15; reasons.append("📉하락추세")
+    if rec >= _rec_max:  score -= 25; reasons.append("침체위험")
+    elif rec <= 35:      score += 10
+    if vix >= _vix_warn: score -= 25; reasons.append("VIX급등")
+    elif vix <= 18:      score += 5
+    if trend == "BULL":  score += 10; reasons.append("📈상승추세")
+    elif trend == "BEAR":score -= 15; reasons.append("📉하락추세")
 
     # 2. RS 상대강도
     rs = _safe_float(row.get("RS", 0))
-    if rs >= 95:   score += 35; reasons.append("🚀RS초강세")
-    elif rs >= 90: score += 25
-    elif rs >= 80: score += 15
+    if rs >= 95:   score += _rs95_w; reasons.append("🚀RS초강세")
+    elif rs >= 90: score += _rs90_w
+    elif rs >= 80: score += _rs80_w
     elif rs < 70:  score -= 25; reasons.append("RS약세")
 
     # 3. MA200 필터 (핵심 방어선)
     above_ma200 = row.get("MA200", False)
     if not above_ma200:
-        score -= 40; reasons.append("⛔MA200하회")
+        score -= _ma200_pen; reasons.append("⛔MA200하회")
     else:
-        score += 20; reasons.append("📊MA200위")
+        score += _ma200_bon; reasons.append("📊MA200위")
 
     # 4. 신고가 근처
     hd = _safe_float(row.get("HighDist", -100))
-    if hd >= -5:    score += 25; reasons.append("🔥신고가근처")
-    elif hd >= -10: score += 15
+    if hd >= -5:    score += _hd_w; reasons.append("🔥신고가근처")
+    elif hd >= -10: score += int(_hd_w * 0.6)
     elif hd <= -25: score -= 20; reasons.append("신고가대비약세")
 
     # 5. 기관 거래량
     vr = _safe_float(row.get("VolRatio", 1), 1)
-    if vr >= 2.0:   score += 25; reasons.append("🏦기관거래량")
-    elif vr >= 1.5: score += 15
+    if vr >= 2.0:   score += _vol_w; reasons.append("🏦기관거래량")
+    elif vr >= 1.5: score += int(_vol_w * 0.6)
     elif vr <= 0.7: score -= 10
 
     # 6. 실적 성장
@@ -405,7 +419,7 @@ def calculate_leader_score(row: dict, mctx: dict) -> dict:
     # 8. 하락장 생존 리더 (핵심 차별화)
     if drop <= -10:
         if rs >= 90 and hd >= -10:
-            score += 35; reasons.append("🛡️하락장생존")
+            score += _surv_w; reasons.append("🛡️하락장생존")
         if vr >= 1.5: score += 10
 
     # 9. 섹터 점수
@@ -801,6 +815,30 @@ if "cache_key" not in st.session_state:
 if "pro_results" not in st.session_state:
     st.session_state["pro_results"] = []
 
+# ── 설정값 기본값 초기화 ──────────────────────────────
+_DEFAULTS = {
+    "cfg_liq_min":      3,    # 유동성 최소 단계
+    "cfg_rec_max":      70,   # 침체 위험 상한
+    "cfg_vix_warn":     28,   # VIX 경고 기준
+    "cfg_rs95_w":       35,   # RS 95↑ 가중치
+    "cfg_rs90_w":       25,   # RS 90↑ 가중치
+    "cfg_rs80_w":       15,   # RS 80↑ 가중치
+    "cfg_ma200_pen":    40,   # MA200 패널티
+    "cfg_ma200_bon":    20,   # MA200 보너스
+    "cfg_vol_w":        25,   # 기관거래량 가중치
+    "cfg_hd_w":         25,   # 신고가 가중치
+    "cfg_survive_w":    35,   # 하락장 생존 보너스
+    "cfg_elite_min":    140,  # ELITE 기준점수
+    "cfg_strong_min":   110,  # STRONG 기준점수
+    "cfg_watch_min":    80,   # WATCH 기준점수
+    "cfg_min_rs":       70,   # 최소 RS 표시 기준
+    "cfg_liq_block":    True, # 유동성 2단계↓ 저장 중단
+    "cfg_rec_elite":    False,# 침체 70↑ ELITE만 표시
+}
+for _k, _v in _DEFAULTS.items():
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
+
 # ── API 키 로드 ──────────────────────────────────────────
 try:
     FRED_API_KEY = st.secrets.get("FRED_API_KEY","")
@@ -827,8 +865,8 @@ with st.sidebar:
                 f"Cache: #{_ck}</div>", unsafe_allow_html=True)
 
 # ── 탭 ───────────────────────────────────────────────────
-t_market, t_leaders, t_backtest = st.tabs([
-    "📊 MARKET", "🏆 LEADERS", "📈 BACKTEST"
+t_market, t_leaders, t_backtest, t_settings = st.tabs([
+    "📊 MARKET", "🏆 LEADERS", "📈 BACKTEST", "⚙️ 설정"
 ])
 
 # ════════════════════════════════════════════════════════════
@@ -993,10 +1031,35 @@ with t_leaders:
         st.error("종목 데이터 로드 실패")
         st.stop()
 
+    # 설정값 로드
+    _cfg = {k: st.session_state.get(k, v)
+            for k, v in _DEFAULTS.items()}
+
+    # 시장 환경 자동 규칙 확인
+    _liq_blocked = (_cfg["cfg_liq_block"] and _liq_stage <= 2)
+    _rec_elite   = (_cfg["cfg_rec_elite"] and _rec_score >= _cfg["cfg_rec_max"])
+
+    if _liq_blocked:
+        st.markdown(
+            "<div style='background:#FEF2F2;border:1.5px solid #FECACA;"
+            "border-radius:4px;padding:8px 14px;margin-bottom:8px;"
+            "font-size:12px;font-weight:700;color:#B91C1C'>"
+            "🚨 유동성 2단계 이하 — 매수 금지 / Sheets 저장 중단</div>",
+            unsafe_allow_html=True)
+
+    if _rec_elite:
+        st.markdown(
+            "<div style='background:#FFF7ED;border:1px solid #FED7AA;"
+            "border-radius:4px;padding:6px 14px;margin-bottom:8px;"
+            "font-size:11px;color:#C2410C'>"
+            f"⚠️ 침체 위험 {_rec_score:.0f}점 — ELITE 등급만 표시 중</div>",
+            unsafe_allow_html=True)
+
     # Leader Score 계산
     _scored = []
+    _min_rs = _cfg.get("cfg_min_rs", 70)
     for r in _raw_results:
-        _res = calculate_leader_score(r, _mkt_ctx)
+        _res = calculate_leader_score(r, _mkt_ctx, _cfg)
         _scored.append({**r, **{
             "LeaderScore": _res["score"],
             "LeaderGrade": _res["grade"],
@@ -1010,7 +1073,15 @@ with t_leaders:
     df_above = df[df["MA200"]].copy()
     df_below = df[~df["MA200"]].copy()
 
-    # Leader Score 기준 정렬
+    # 침체 위험 → ELITE만 표시
+    if _rec_elite:
+        df_above = df_above[df_above["LeaderGrade"].str.contains("ELITE", na=False)]
+
+    # RS 최소 기준 필터
+    if _min_rs > 0:
+        df_above = df_above[df_above["RS"] >= _min_rs]
+
+    # Leader Score 기준 정렬 (강한 상승 종목 위로)
     df_above = df_above.sort_values("LeaderScore", ascending=False).reset_index(drop=True)
     df_above.index = df_above.index + 1
 
@@ -1139,29 +1210,33 @@ with t_leaders:
             unsafe_allow_html=True)
     with _save_c2:
         if st.button("💾 Sheets 저장", use_container_width=True, key="pro_save"):
-            # ── 연결 진단 먼저 ──
-            _sh_diag, _diag_msg = _get_sheet(debug=True)
-            if _sh_diag is None:
-                st.error(f"❌ Sheets 연결 실패: {_diag_msg}")
+            # ── 유동성 차단 확인 ──
+            if _liq_blocked:
+                st.error("🚨 유동성 2단계 이하 — Sheets 저장 중단됨")
             else:
-                # MA200 위 + WATCH 이상만 저장
-                _save_rows = [
-                    r for r in _scored
-                    if r.get("MA200") and r.get("LeaderScore",0) >= 80
-                ]
-                if not _save_rows:
-                    st.warning("저장할 종목 없음 (MA200 위 + 80점↑ 조건 미충족)")
+                # ── 연결 진단 ──
+                _sh_diag, _diag_msg = _get_sheet(debug=True)
+                if _sh_diag is None:
+                    st.error(f"❌ Sheets 연결 실패: {_diag_msg}")
                 else:
-                    with st.spinner(f"{len(_save_rows)}개 저장 중..."):
-                        _ok, _msg = save_pro_results(
-                            _save_rows,
-                            st.session_state.get("liq_stage", 3),
-                            st.session_state.get("rec_score", 50),
-                        )
-                    if _ok:
-                        st.success(f"✅ {_msg}")
+                    # MA200 위 + WATCH 이상만 저장
+                    _save_rows = [
+                        r for r in _scored
+                        if r.get("MA200") and r.get("LeaderScore",0) >= _cfg.get("cfg_watch_min",80)
+                    ]
+                    if not _save_rows:
+                        st.warning("저장할 종목 없음 (MA200 위 + WATCH↑ 조건 미충족)")
                     else:
-                        st.error(f"❌ {_msg}")
+                        with st.spinner(f"{len(_save_rows)}개 저장 중..."):
+                            _ok, _msg = save_pro_results(
+                                _save_rows,
+                                st.session_state.get("liq_stage", 3),
+                                st.session_state.get("rec_score", 50),
+                            )
+                        if _ok:
+                            st.success(f"✅ {_msg}")
+                        else:
+                            st.error(f"❌ {_msg}")
 
     # ── Signal 상세 (ELITE만) ────────────────────────────
     _elite = df_above[df_above["LeaderGrade"].str.contains("ELITE|STRONG")].head(5)
@@ -1362,6 +1437,166 @@ with t_backtest:
                 "LiqStage":   st.column_config.NumberColumn("유동성",format="%d"),
                 "RecRisk":    st.column_config.NumberColumn("침체%", format="%.1f"),
             })
+
+
+# ════════════════════════════════════════════════════════════
+# TAB 3 — ⚙️ 설정
+# ════════════════════════════════════════════════════════════
+with t_settings:
+
+    def _num_row(label, key, default, step=5, min_v=0, max_v=200, unit="점"):
+        """[ 값 ] [+][-] 형태의 설정 행"""
+        cur = st.session_state.get(key, default)
+        _c0, _c1, _c2, _c3 = st.columns([3, 1, 0.4, 0.4])
+        _c0.markdown(
+            f"<div style='font-size:11px;color:#374151;padding:6px 0'>"
+            f"{label} <span style='color:#9CA3AF;font-size:10px'>(기본: {default}{unit})</span></div>",
+            unsafe_allow_html=True)
+        _c1.markdown(
+            f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+            f"border-radius:3px;padding:4px 0;text-align:center;"
+            f"font-size:13px;font-weight:700;color:#0D1117'>{cur}{unit}</div>",
+            unsafe_allow_html=True)
+        if _c2.button("＋", key=f"plus_{key}"):
+            st.session_state[key] = min(max_v, cur + step)
+            st.rerun()
+        if _c3.button("－", key=f"minus_{key}"):
+            st.session_state[key] = max(min_v, cur - step)
+            st.rerun()
+        return st.session_state.get(key, default)
+
+    st.markdown(
+        "<div style='font-size:10px;color:#6B7280;"
+        "font-family:Space Mono,monospace;margin-bottom:12px'>"
+        "SCREENER CONFIGURATION — 변경 즉시 LEADERS 탭에 반영됩니다</div>",
+        unsafe_allow_html=True)
+
+    # ── 섹션 1: 시장 환경 임계값 ──────────────────────────
+    st.markdown(
+        "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:3px;padding:10px 14px;margin-bottom:8px'>"
+        "<div style='font-size:10px;font-weight:700;color:#6B7280;"
+        "margin-bottom:8px'>① 시장 환경 임계값</div>",
+        unsafe_allow_html=True)
+
+    _num_row("유동성 최소 단계 (이하면 매수 금지)",
+             "cfg_liq_min", 3, step=1, min_v=1, max_v=5, unit="단계")
+    _num_row("침체 위험 상한 (이상이면 경고)",
+             "cfg_rec_max", 70, step=5, min_v=30, max_v=100, unit="점")
+    _num_row("VIX 경고 기준 (이상이면 패널티)",
+             "cfg_vix_warn", 28, step=1, min_v=15, max_v=50, unit="")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── 섹션 2: RS 가중치 ─────────────────────────────────
+    st.markdown(
+        "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:3px;padding:10px 14px;margin-bottom:8px'>"
+        "<div style='font-size:10px;font-weight:700;color:#6B7280;"
+        "margin-bottom:8px'>② RS 상대강도 가중치</div>",
+        unsafe_allow_html=True)
+
+    _num_row("RS 95↑ 가중치 (초강세)", "cfg_rs95_w", 35, step=5, min_v=0, max_v=60)
+    _num_row("RS 90↑ 가중치 (강세)",   "cfg_rs90_w", 25, step=5, min_v=0, max_v=50)
+    _num_row("RS 80↑ 가중치 (상승)",   "cfg_rs80_w", 15, step=5, min_v=0, max_v=40)
+    _num_row("최소 RS 표시 기준 (이하 숨김)",
+             "cfg_min_rs", 70, step=5, min_v=0, max_v=95)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── 섹션 3: MA200 가중치 ──────────────────────────────
+    st.markdown(
+        "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:3px;padding:10px 14px;margin-bottom:8px'>"
+        "<div style='font-size:10px;font-weight:700;color:#6B7280;"
+        "margin-bottom:8px'>③ MA200 가중치</div>",
+        unsafe_allow_html=True)
+
+    _num_row("MA200 위 보너스",  "cfg_ma200_bon", 20, step=5, min_v=0,  max_v=50)
+    _num_row("MA200 아래 패널티","cfg_ma200_pen", 40, step=5, min_v=10, max_v=80)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── 섹션 4: 기타 가중치 ───────────────────────────────
+    st.markdown(
+        "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:3px;padding:10px 14px;margin-bottom:8px'>"
+        "<div style='font-size:10px;font-weight:700;color:#6B7280;"
+        "margin-bottom:8px'>④ 기타 가중치</div>",
+        unsafe_allow_html=True)
+
+    _num_row("기관 거래량 가중치 (2배↑)", "cfg_vol_w",     25, step=5, min_v=0, max_v=50)
+    _num_row("신고가 근처 가중치 (-5%↑)", "cfg_hd_w",      25, step=5, min_v=0, max_v=50)
+    _num_row("하락장 생존 보너스 (-10%↓)", "cfg_survive_w", 35, step=5, min_v=0, max_v=60)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── 섹션 5: 등급 기준점수 ─────────────────────────────
+    st.markdown(
+        "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:3px;padding:10px 14px;margin-bottom:8px'>"
+        "<div style='font-size:10px;font-weight:700;color:#6B7280;"
+        "margin-bottom:8px'>⑤ 등급 기준점수</div>",
+        unsafe_allow_html=True)
+
+    _num_row("🚀 ELITE 기준",  "cfg_elite_min",  140, step=5, min_v=80, max_v=200)
+    _num_row("🔥 STRONG 기준", "cfg_strong_min", 110, step=5, min_v=60, max_v=180)
+    _num_row("✅ WATCH 기준",  "cfg_watch_min",   80, step=5, min_v=40, max_v=150)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── 섹션 6: 자동 규칙 ────────────────────────────────
+    st.markdown(
+        "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:3px;padding:10px 14px;margin-bottom:8px'>"
+        "<div style='font-size:10px;font-weight:700;color:#6B7280;"
+        "margin-bottom:8px'>⑥ 자동 규칙</div>",
+        unsafe_allow_html=True)
+
+    _r1, _r2 = st.columns(2)
+    with _r1:
+        _liq_block = st.toggle(
+            "유동성 2단계↓ → Sheets 저장 중단",
+            value=st.session_state.get("cfg_liq_block", True),
+            key="toggle_liq_block")
+        st.session_state["cfg_liq_block"] = _liq_block
+    with _r2:
+        _rec_elite = st.toggle(
+            "침체 위험 상한↑ → ELITE만 표시",
+            value=st.session_state.get("cfg_rec_elite", False),
+            key="toggle_rec_elite")
+        st.session_state["cfg_rec_elite"] = _rec_elite
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── 현재 설정 요약 + 초기화 ───────────────────────────
+    st.markdown("---")
+    _b1, _b2 = st.columns(2)
+    with _b1:
+        if st.button("🔄 기본값으로 초기화", use_container_width=True,
+                     key="cfg_reset"):
+            for _k, _v in _DEFAULTS.items():
+                st.session_state[_k] = _v
+            st.success("✅ 기본값으로 초기화됐습니다")
+            st.rerun()
+    with _b2:
+        # 현재 설정 요약
+        _cur_cfg = {k: st.session_state.get(k, v) for k, v in _DEFAULTS.items()}
+        _changed = [k for k, v in _DEFAULTS.items()
+                    if st.session_state.get(k, v) != v]
+        if _changed:
+            st.markdown(
+                f"<div style='background:#FFFBEB;border:1px solid #FDE68A;"
+                f"border-radius:3px;padding:6px 10px;font-size:10px;color:#92400E'>"
+                f"⚠️ {len(_changed)}개 항목이 기본값과 다름</div>",
+                unsafe_allow_html=True)
+        else:
+            st.markdown(
+                "<div style='background:#F0FDF4;border:1px solid #86EFAC;"
+                "border-radius:3px;padding:6px 10px;font-size:10px;color:#166534'>"
+                "✅ 모든 항목이 기본값입니다</div>",
+                unsafe_allow_html=True)
+
 
 # ── 푸터 ─────────────────────────────────────────────────
 st.markdown(

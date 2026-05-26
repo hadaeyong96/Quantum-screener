@@ -3,7 +3,11 @@ V24 Quantum Institutional OS  |  초보자용 투자 대시보드
 핵심 원칙: 데이터 → 해석 → 행동
 순서: 유동성 흐름 → 시장 → 주식
 
-VERSION : APP_V121
+VERSION : APP_V122
+  V122 - Google Sheets 연동: 일별 스크리닝 기록 + 7일 연속선택 가중치
+         → 매일 실행 시 조건 5개↑ 종목 자동 Sheets 저장
+         → STEP3 테이블에 📅연속 컬럼 추가
+         → 🔥5일↑ ✅3~4일 🟡1~2일 — 꾸준히 살아남는 종목 식별
   V121 - 뉴스 방식 변경: yfinance → Anthropic web_search
          → Yahoo Finance Streamlit Cloud 차단(403) 문제 해결
          → ANTHROPIC_API_KEY Secrets 필요
@@ -222,6 +226,91 @@ import io, sys, re, requests, warnings, json
 from pathlib import Path
 from datetime import datetime, timedelta
 
+# ── Google Sheets 연동 (선택적 임포트) ───────────────────
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    _GSPREAD_OK = True
+except ImportError:
+    _GSPREAD_OK = False
+
+# ── Sheets 연동 함수 ─────────────────────────────────────
+_SHEET_SCOPES = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/drive",
+]
+
+def _get_gsheet():
+    """Google Sheets 클라이언트 반환. 실패 시 None."""
+    if not _GSPREAD_OK:
+        return None
+    try:
+        _creds_dict = dict(st.secrets["gcp_service_account"])
+        _creds = Credentials.from_service_account_info(
+            _creds_dict, scopes=_SHEET_SCOPES)
+        _gc = gspread.authorize(_creds)
+        _url = st.secrets.get("SHEETS_URL", "")
+        if not _url:
+            return None
+        return _gc.open_by_url(_url)
+    except Exception:
+        return None
+
+def _save_screening_result(tickers_selected: list, liq_stage: int):
+    """오늘 날짜 + 선택 종목을 Sheets에 기록"""
+    try:
+        _sh = _get_gsheet()
+        if _sh is None:
+            return False
+        # "History" 시트 (없으면 생성)
+        try:
+            _ws = _sh.worksheet("History")
+        except Exception:
+            _ws = _sh.add_worksheet(title="History", rows=1000, cols=200)
+            _ws.append_row(["Date", "LiqStage", "Count", "Tickers"])
+        _today = datetime.now().strftime("%Y-%m-%d")
+        # 오늘 이미 기록했으면 덮어쓰지 않음
+        _all = _ws.get_all_values()
+        for i, row in enumerate(_all):
+            if row and row[0] == _today:
+                # 업데이트
+                _ws.update(f"A{i+1}", [[_today, liq_stage,
+                    len(tickers_selected), ",".join(tickers_selected)]])
+                return True
+        # 신규 추가
+        _ws.append_row([_today, liq_stage,
+            len(tickers_selected), ",".join(tickers_selected)])
+        return True
+    except Exception:
+        return False
+
+def _load_screening_history(days: int = 7) -> dict:
+    """최근 N일 기록 로드 → {ticker: 선택횟수} 반환"""
+    try:
+        _sh = _get_gsheet()
+        if _sh is None:
+            return {}
+        _ws = _sh.worksheet("History")
+        _all = _ws.get_all_values()
+        if len(_all) < 2:
+            return {}
+        # 최근 N일 필터
+        _cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        _counts = {}
+        _valid_rows = 0
+        for row in _all[1:]:  # 헤더 제외
+            if not row or len(row) < 4:
+                continue
+            if row[0] >= _cutoff:
+                _valid_rows += 1
+                _tickers = [t.strip() for t in row[3].split(",") if t.strip()]
+                for _tk in _tickers:
+                    _counts[_tk] = _counts.get(_tk, 0) + 1
+        # 선택 횟수와 함께 총 집계일 수도 반환
+        return {"counts": _counts, "total_days": _valid_rows}
+    except Exception:
+        return {}
+
 # ── 지표 설명 편집 저장 (session_state 기반 + /tmp 백업) ──
 # Streamlit Cloud는 앱 폴더 쓰기 불가 → /tmp 사용
 _EXPLAINS_PATH = Path("/tmp/explanations.json")
@@ -281,7 +370,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V121",
+st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V122",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -1045,7 +1134,7 @@ sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
     "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>"
     "QUANTUM INSTITUTIONAL OS</div>"
-    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V121 &nbsp;·&nbsp; 💻 PC VERSION</div>"
+    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V122 &nbsp;·&nbsp; 💻 PC VERSION</div>"
     "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
@@ -1133,7 +1222,7 @@ sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=
 # ─────────────────────────────────────────────────────────
 # TITLE
 # ─────────────────────────────────────────────────────────
-APP_VERSION = "V121"
+APP_VERSION = "V122"
 st.markdown(f"""
 <div style="padding:16px 0 10px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
@@ -1143,7 +1232,7 @@ st.markdown(f"""
         QUANTUM INSTITUTIONAL OS
       </span><br>
       <span style="font-size:11px;color:#6B7280;letter-spacing:2px">
-        V121  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
+        V122  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
       </span><br>
       <span style="font-size:11px;color:#9CA3AF;margin-top:4px;display:inline-block;
             border-left:3px solid #3B5BA5;padding-left:8px;line-height:1.6">
@@ -1697,6 +1786,39 @@ else:
             df_all = df_all.sort_values(
                 "섹터 AI Score", ascending=False).reset_index(drop=True)
             df_all.index = df_all.index + 1
+        # ── Sheets 기록 + 가중치 로드 ──────────────────────────
+        try:
+            # 오늘 스크리닝 결과 저장 (5개 조건 이상 종목)
+            _sc_col_save = "섹터 AI Score" if "섹터 AI Score" in df_all.columns else "AI Score"
+            _cond_save = [c for c in ["조건수"] if c in df_all.columns]
+            if _cond_save:
+                _selected_today = df_all[
+                    df_all["조건수"] >= 5
+                ]["Ticker"].tolist()
+            else:
+                _selected_today = df_all.head(20)["Ticker"].tolist()
+            _stage_now = LIQ_ACTION.get("stage", 0) if "LIQ_ACTION" in dir() else 0
+            _save_screening_result(_selected_today, _stage_now)
+
+            # 최근 7일 가중치 로드
+            _hist = _load_screening_history(7)
+            _counts = _hist.get("counts", {})
+            _total_days = _hist.get("total_days", 0)
+            if _counts and not df_all.empty:
+                df_all["연속선택"] = df_all["Ticker"].map(
+                    lambda t: _counts.get(t, 0))
+                df_all["연속선택일"] = df_all["연속선택"].apply(
+                    lambda n: f"🔥{n}일" if n >= 5
+                    else (f"✅{n}일" if n >= 3
+                    else (f"🟡{n}일" if n >= 1 else "—")))
+            else:
+                df_all["연속선택"]   = 0
+                df_all["연속선택일"] = "—"
+            st.session_state["screen_total_days"] = _total_days
+        except Exception:
+            df_all["연속선택"]   = 0
+            df_all["연속선택일"] = "—"
+
         # session_state에 저장 → 이후 탭 전환·체크박스 변경 시 즉시 사용
         st.session_state[f"df_all_v{_ck}"]  = df_all
         st.session_state[f"df_port_v{_ck}"] = df_port
@@ -5007,6 +5129,29 @@ with tab2:
     _render_stepbar(3, LIQ_ACTION.get("stage", 0), 0)
     st.markdown('<div class="sec-header">📊 종목 선별 (STEP 3)</div>', unsafe_allow_html=True)
 
+    # ── Sheets 연동 상태 표시 ──────────────────────────────
+    _total_days_saved = st.session_state.get("screen_total_days", 0)
+    _sheets_ok = _GSPREAD_OK
+    try:
+        _sheets_ok = _sheets_ok and bool(st.secrets.get("SHEETS_URL",""))
+    except: _sheets_ok = False
+    if _sheets_ok and _total_days_saved > 0:
+        st.markdown(
+            f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
+            f"border-radius:7px;padding:7px 14px;margin-bottom:8px;"
+            f"display:flex;align-items:center;gap:10px;font-size:11px'>"
+            f"<span>📅</span>"
+            f"<span style='color:#374151'>최근 <b>{_total_days_saved}일</b> 스크리닝 기록 반영됨</span>"
+            f"<span style='color:#9CA3AF'>|</span>"
+            f"<span style='color:#6B7280'>📅연속 컬럼: 🔥5일↑ 강력추천 / ✅3~4일 안정 / 🟡1~2일 관찰</span>"
+            f"</div>",
+            unsafe_allow_html=True)
+    elif _sheets_ok:
+        st.markdown(
+            "<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
+            "border-radius:7px;padding:7px 14px;margin-bottom:8px;font-size:11px;color:#9CA3AF'>"
+            "📅 스크리닝 기록 누적 중... 매일 앱 실행 시 자동 저장됩니다.</div>",
+            unsafe_allow_html=True)
 
     if df_all.empty:
         st.markdown('<div class="warn-box">⚠️ 종목 데이터 없음 — 사이드바 [🔄 새로고침]을 눌러주세요.</div>', unsafe_allow_html=True)
@@ -5185,7 +5330,9 @@ with tab2:
                 f"<span style='background:{'#dcfce7' if r['조건수']==8 else '#dbeafe'};"
                 f"color:{'#15803d' if r['조건수']==8 else '#1d4ed8'};"
                 f"border-radius:5px;padding:2px 7px;font-size:11px;font-weight:600;"
-                f"margin-right:4px'>{r['Ticker']} {r['조건수']}/8</span>"
+                f"margin-right:4px'>{r['Ticker']} {r['조건수']}/8"
+                f"{'  ' + str(r.get('연속선택일','')) if r.get('연속선택일','—') != '—' else ''}"
+                f"</span>"
                 for _, r in _rec_top.iterrows()
             )
             st.markdown(
@@ -5218,7 +5365,7 @@ with tab2:
         # PC: 컬럼 구성 고정 — 모드 무관 항상 동일한 순서
         # 배당수익률%는 항시 표시 (데이터 없으면 N/A)
         _showcols = [c for c in [
-            "Ticker","섹터","조건/9",
+            "Ticker","섹터","조건/9","연속선택일",
             "RS✅","AI✅","EPS✅","RSI✅","신고가✅",
             "Breakout","Vol Surge","3연상","MA10회복","갭업",
             "Price","배당수익률%","ATR손절","PEG","Rev Growth%",
@@ -5231,6 +5378,8 @@ with tab2:
             height=520,
             column_config={
                 "조건/9":  st.column_config.TextColumn("조건/9",  width="small"),
+                "연속선택일": st.column_config.TextColumn("📅연속", width="small",
+                    help="최근 7일간 이 종목이 스크리닝에 선택된 횟수\n🔥5일↑ ✅3~4일 🟡1~2일"),
                 "RS✅":    st.column_config.TextColumn("RS",     width="small"),
                 "AI✅":    st.column_config.TextColumn("AI",     width="small"),
                 "EPS✅":   st.column_config.TextColumn("EPS",    width="small"),
@@ -6743,8 +6892,8 @@ with tab6:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V121</b>"
-        f" &nbsp;|&nbsp; APP_V121 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V122</b>"
+        f" &nbsp;|&nbsp; APP_V122 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

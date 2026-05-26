@@ -5,3 +5,5 @@ yfinance
 requests
 fredapi
 keyring
+gspread
+google-auth

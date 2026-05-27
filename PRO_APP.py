@@ -1817,16 +1817,26 @@ with t_settings:
         "변경 즉시 LEADERS 탭에 반영 · 기본값 기준으로 조정</div>",
         unsafe_allow_html=True)
 
-    def _num_row(label, key, default, step=5, min_v=0, max_v=200, unit="점"):
+    def _num_row(label, key, default, step=5, min_v=0, max_v=200, unit="점", first=False, last=False):
+        """표 행처럼 보이는 +/- 버튼 행"""
         cur = st.session_state.get(key, default)
-        _c0, _c1, _c2, _c3 = st.columns([3.5, 1, 0.45, 0.45])
+        _changed = cur != default
+        _border_top    = "border-top:1px solid #E2E6ED;" if first else ""
+        _border_bottom = "border-bottom:1px solid #E2E6ED;"
+        _bg = "#FFFBEB" if _changed else "#FFFFFF"
+
+        _c0, _c1, _c2, _c3 = st.columns([3.5, 1.2, 0.4, 0.4])
         _c0.markdown(
-            f"<div style='font-size:11px;color:#374151;padding:5px 0'>{label}</div>",
+            f"<div style='background:{_bg};{_border_top}{_border_bottom}"
+            f"padding:6px 8px;font-size:11px;color:#374151;"
+            f"border-left:1px solid #E2E6ED;'>"
+            f"{'⚠️ ' if _changed else ''}{label}</div>",
             unsafe_allow_html=True)
         _c1.markdown(
-            f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-            f"border-radius:3px;padding:3px 0;text-align:center;"
-            f"font-size:13px;font-weight:700;color:#0D1117'>{cur}{unit}</div>",
+            f"<div style='background:{_bg};{_border_top}{_border_bottom}"
+            f"padding:6px 0;text-align:center;"
+            f"font-size:12px;font-weight:700;color:#0D1117;'>"
+            f"{cur}{unit}</div>",
             unsafe_allow_html=True)
         if _c2.button("＋", key=f"plus_{key}"):
             st.session_state[key] = min(max_v, cur + step)
@@ -1836,69 +1846,52 @@ with t_settings:
             st.rerun()
         return st.session_state.get(key, default)
 
-    # ══ ① 시장 환경 임계값 ══════════════════════════════════
-    st.markdown(
-        "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:4px'>"
-        "① 시장 환경 임계값</div>",
-        unsafe_allow_html=True)
+    def _section_header(text):
+        st.markdown(
+            f"<div style='background:#F3F4F6;border:1px solid #E2E6ED;"
+            f"border-bottom:none;padding:5px 8px;"
+            f"font-size:10px;font-weight:700;color:#374151;"
+            f"font-family:Space Mono,monospace'>{text}</div>",
+            unsafe_allow_html=True)
 
+    # ══ ① 시장 환경 임계값 ══════════════════════════════════
+    _section_header("① 시장 환경 임계값")
     _num_row("유동성 최소 단계 — 이하면 매수 금지",
-             "cfg_liq_min", 3, step=1, min_v=1, max_v=5, unit="단계")
+             "cfg_liq_min", 3, step=1, min_v=1, max_v=5, unit="단계", first=True)
     _num_row("침체 위험 상한 — 이상이면 경고",
              "cfg_rec_max", 70, step=5, min_v=30, max_v=100, unit="점")
     _num_row("VIX 경고 기준 — 이상이면 패널티",
-             "cfg_vix_warn", 28, step=1, min_v=15, max_v=50, unit="")
-    st.markdown("---")
+             "cfg_vix_warn", 28, step=1, min_v=15, max_v=50, unit="", last=True)
+    st.markdown("<div style='margin-bottom:10px'></div>", unsafe_allow_html=True)
 
     # ══ ② RS 가중치 ═════════════════════════════════════════
-    st.markdown(
-        "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:4px'>"
-        "② RS 상대강도 가중치</div>",
-        unsafe_allow_html=True)
-
-    _num_row("RS 95↑ 가중치 — 초강세", "cfg_rs95_w", 35, step=5, min_v=0, max_v=60)
+    _section_header("② RS 상대강도 가중치")
+    _num_row("RS 95↑ 가중치 — 초강세", "cfg_rs95_w", 35, step=5, min_v=0, max_v=60, first=True)
     _num_row("RS 90↑ 가중치 — 강세",   "cfg_rs90_w", 25, step=5, min_v=0, max_v=50)
     _num_row("RS 80↑ 가중치 — 상승",   "cfg_rs80_w", 15, step=5, min_v=0, max_v=40)
     _num_row("최소 RS 표시 기준 — 이하 숨김",
-             "cfg_min_rs", 70, step=5, min_v=0, max_v=95)
-    st.markdown("---")
+             "cfg_min_rs", 70, step=5, min_v=0, max_v=95, last=True)
+    st.markdown("<div style='margin-bottom:10px'></div>", unsafe_allow_html=True)
 
     # ══ ③ MA200 가중치 ══════════════════════════════════════
-    st.markdown(
-        "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:4px'>"
-        "③ MA200 가중치</div>",
-        unsafe_allow_html=True)
-
-    _num_row("MA200 위 보너스",   "cfg_ma200_bon", 20, step=5, min_v=0,  max_v=50)
-    _num_row("MA200 아래 패널티", "cfg_ma200_pen", 40, step=5, min_v=10, max_v=80)
-    st.markdown("---")
+    _section_header("③ MA200 가중치")
+    _num_row("MA200 위 보너스",   "cfg_ma200_bon", 20, step=5, min_v=0,  max_v=50, first=True)
+    _num_row("MA200 아래 패널티", "cfg_ma200_pen", 40, step=5, min_v=10, max_v=80, last=True)
+    st.markdown("<div style='margin-bottom:10px'></div>", unsafe_allow_html=True)
 
     # ══ ④ 기타 가중치 ═══════════════════════════════════════
-    st.markdown(
-        "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:4px'>"
-        "④ 기타 가중치</div>",
-        unsafe_allow_html=True)
-
-    _num_row("기관 거래량 — 2배↑",  "cfg_vol_w",     25, step=5, min_v=0, max_v=50)
-    _num_row("신고가 근처 — -5%↑",  "cfg_hd_w",      25, step=5, min_v=0, max_v=50)
-    _num_row("하락장 생존 보너스",   "cfg_survive_w", 35, step=5, min_v=0, max_v=60)
-    st.markdown("---")
+    _section_header("④ 기타 가중치")
+    _num_row("기관 거래량 — 2배↑", "cfg_vol_w",     25, step=5, min_v=0, max_v=50, first=True)
+    _num_row("신고가 근처 — -5%↑", "cfg_hd_w",      25, step=5, min_v=0, max_v=50)
+    _num_row("하락장 생존 보너스",  "cfg_survive_w", 35, step=5, min_v=0, max_v=60, last=True)
+    st.markdown("<div style='margin-bottom:10px'></div>", unsafe_allow_html=True)
 
     # ══ ⑤ 등급 기준점수 ═════════════════════════════════════
-    st.markdown(
-        "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:4px'>"
-        "⑤ 등급 기준점수</div>",
-        unsafe_allow_html=True)
-
-    _num_row("🚀 ELITE 기준",  "cfg_elite_min",  140, step=5, min_v=80,  max_v=200)
+    _section_header("⑤ 등급 기준점수")
+    _num_row("🚀 ELITE 기준",  "cfg_elite_min",  140, step=5, min_v=80,  max_v=200, first=True)
     _num_row("🔥 STRONG 기준", "cfg_strong_min", 110, step=5, min_v=60,  max_v=180)
-    _num_row("🔍 WATCH 기준",  "cfg_watch_min",   80, step=5, min_v=40,  max_v=150)
-    st.markdown("---")
+    _num_row("🔍 WATCH 기준",  "cfg_watch_min",   80, step=5, min_v=40,  max_v=150, last=True)
+    st.markdown("<div style='margin-bottom:10px'></div>", unsafe_allow_html=True)
 
     # ══ ⑥ 자동 규칙 ═════════════════════════════════════════
     st.markdown(

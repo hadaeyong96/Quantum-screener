@@ -1399,7 +1399,14 @@ with t_leaders:
         _fdf = _fdf[_fdf["RS"] >= _min_rs]
 
 
-    # ── 요약 카운터 ──────────────────────────────────────
+    # ── 스크리닝 현황 요약 ───────────────────────────────
+    st.markdown(
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:2px'>"
+        "스크리닝 현황</div>"
+        "<div style='font-size:9px;color:#6B7280;margin-bottom:6px'>"
+        "전체 종목 중 MA200 위 매수 가능 종목 분류</div>",
+        unsafe_allow_html=True)
     _elite_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("ELITE", na=False)])
     _strong_cnt = len(df_above[df_above["LeaderGrade"].str.contains("STRONG", na=False)])
     _watch_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("WATCH", na=False)])
@@ -1658,6 +1665,13 @@ with t_backtest:
         _avg_ret= hist["Return%"].mean() if "Return%" in hist.columns else 0
         _days_range = f"{hist['Date'].min().strftime('%Y-%m-%d')} ~ {hist['Date'].max().strftime('%Y-%m-%d')}"
 
+        st.markdown(
+            "<div style='font-size:11px;color:#374151;"
+            "font-family:Space Mono,monospace;margin-bottom:2px'>"
+            "누적 성과 요약</div>"
+            "<div style='font-size:9px;color:#6B7280;margin-bottom:6px'>"
+            "진입가 기준 수익률 · 30일 이상 축적 후 의미있는 분석 가능</div>",
+            unsafe_allow_html=True)
         _days_max = int(hist['Days'].max()) if len(hist) > 0 else 0
         _win_rate = f"{_profitable/_total*100:.0f}%" if _total > 0 else "0%"
         _bt_df = pd.DataFrame([

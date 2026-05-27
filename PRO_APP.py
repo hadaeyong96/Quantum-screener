@@ -1051,17 +1051,32 @@ with t_market:
     rec_score = calc_rec_score(fred)
     mkt_ctx   = build_market_ctx(liq_stage, rec_score, mkt)
 
-    # session_state 저장 → LEADERS 탭에서 사용
-    st.session_state["liq_score"]  = liq_score
-    st.session_state["liq_stage"]  = liq_stage
-    st.session_state["rec_score"]  = rec_score
-    st.session_state["mkt_ctx"]    = mkt_ctx
+    st.session_state.update({
+        "liq_score": liq_score, "liq_stage": liq_stage,
+        "rec_score": rec_score, "mkt_ctx":   mkt_ctx,
+        "fred_ready": True,
+    })
 
-    # ── 핵심 지표 카드 ───────────────────────────────────
+    # ══ 1. 유동성 5단계 범례 ════════════════════════════════
+    st.markdown(
+        "<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px'>"
+        "<div style='font-size:9px;color:#6B7280;padding:3px 0;align-self:center'>유동성 5단계:</div>"
+        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:20px;padding:2px 8px'>🚀 5단계 80↑ 유동성 파티</div>"
+        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:20px;padding:2px 8px'>🟢 4단계 60↑ 분할매수 가능</div>"
+        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:20px;padding:2px 8px'>🟡 3단계 40↑ 현금 50%↑</div>"
+        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:20px;padding:2px 8px'>🔴 2단계 20↑ 매수 중단</div>"
+        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:20px;padding:2px 8px'>🔴 1단계 0↑ 전액 현금</div>"
+        "</div>",
+        unsafe_allow_html=True)
+
+    # ══ 2. 핵심 지표 카드 (유동성·침체·VIX·QQQ) ════════════
     c1,c2 = st.columns(2)
     c3,c4 = st.columns(2)
-
-    # ── 핵심 지표 — 엑셀형 소형 카드 ──────────────────────
     _lc = "#B91C1C" if liq_stage<=2 else ("#92400E" if liq_stage==3 else "#166534")
     _rc = "#B91C1C" if rec_score>=70 else ("#92400E" if rec_score>=50 else ("#92400E" if rec_score>=30 else "#166534"))
     _vc = "#B91C1C" if mkt_ctx["vix"]>=28 else ("#92400E" if mkt_ctx["vix"]>=20 else "#166534")
@@ -1077,88 +1092,39 @@ with t_market:
             f"<div style='font-size:9px;color:#6B7280;line-height:1.2'>{sub}</div>"
             f"</div>", unsafe_allow_html=True)
 
-    _mini_card(c1, "유동성", f"{liq_stage}단계", f"{liq_score:.0f}점/100", _lc)
-    _mini_card(c2, "침체위험", f"{rec_score:.0f}점", "/100", _rc)
-    _mini_card(c3, "VIX", f"{mkt_ctx['vix']:.1f}", "변동성지수", _vc)
-    _mini_card(c4, "QQQ추세", _qi, f"{mkt_ctx['mkt_drop']:+.1f}% (52W)", _qc)
+    _mini_card(c1, "유동성",   f"{liq_stage}단계",        f"{liq_score:.0f}점/100", _lc)
+    _mini_card(c2, "침체위험", f"{rec_score:.0f}점",       "/100",                   _rc)
+    _mini_card(c3, "VIX",      f"{mkt_ctx['vix']:.1f}",   "변동성지수",             _vc)
+    _mini_card(c4, "QQQ추세",  _qi, f"{mkt_ctx['mkt_drop']:+.1f}% (52W)",           _qc)
 
-
+    # ══ 3. 투자 행동 지침 (결론 먼저) ═══════════════════════
     st.markdown("---")
-
-    # ── 유동성 상세 ──────────────────────────────────────
-    st.markdown(
-        "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:6px'>"
-        "LIQUIDITY BREAKDOWN</div>",
-        unsafe_allow_html=True)
-
-    # 유동성 5단계 범례
-    st.markdown(
-        "<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px'>"
-        "<div style='font-size:9px;color:#6B7280;padding:3px 0;align-self:center'>5단계:</div>"
-        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:20px;padding:2px 8px'>🚀 5단계 80↑ 유동성 파티</div>"
-        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:20px;padding:2px 8px'>🟢 4단계 60↑ 분할매수 가능</div>"
-        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:20px;padding:2px 8px'>🟡 3단계 40↑ 현금 50%↑</div>"
-        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:20px;padding:2px 8px'>🔴 2단계 20↑ 매수 중단</div>"
-        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:20px;padding:2px 8px'>🔴 1단계 0↑ 전액 현금</div>"
-        "</div>",
-        unsafe_allow_html=True)
-
-    # detail = {지표명: (현재값, 점수, 신호)} 구조
-    _liq_rows = []
-    for _k, _v in liq_detail.items():
-        if isinstance(_v, tuple) and len(_v) == 3:
-            _liq_rows.append({"지표":_k, "현재값":_v[0], "점수":_v[1], "신호":_v[2]})
-        else:
-            # 구버전 호환
-            _liq_rows.append({"지표":_k, "현재값":str(_v), "점수":50, "신호":"🟡"})
-
-    _liq_df = pd.DataFrame(_liq_rows)
-    st.dataframe(
-        _liq_df, use_container_width=True, hide_index=True,
-        column_config={
-            "지표":   st.column_config.TextColumn("지표",   width="small"),
-            "현재값": st.column_config.TextColumn("현재값", width="small"),
-            "점수":   st.column_config.ProgressColumn("점수",
-                        min_value=0, max_value=100, format="%d"),
-            "신호":   st.column_config.TextColumn("신호",   width="small"),
-        })
-
-    st.markdown("---")
-
-    # ── 투자 행동 지침 ───────────────────────────────────
-    # 실제 지표값으로 근거 문장 자동 생성
     def _liq_evidence(det):
         evs = []
         for k, v in det.items():
             if isinstance(v, tuple) and v[2] == "🟢":
-                if k == "기준금리":   evs.append(f"금리 {v[0]} 우호")
-                elif k == "M2 통화량":evs.append(f"M2 증가 중")
-                elif k == "RRP 역레포":evs.append(f"RRP 해소")
-                elif k == "은행 준비금":evs.append(f"준비금 충분")
-                elif k == "실질금리": evs.append(f"실질금리 {v[0]}")
-                elif k == "크레딧 스프레드":evs.append(f"스프레드 안정")
+                if k == "기준금리":        evs.append(f"금리 {v[0]} 우호")
+                elif k == "M2 통화량":     evs.append("M2 증가 중")
+                elif k == "RRP 역레포":    evs.append("RRP 해소")
+                elif k == "은행 준비금":   evs.append("준비금 충분")
+                elif k == "실질금리":      evs.append(f"실질금리 {v[0]}")
+                elif k == "크레딧 스프레드":evs.append("스프레드 안정")
         return " · ".join(evs[:3]) if evs else ""
 
     _evidence = _liq_evidence(liq_detail)
 
     if rec_score >= 70:
-        _a_color="#EF4444"; _a_title="🚨 침체 고위험 — 매수 전면 중단"
-        _actions = ["신규매수 금지","포지션 50%↑ 현금화",
-                    "GLD·TLT 헤지 확대","손절 -5% 강화"]
+        _a_color="#B91C1C"; _a_title="🚨 침체 고위험 — 매수 전면 중단"
+        _actions = ["신규매수 금지", "포지션 50%↑ 현금화",
+                    "GLD·TLT 헤지 확대", "손절 -5% 강화"]
     elif rec_score >= 50:
-        _a_color="#F59E0B"; _a_title="⚠️ 침체 주의 — 방어적 포지션"
-        _actions = ["신규매수 투자금 20% 이하","현금 40~50% 유지",
-                    "RS 90↑ 생존 리더만","손절 -6% 강화"]
+        _a_color="#92400E"; _a_title="⚠️ 침체 주의 — 방어적 포지션"
+        _actions = ["신규매수 투자금 20% 이하", "현금 40~50% 유지",
+                    "RS 90↑ 생존 리더만", "손절 -6% 강화"]
     elif rec_score >= 30:
-        _a_color="#FBBF24"; _a_title="🟡 침체 관찰 — 선택적 진입"
-        _actions = ["유동성 확인 후 분할매수","현금 30% 유지",
-                    "리더섹터 집중","손절 -8% 표준"]
+        _a_color="#92400E"; _a_title="🟡 침체 관찰 — 선택적 진입"
+        _actions = ["유동성 확인 후 분할매수", "현금 30% 유지",
+                    "리더섹터 집중", "손절 -8% 표준"]
     else:
         _a_color="#166534"; _a_title="🟢 침체 안전 — 공격 가능"
         _actions = [
@@ -1167,20 +1133,46 @@ with t_market:
             "ELITE·STRONG 우선 진입",
             "손절 기준 -8% 표준",
         ]
-        if _evidence:
-            _actions.insert(0, f"근거: {_evidence}")
+    if _evidence:
+        _actions.insert(0, f"근거: {_evidence}")
 
     st.markdown(
-        f"<div style='background:#FFFFFF;border:1px solid {_a_color};"
-        f"border-radius:3px;padding:6px 8px'>"
+        f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+        f"border-left:3px solid {_a_color};"
+        f"border-radius:3px;padding:8px 12px'>"
         f"<div style='font-size:12px;font-weight:700;color:{_a_color};"
-        f"margin-bottom:4px'>{_a_title}</div>"
+        f"margin-bottom:5px'>{_a_title}</div>"
         + "".join(
             f"<div style='font-size:11px;color:#374151;padding:2px 0'>"
             f"<span style='color:{_a_color};margin-right:6px'>→</span>{a}</div>"
             for a in _actions)
         + "</div>",
         unsafe_allow_html=True)
+
+    # ══ 4. LIQUIDITY BREAKDOWN 표 (점수만, 막대그래프 없음) ══
+    st.markdown("---")
+    st.markdown(
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:6px'>"
+        "LIQUIDITY BREAKDOWN</div>",
+        unsafe_allow_html=True)
+
+    _liq_rows = []
+    for _k, _v in liq_detail.items():
+        if isinstance(_v, tuple) and len(_v) == 3:
+            _liq_rows.append({"지표":_k, "현재값":_v[0], "점수":_v[1], "신호":_v[2]})
+        else:
+            _liq_rows.append({"지표":_k, "현재값":str(_v), "점수":50, "신호":"🟡"})
+
+    _liq_df = pd.DataFrame(_liq_rows)
+    st.dataframe(
+        _liq_df, use_container_width=True, hide_index=True,
+        column_config={
+            "지표":   st.column_config.TextColumn("지표",   width="small"),
+            "현재값": st.column_config.TextColumn("현재값", width="small"),
+            "점수":   st.column_config.NumberColumn("점수", format="%d점", width="small"),
+            "신호":   st.column_config.TextColumn("신호",   width="small"),
+        })
 
     # ── 섹터 자금 흐름 ─────────────────────────────────────
     st.markdown("---")

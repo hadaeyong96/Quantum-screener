@@ -571,6 +571,20 @@ def load_market(_bust=0):
             if len(_close) > 10:
                 out[tk] = _close
     except Exception: pass
+    # 섹터 ETF
+    _sector_etfs = ["XLK","XLV","XLE","XLF","XLI","XLC","XLY","XLP","XLB","XLU","XLRE"]
+    try:
+        for _se in _sector_etfs:
+            _sd = yf.download(_se, period="3mo", interval="1d",
+                auto_adjust=True, progress=False)
+            if not _sd.empty and "Close" in _sd.columns:
+                _sc = _sd["Close"].dropna()
+                if isinstance(_sc, pd.DataFrame):
+                    _sc = _sc.iloc[:,0]
+                if len(_sc) > 10:
+                    out[_se] = _sc
+    except Exception: pass
+
     # VIX — FRED VIXCLS (가장 안정적)
     try:
         _fred_key = ""
@@ -1093,6 +1107,105 @@ with t_market:
                 "현재값":st.column_config.NumberColumn("현재값",format="%.3f"),
                 "기준일":st.column_config.TextColumn("기준일",width="small"),
             })
+
+    # ── 섹터 자금 흐름 ─────────────────────────────────────
+    st.markdown("---")
+    st.markdown(
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:8px'>"
+        "SECTOR FLOW — 자금 흐름 분석</div>",
+        unsafe_allow_html=True)
+
+    _SECTOR_META = {
+        "XLK":  ("기술",      "반도체·소프트웨어·하드웨어"),
+        "XLC":  ("통신",      "구글·메타·넷플릭스"),
+        "XLY":  ("임의소비재","아마존·테슬라·소비재"),
+        "XLV":  ("헬스케어",  "제약·의료기기·보험"),
+        "XLF":  ("금융",      "은행·보험·자산운용"),
+        "XLI":  ("산업재",    "항공우주·방산·물류"),
+        "XLE":  ("에너지",    "정유·가스·신재생"),
+        "XLP":  ("필수소비재","식품·음료·생활용품"),
+        "XLB":  ("소재",      "화학·금속·광물"),
+        "XLU":  ("유틸리티",  "전력·가스·수도"),
+        "XLRE": ("부동산",    "리츠·부동산신탁"),
+    }
+
+    _qqq_s = mkt.get("QQQ")
+    _sector_rows = []
+
+    for _etf, (_sname, _sdesc) in _SECTOR_META.items():
+        _es = mkt.get(_etf)
+        if _es is None or len(_es) < 10: continue
+        try:
+            # 1주(5거래일) 수익률
+            _r1w = (_safe_float(_es.iloc[-1]) - _safe_float(_es.iloc[-6])) / abs(_safe_float(_es.iloc[-6])) * 100 if len(_es)>=6 else 0
+            # 4주(20거래일) 수익률
+            _r4w = (_safe_float(_es.iloc[-1]) - _safe_float(_es.iloc[-21])) / abs(_safe_float(_es.iloc[-21])) * 100 if len(_es)>=21 else 0
+            # QQQ 대비 초과수익 (1주)
+            _qqq_1w = 0
+            if _qqq_s is not None and len(_qqq_s)>=6:
+                _qqq_1w = (_safe_float(_qqq_s.iloc[-1]) - _safe_float(_qqq_s.iloc[-6])) / abs(_safe_float(_qqq_s.iloc[-6])) * 100
+            _excess = _r1w - _qqq_1w
+
+            # 상태 판단
+            if   _excess >= 2:    _status = "🔥 강세유입"
+            elif _excess >= 0.5:  _status = "📈 유입"
+            elif _excess >= -0.5: _status = "→ 중립"
+            elif _excess >= -2:   _status = "📉 유출"
+            else:                 _status = "❄️ 약세유출"
+
+            _sector_rows.append({
+                "섹터":      _sname,
+                "ETF":       _etf,
+                "1주수익%":  round(_r1w, 1),
+                "4주수익%":  round(_r4w, 1),
+                "QQQ대비%":  round(_excess, 1),
+                "상태":      _status,
+                "대표종목":  _sdesc,
+            })
+        except Exception:
+            continue
+
+    if _sector_rows:
+        # QQQ 대비 수익률 기준 정렬
+        _sector_df = pd.DataFrame(_sector_rows).sort_values(
+            "QQQ대비%", ascending=False).reset_index(drop=True)
+
+        st.dataframe(
+            _sector_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "섹터":     st.column_config.TextColumn("섹터",    width="small"),
+                "ETF":      st.column_config.TextColumn("ETF",     width="small"),
+                "1주수익%": st.column_config.NumberColumn("1주%",  format="%+.1f%%", width="small"),
+                "4주수익%": st.column_config.NumberColumn("4주%",  format="%+.1f%%", width="small"),
+                "QQQ대비%": st.column_config.NumberColumn("QQQ대비",format="%+.1f%%",width="small"),
+                "상태":     st.column_config.TextColumn("자금흐름", width="small"),
+                "대표종목": st.column_config.TextColumn("대표종목", width="medium"),
+            })
+
+        # 강세 섹터 요약
+        _hot = [r["섹터"] for r in _sector_rows if "강세" in r["상태"] or "유입" in r["상태"]]
+        _cold= [r["섹터"] for r in _sector_rows if "약세" in r["상태"] or "유출" in r["상태"]]
+        if _hot:
+            st.markdown(
+                f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+                f"border-left:3px solid #166534;"
+                f"border-radius:3px;padding:6px 12px;margin-top:6px;"
+                f"font-size:11px;color:#374151'>"
+                f"📈 자금 유입: <b>{' · '.join(_hot)}</b></div>",
+                unsafe_allow_html=True)
+        if _cold:
+            st.markdown(
+                f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+                f"border-left:3px solid #B91C1C;"
+                f"border-radius:3px;padding:6px 12px;margin-top:4px;"
+                f"font-size:11px;color:#374151'>"
+                f"📉 자금 유출: <b>{' · '.join(_cold)}</b></div>",
+                unsafe_allow_html=True)
+    else:
+        st.info("섹터 데이터 로드 중...")
 
 # ════════════════════════════════════════════════════════════
 # TAB 1 — LEADERS

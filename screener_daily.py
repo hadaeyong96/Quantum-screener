@@ -29,7 +29,7 @@ GCP_JSON_STR = os.environ.get("GCP_SERVICE_ACCOUNT_JSON", "")
 
 SHEET_TAB = "History_PRO"
 SHEET_HEADER = [
-    "Date","Ticker","EntryPrice","LeaderScore","LeaderGrade",
+    "Date","Ticker","Name","EntryPrice","LeaderScore","LeaderGrade",
     "RS","MA200","AccScore","LiqStage","RecRisk",
     "EPS","CondCount","Breakout","VolSurge","Sector"
 ]
@@ -45,6 +45,29 @@ SCREEN_TICKERS = [
     "PYPL","COIN","APP","AXON",
     "CMCSA","TMUS","FANG","CEG","SMCI",
 ]
+
+COMPANY_NAME = {
+    "NVDA":"엔비디아","MSFT":"마이크로소프트","META":"메타","AMZN":"아마존",
+    "GOOGL":"알파벳","AAPL":"애플","TSLA":"테슬라","NFLX":"넷플릭스","COST":"코스트코",
+    "AVGO":"브로드컴","AMD":"AMD","QCOM":"퀄컴","TXN":"텍사스인스트루먼트",
+    "AMAT":"어플라이드머티리얼즈","MU":"마이크론","MRVL":"마벨테크","LRCX":"램리서치",
+    "KLAC":"KLA","NXPI":"NXP반도체","ADI":"아날로그디바이스","SMCI":"슈퍼마이크로",
+    "QRVO":"코르보","NOW":"서비스나우","ADBE":"어도비","CRM":"세일즈포스",
+    "ORCL":"오라클","INTU":"인튜이트","CDNS":"케이던스","SNPS":"시놉시스",
+    "WDAY":"워크데이","TEAM":"아틀라시안","ANSS":"앤시스","PANW":"팔로알토",
+    "CRWD":"크라우드스트라이크","FTNT":"포티넷","ZS":"지스케일러","CYBR":"사이버아크",
+    "S":"센티넬원","OKTA":"옥타","PLTR":"팔란티어","DDOG":"데이터독","MDB":"몽고DB",
+    "SNOW":"스노우플레이크","HUBS":"허브스팟","GTLB":"깃랩","TTD":"더트레이드데스크",
+    "APP":"앱러빈","ISRG":"인튜이티브서지컬","DXCM":"덱스컴","IDXX":"아이덱스",
+    "GEHC":"GE헬스케어","MRNA":"모더나","REGN":"리제네론","BIIB":"바이오젠",
+    "VEEV":"비바시스템즈","PODD":"인슐렛","BKNG":"부킹홀딩스","ABNB":"에어비앤비",
+    "LULU":"룰루레몬","MELI":"메르카도리브레","SBUX":"스타벅스","UBER":"우버",
+    "DASH":"도어대시","CELH":"셀시우스","DUOL":"듀오링고","PYPL":"페이팔",
+    "COIN":"코인베이스","AXON":"액슨","AFRM":"어펌","SOFI":"소파이",
+    "LMT":"록히드마틴","RTX":"레이시온","NOC":"노스롭그루먼","CPRT":"코파트",
+    "CTAS":"신타스","PCAR":"팩카","ODFL":"올드도미니언","FANG":"다이아몬드백에너지",
+    "CEG":"콘스텔레이션에너지","VST":"비스트라","TMUS":"T-모바일","CMCSA":"컴캐스트",
+}
 
 SECTOR_MAP = {
     "NVDA":"반도체","MSFT":"빅테크","META":"빅테크","AMZN":"빅테크",
@@ -390,16 +413,24 @@ def save_to_sheets(results, liq_stage, rec_risk):
         for ri in sorted(del_rows, reverse=True):
             ws.delete_rows(ri)
 
-        # MA200 위 + WATCH 이상만 저장
-        save_rows = [
+        # MA200 위 + WATCH 이상 저장
+        save_rows_above = [
             r for r in results
             if r.get("MA200") and r.get("LeaderScore",0)>=80
         ]
+        # MA200 아래 전체 저장 (백테스트 비교용)
+        save_rows_below = [
+            r for r in results
+            if not r.get("MA200")
+        ]
+        save_rows = save_rows_above + save_rows_below
 
         new_rows = []
         for r in save_rows:
             new_rows.append([
-                today, r["Ticker"], r["EntryPrice"],
+                today, r["Ticker"],
+                COMPANY_NAME.get(r["Ticker"], r["Ticker"]),
+                r["EntryPrice"],
                 r["LeaderScore"], r["LeaderGrade"],
                 r["RS"], "Y" if r["MA200"] else "N",
                 r["AccScore"], liq_stage, round(rec_risk,1),

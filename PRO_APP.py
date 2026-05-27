@@ -717,15 +717,25 @@ def load_stocks(_bust=0):
                 rsi = 50.0
 
             # EPS / Rev (yfinance fast_info)
+            # EPS 대신 52주·3개월 주가 수익률 사용
+            # (Streamlit Cloud에서 yfinance EPS API 차단)
             eps = rev = 0.0
             try:
-                info = yf.Ticker(tk).fast_info
-                eps  = round(_safe_float(getattr(info,"earnings_growth",0))*100,1)
+                if len(close) >= 252:
+                    eps = round(
+                        (float(close.iloc[-1]) - float(close.iloc[-252]))
+                        / abs(float(close.iloc[-252])) * 100, 1)
+                elif len(close) >= 60:
+                    eps = round(
+                        (float(close.iloc[-1]) - float(close.iloc[-60]))
+                        / abs(float(close.iloc[-60])) * 100, 1)
             except Exception:
                 pass
             try:
-                info2 = yf.Ticker(tk).info
-                rev   = round(_safe_float(info2.get("revenueGrowth",0))*100,1)
+                if len(close) >= 60:
+                    rev = round(
+                        (float(close.iloc[-1]) - float(close.iloc[-60]))
+                        / abs(float(close.iloc[-60])) * 100, 1)
             except Exception:
                 pass
 
@@ -1248,7 +1258,7 @@ with t_leaders:
             "RS":          st.column_config.NumberColumn("RS",      format="%.1f", width="small"),
             "HighDist":    st.column_config.NumberColumn("신고가%", format="%.1f", width="small"),
             "VolRatio":    st.column_config.NumberColumn("거래량배율",format="%.2f",width="small"),
-            "EPS":         st.column_config.NumberColumn("EPS성장%",format="%.1f",width="small"),
+            "EPS":         st.column_config.NumberColumn("52주수익%",format="%.1f",width="small"),
             "RSI":         st.column_config.NumberColumn("RSI",     format="%.1f", width="small"),
             "Breakout":    st.column_config.TextColumn("돌파",      width="small"),
             "VolSurge":    st.column_config.TextColumn("거래량",    width="small"),

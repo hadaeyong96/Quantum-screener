@@ -387,6 +387,51 @@ def save_pro_results(rows: list, liq_stage: int, rec_risk: float):
     except Exception as e:
         return False, str(e)
 
+def calc_consecutive_days(hist_df: "pd.DataFrame") -> dict:
+    """
+    Sheets History_PRO에서 종목별 연속 선택일 계산
+    → {ticker: (연속일수, 아이콘)}
+    최근 7일 기준
+    """
+    if hist_df.empty: return {}
+    try:
+        _today = pd.Timestamp.now().normalize()
+        _7days = _today - pd.Timedelta(days=7)
+
+        # 최근 7일 MA200 위 + WATCH 이상 종목만
+        _recent = hist_df[
+            (hist_df["Date"] >= _7days) &
+            (hist_df["MA200"].isin(["Y", True, "True"]))
+        ].copy()
+
+        if _recent.empty: return {}
+
+        # 날짜 정규화
+        _recent["Date"] = pd.to_datetime(_recent["Date"]).dt.normalize()
+        _dates = sorted(_recent["Date"].unique(), reverse=True)
+
+        result = {}
+        for tk in _recent["Ticker"].unique():
+            tk_dates = set(
+                _recent[_recent["Ticker"]==tk]["Date"].dt.normalize()
+            )
+            # 연속 선택일 (오늘부터 역순으로 연속된 날짜 수)
+            count = 0
+            for d in _dates:
+                if d in tk_dates:
+                    count += 1
+                else:
+                    break
+
+            if count == 0: count = 1  # 최소 1일
+            icon = "🔥" if count >= 5 else ("✅" if count >= 3 else "🟡")
+            result[tk] = (count, icon)
+
+        return result
+    except Exception:
+        return {}
+
+
 @st.cache_data(ttl=300)
 def load_pro_history():
     """History_PRO 전체 데이터 로드"""
@@ -1351,6 +1396,15 @@ with t_leaders:
     _cfg = {k: st.session_state.get(k, v)
             for k, v in _DEFAULTS.items()}
 
+    # 연속 선택일 계산 (Sheets 누적 데이터 기반)
+    _consec_map = {}
+    try:
+        _hist_for_consec = load_pro_history()
+        if not _hist_for_consec.empty:
+            _consec_map = calc_consecutive_days(_hist_for_consec)
+    except Exception:
+        _consec_map = {}
+
     # 시장 환경 자동 규칙 확인
     _liq_blocked = (_cfg["cfg_liq_block"] and _liq_stage <= 2)
     _rec_elite   = (_cfg["cfg_rec_elite"] and _rec_score >= _cfg["cfg_rec_max"])
@@ -1376,11 +1430,15 @@ with t_leaders:
     _min_rs = _cfg.get("cfg_min_rs", 70)
     for r in _raw_results:
         _res = calculate_leader_score(r, _mkt_ctx, _cfg)
+        _tk = r.get("Ticker","")
+        _cd = _consec_map.get(_tk, (0, ""))
+        _consec_str = f"{_cd[0]}일" if _cd[0] > 0 else "신규"
         _scored.append({**r, **{
             "LeaderScore": _res["score"],
             "LeaderGrade": _res["grade"],
             "Signal":      _res["reasons"],
             "AccScore":    _res["acc"],
+            "연속선택":    _consec_str,
         }})
 
     df = pd.DataFrame(_scored)
@@ -1454,8 +1512,8 @@ with t_leaders:
         f"🚀ELITE→즉시진입 🔥STRONG→분할매수 🔍WATCH→관찰</div>",
         unsafe_allow_html=True)
 
-    _disp_cols = ["Ticker","Name","Sector","LeaderGrade","LeaderScore","AccScore",
-                  "RS","HighDist","VolRatio","EPS","RSI",
+    _disp_cols = ["Ticker","Name","Sector","LeaderGrade","LeaderScore","연속선택",
+                  "AccScore","RS","HighDist","VolRatio","EPS","RSI",
                   "Breakout","VolSurge","Consec","EntryPrice","CondCount"]
     # 모바일: 핵심 컬럼 우선 표시 (전체는 가로 스크롤)
     _disp = _fdf[[c for c in _disp_cols if c in _fdf.columns]].copy()
@@ -1474,6 +1532,9 @@ with t_leaders:
             "Sector":      st.column_config.TextColumn("섹터",     width="small"),
             "LeaderGrade": st.column_config.TextColumn("🏆등급",   width="small"),
             "LeaderScore": st.column_config.NumberColumn("리더점수", format="%.0f"),
+            "연속선택":    st.column_config.TextColumn("연속",
+                            width="small",
+                            help="최근 7일간 연속 선택 횟수"),
             "AccScore":    st.column_config.NumberColumn("매집",    format="%.0f", width="small"),
             "RS":          st.column_config.NumberColumn("RS",      format="%.1f", width="small"),
             "HighDist":    st.column_config.NumberColumn("신고가%", format="%.1f", width="small"),

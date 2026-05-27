@@ -1087,19 +1087,26 @@ with t_market:
 
     # ── 유동성 상세 ──────────────────────────────────────
     st.markdown(
-        "<div style='display:flex;align-items:center;gap:12px;"
-        "margin-bottom:8px;flex-wrap:wrap'>"
         "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace'>LIQUIDITY BREAKDOWN</div>"
-        "<div style='display:flex;align-items:center;gap:8px;"
-        "font-size:10px;color:#6B7280;"
-        "background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:20px;padding:3px 10px'>"
-        "<span>범례:</span>"
-        "<span>🟢 우호적</span>"
-        "<span>🟡 중립</span>"
-        "<span>🔴 위험</span>"
-        "</div></div>",
+        "font-family:Space Mono,monospace;margin-bottom:6px'>"
+        "LIQUIDITY BREAKDOWN</div>",
+        unsafe_allow_html=True)
+
+    # 유동성 5단계 범례
+    st.markdown(
+        "<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px'>"
+        "<div style='font-size:9px;color:#6B7280;padding:3px 0;align-self:center'>5단계:</div>"
+        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:20px;padding:2px 8px'>🚀 5단계 80↑ 유동성 파티</div>"
+        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:20px;padding:2px 8px'>🟢 4단계 60↑ 분할매수 가능</div>"
+        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:20px;padding:2px 8px'>🟡 3단계 40↑ 현금 50%↑</div>"
+        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:20px;padding:2px 8px'>🔴 2단계 20↑ 매수 중단</div>"
+        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:20px;padding:2px 8px'>🔴 1단계 0↑ 전액 현금</div>"
+        "</div>",
         unsafe_allow_html=True)
 
     # detail = {지표명: (현재값, 점수, 신호)} 구조

@@ -16,16 +16,24 @@ import streamlit as st
 # ── 회사 프로필 로드 ───────────────────────────────────────
 @st.cache_data(ttl=3600)
 def load_company_profiles():
-    """GitHub의 company_profiles.json 로드"""
-    try:
-        import os
-        # 앱과 같은 디렉토리에서 읽기
-        _path = os.path.join(os.path.dirname(__file__), "company_profiles.json")
-        if os.path.exists(_path):
-            with open(_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-    except Exception:
-        pass
+    """company_profiles.json 로드 (여러 경로 시도)"""
+    import os
+    # 시도할 경로 목록
+    _candidates = [
+        "company_profiles.json",                          # 현재 디렉토리
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "company_profiles.json"),
+        "/mount/src/quantum-screener/company_profiles.json",  # Streamlit Cloud 경로
+        "/app/company_profiles.json",
+    ]
+    for _path in _candidates:
+        try:
+            if os.path.exists(_path):
+                with open(_path, "r", encoding="utf-8") as _f:
+                    _data = json.load(_f)
+                    if _data:
+                        return _data
+        except Exception:
+            continue
     return {}
 
 # ── Google Sheets ─────────────────────────────────────────

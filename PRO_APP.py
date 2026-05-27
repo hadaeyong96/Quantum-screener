@@ -1976,13 +1976,15 @@ with t_backtest:
             "<div style='font-size:9px;color:#6B7280;margin-bottom:6px'>"
             "진입가 기준 수익률 · 30일 이상 축적 후 의미있는 분석 가능</div>",
             unsafe_allow_html=True)
-        _days_max = int(hist['Days'].max()) if len(hist) > 0 else 0
+        # 누적 기간 계산 (hist 기반)
+        _days_max = int((hist['Date'].max() - hist['Date'].min()).days) if len(hist) > 1 else 0
         _win_rate = f"{_profitable/_total*100:.0f}%" if _total > 0 else "0%"
+        _avg_ret_str = f"{_avg_ret:+.2f}%" if not pd.isna(_avg_ret) else "집계 중"
         _bt_df = pd.DataFrame([
-            {"항목": "총 기록",    "값": f"{_total}건",           "비고": _days_range},
-            {"항목": "수익 종목",  "값": f"{_profitable}건",      "비고": f"승률 {_win_rate}"},
-            {"항목": "평균 수익률","값": f"{_avg_ret:+.2f}%",     "비고": "진입가 기준"},
-            {"항목": "데이터 기간","값": f"{_days_max}일",        "비고": "누적 일수"},
+            {"항목": "총 기록",    "값": f"{_total}건",      "비고": _days_range},
+            {"항목": "수익 종목",  "값": f"{_profitable}건", "비고": f"승률 {_win_rate}"},
+            {"항목": "평균 수익률","값": _avg_ret_str,        "비고": "7일 보유 기준"},
+            {"항목": "데이터 기간","값": f"{_days_max}일",   "비고": "누적 일수"},
         ])
         st.dataframe(
             _bt_df,

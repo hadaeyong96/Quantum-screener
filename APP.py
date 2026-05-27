@@ -1,230 +1,202 @@
-"""
-V24 Quantum Institutional OS  |  초보자용 투자 대시보드
-핵심 원칙: 데이터 → 해석 → 행동
-순서: 유동성 흐름 → 시장 → 주식
-
-VERSION : APP_V122
-  V122 - Google Sheets 연동: 일별 스크리닝 기록 + 7일 연속선택 가중치
-         → 매일 실행 시 조건 5개↑ 종목 자동 Sheets 저장
-         → STEP3 테이블에 📅연속 컬럼 추가
-         → 🔥5일↑ ✅3~4일 🟡1~2일 — 꾸준히 살아남는 종목 식별
-  V121 - 뉴스 방식 변경: yfinance → Anthropic web_search
-         → Yahoo Finance Streamlit Cloud 차단(403) 문제 해결
-         → ANTHROPIC_API_KEY Secrets 필요
-  V120 - STEP4 매수 추천 종목 뉴스 연동
-         → yfinance 내장 뉴스 API (별도 키 불필요)
-         → 종목당 최근 30일 뉴스 3건 · 제목·출처·날짜·링크
-         → QQQ 비교 차트 아래 표시
-  V119 - 경기침체 탭 차트 7개 완성
-         → ⑤ 산업생산지수(INDPRO) 차트 추가
-         → ⑥ 소비자심리지수(UMCSENT) 차트 추가
-         → ⑦ 크레딧 스프레드 차트 추가
-  V118 - ⚙️ 문구편집 탭 신설 (탭 목록 맨 끝)
-         → 사이드바/STEP1 버튼 제거, 전용 탭으로 통합
-  V117 - 사이드바 간소화
-         → 문구 편집 버튼: 사이드바 제거 → STEP1 탭 내부로 이동
-         → API 키 설정: 사이드바 제거 (Streamlit Secrets로 관리)
-  V116 - 테마 원복 + 전체 상자 흰 배경 통일
-         → 사이드바 버튼 문구 명확화 (▶/▼ 기호)
-         → 경기침체 탭 상자 배경 흰색 통일
-  V115 - Windows 블루 테마 적용 (배경 #E8EEF6, 흰 카드, 파란 강조)
-         → 경기침체 탭: 범례 추가 + 검은 카드 → 흰 카드 교체
-         → 탭 활성 색상 파란색, sec-header 파란 하단선
-  V114 - ⚠️ 경기침체 선행지표 탭 추가
-         → 침체 위험 점수(0~100) + 7대 선행지표 카드
-         → 장단기 금리 역전·Sahm Rule·실업급여·실업률 차트
-         → 초보자용 지표 해석 가이드 + 역사적 사례
-  V113 - 문구 편집 모드 추가 (사이드바 버튼 → STEP1 유동성 탭 편집 패널)
-         → session_state 기반 저장 (Streamlit Cloud 호환)
-         → 9개 지표 드롭다운 선택·수정·저장·초기화
-  V107 - ③ 섹션 원형 복원 (유동성 카드 | 시장지표 카드 분리)
-         → V106에서 통합·다크카드 수정 이전 상태로 복원
-  V106 - ① 매수 종목 상세 카드 → st.dataframe 표 형식 통일
-         → ② 청산 검토와 동일한 방식: 손절가/목표1/목표2 컬럼 추가
-  V105 - 💼 내 포트폴리오 탭 완전 삭제 (구글 시트로 이관)
-         → 앱 핵심: 유동성 읽기 + 종목 추천에 집중
-         → _trades_load/save 의존성 제거, 약 600줄 감소
-  V104 - BUG FIX: ⚙️ 포트폴리오 관리 expander 글자 겹침 수정
-         → st.expander 제거, session_state 토글 + container 방식으로 교체
-  V103 - 포트폴리오 ↔ 알고리즘 연동 강화
-         · 포트폴리오 탭 각 행에 매수·매도 신호 배지 직접 표시
-           (💰익절 / 📉추적손절 / ⚠️EXIT / 🔁MA10회복 / 🚀강매수)
-         · 분할매수 lots 가중평균가로 익절 계산 (단일 buy_price 오류 수정)
-         · 버전명 전체 통일: QUANTUM INSTITUTIONAL OS V103
-           (APP_VERSION, 타이틀, 사이드바, 헤더, 리포트, 푸터 6곳 동시)
-         ✅ 앞으로 버전 수정 시 6곳 동시 체크 의무화
-  V102 - 매수 종목 상세 카드 정리
-         · 비중 바 (보유%·매도%·진행 바) 전체 제거
-         · 익절 단계 텍스트 설명 제거
-         · 4칸 가격 그리드만 깔끔하게 표시
-           (현재가 / ATR손절 / 1차+15% / 2차+25%)
-         · _hold_pct, _sold_pct, _bh, _bs, _stxt 관련 코드 정리
-  V101 - STEP5 보유관리 → 💼 내 포트폴리오 통합
-         · 기존 STEP5 삭제, 포트폴리오 탭이 STEP5 자리 차지 (탭 5개)
-         · QQQ 비교 차트를 포트폴리오 탭 하단으로 이식
-         · 📝 새 종목 추가 폼: expander 글자 겹침 버그 수정
-           → st.expander 제거, st.form() 으로 교체 (재렌더링 없이 안정적)
-         · ＋ 다른 구매 기록하기: expander 제거, container 인라인 폼으로 교체
-         · 앞으로 펼치기 기능은 expander 대신 st.form / container 사용 원칙 적용
-  V100 - 💼 내 포트폴리오 탭 신규 추가
-         Google Finance 스타일 포트폴리오 UI
-         · 종목별 매수 기록 직접 입력 (티커·수량·매수가·날짜)
-         · 여러 번 분할매수 기록 지원 (+ 다른 구매 기록하기)
-         · 현재가·일일 수익·총수익·원화 평가금액 자동 계산
-         · 접힘/펼침 상세 보기 (Google Finance 동일 UX)
-         · 정렬: 일일 변동률 / 수익률 / 종목명
-         · 전체 포트폴리오 요약 카드 (총평가액·총수익·수익률)
-         · trades.json 영구 저장
-  V99  - 💻 PC 버전
-        V98 전체 로직 유지 + PC 레이아웃 복원
-        · 사이드바 expanded / 탭 이름 풀네임 복원
-        · 지표 카드 좌(설명) + 우(차트) 2열 복원
-        · 차트 height 160→220~280 복원
-        · 데이터프레임 height 340→520 복원
-        · 섹터·시장 3열 카드 복원
-        · 종목 테이블 전체 컬럼 표시
-        · STEP4 3열 행동 카드 복원
-  V98 - 7가지 전면 개선 (AI 트레이더 평가 반영)
-        1. 백테스트 결과 종목분석 탭 상단 표시 (승률·평균수익·MDD)
-        2. trades.json 매수가 저장 → 실제 수익률 기반 익절 판단
-        3. ATR 기반 포지션 사이징 (종목당 총자산 1% 리스크 룰)
-        4. 실적 서프라이즈 갭업 진입 신호 (당일 +5%↑ + 거래량 3배↑)
-        5. 섹터 강도 0~100점 정량화 (RS+1M+3M+MA 합산)
-        6. RS Score 단기 가중치 재조정 (1M:0.25 3M:0.30 6M:0.25 12M:0.20)
-        7. GLD 헤지 자산 추가 (유동성 2단계 이하 자동 비중 상향)
-  V97 - 수익 확보 시스템
-        · 추적 손절 (Trailing Stop): 20일 고점 -10% 이탈 → 📉 추적손절
-        · 단계별 익절 신호: +15% → 💰 1차익절 (50% 매도), +25% → 💰 2차익절 (잔여 50% 절반)
-        · 실적발표 3일 전 보유 시 ⚠️ 실적전축소 신호 자동 표시
-        · VIX 단계별 포지션 축소 (20→경계 / 25→축소 / 28→금지)
-        · MA10 이탈 2일 연속 확인 후 EXIT 확정 (횡보 손절 반복 방지)
-        · 일평균 거래량 100만주 미만 자동 필터
-        · get_invest_ratio VIX 단계 반영
-  V96 - 🔁 MA10 재돌파 신호 추가
-        3연상 거래량 최소 조건 추가 (평균 × 0.8)
-        거래량 가중치 10%→15% / EPS 가중치 20%→15%
-        ROE 20%↑ 보너스 +5점 밸류에이션에 반영
-        ATR(14) 기반 동적 손절 컬럼 추가
-  V95 - 📱 모바일 전용 버전 (Mobile-First)
-        사이드바 → collapsed / 탭 이름 아이콘+단어로 축약
-        모든 st.columns → 세로 스택 (모바일 1열)
-        차트 height: 220→160 / 폰트 전체 -2px / 패딩 축소
-        데이터프레임 height: 520→340 / 핵심 컬럼만 표시
-        3열 카드 → CSS grid 2열 자동 wrap
-UPDATED : 2026-05-22
-CHANGES :
-  V01 - 원본 기본 대시보드 (yfinance)
-  V02 - FRED 연동 / 다크테마 / RS 버그 수정
-  V03 - 유동성 대시보드 / 행동 가이드 / 섹터 분석
-  V04 - TODAY'S ACTION 제거 / 페이지 간소화
-  V05 - 탭 네비게이션 / QQQ차트 / VIX / 공포탐욕지수
-  V06 - 탭 순서 재편 / 사이드바 3단계 종목 구성 / 섹터 전용 탭
-  V07 - DEFAULT_TICKERS QQQ 주요 50종목으로 확장
-  V08 - CNN+multpl 디자인 적용 / PE Ratio 추가 / 색상 절제
-  V23 - 라이트테마 완성 / 다크잔존 전면 제거 / 데이터 타임스탬프 / 주식지도 섹터+RS색상+범례
-  V43 - 유동성 섹션 체크리스트 표 형식으로 변경 (6줄 → 1줄/지표)
-V42 - BUG FIX: 보고서 표시 코드 누락 복구 (화면에 아무것도 안 나오는 문제)
-V41 - 보고서 "종합 전략 판단" 섹션 추가
-        RSI/실질금리/환율 자동 위험 분석 + 시나리오 확률 자동 계산
-        BUG FIX: 구 API 키 입력 중복 제거 (사이드바 전역 잔존 코드)
-V40 - 순수 텍스트 보고서 (이모지 제거, ASCII 구조)
-        유동성 섹션 강화: 지표별 역할·현재값·역사적 위치 상세 설명
-        포트폴리오 표 형식: 종목/배분/주수/실매수 정렬
-V39 - 보고서 전면 재설계: A4 반장 분량, 핵심만
-        금리 3개만 (2Y/10Y/30Y)
-        BUG FIX: M2/TGA/준비금 단위 표시 오류 (0.00TB$ → T$)
-        포트폴리오: 종목별 주수 명시
-V38 - BUG FIX: f-string 포맷 지정자 내 조건식 사용 불가 수정
-        fg_score/pe_current 표시를 f-string 밖에서 미리 계산
-V37 - BUG FIX: get_invest_ratio/SCALE_CONFIG 전역 이동 (NameError 수정)
-V36 - 단일 화면 투자 지침서 (탭 제거)
-        전체 수익률 커브 (1M/3M/2Y/3Y/5Y/10Y/20Y/30Y)
-        HTML+텍스트 이중 보고서 (화면 시각화 + 텔레그램/다운로드)
-        내 거래 탭 제거 (Google Finance 사용)
-V35 - 5탭 확장: 내 거래(매수/매도/수익률) + 보고서(생성/다운로드/텔레그램)
-        포트폴리오 탭: 매수 주수 계산기 (환율 자동 적용)
-        내 거래: trades.json 영구 저장 + 엑셀 다운로드
-        보고서: 서론/본론/결론 자동 생성 + 다운로드 + 텔레그램
-V34 - 3탭 전면 재구성: 오늘의 판단 / 포트폴리오 / 설정
-        load_stocks 전역 이동 (탭 진입 전 자동 로드)
-        오늘의 판단: 유동성+시장+섹터+TOP5 종목 한 화면
-        설정 탭: API키·투자금·텔레그램·종목관리 통합
-V33 - 시장·섹터 탭 재구성: QQQ 차트 맨 앞 이동
-        QQQ 차트 업그레이드: MA200 + 거래량 + RSI(14) + VIX + 52주 고점/저점
-        섹터 선택 → 진입 판단 섹션 제거
-        섹터 분석 → 강한섹터 순서로 정리
-V32 - OS 키체인(keyring) 보안 저장 적용
-        저장 우선순위: keyring > secrets.toml > config.json > 수동 입력
-        keyring 미설치 시 config.json 평문 저장 자동 폴백
-V31 - API 키 자동 저장 (secrets.toml 우선 → config.json 폴백 → 수동 입력)
-        저장 버튼 1클릭으로 config.json 영구 저장
-        사이드바 종목 목록 → 섹터별 요약으로 변경
-V30 - BUG FIX: 포트폴리오 탭 단계 계산 이중화 해결
-        compute_liq_stage() → LIQ_ACTION["stage"] 통일 (100점 시스템 일원화)
-        투자 불가 메시지 V29 기준으로 수정
-V29 - 단계 역전: 1=현금보유(최악) → 5=적극매수(최적)
-        점수판 → 각 지표 차트 아래 배치 (차트+점수 연결)
-        점수판 양호 색상 진한초록 → 연한초록 (#166534 → #16A34A)
-V28 - BUG FIX: pandas Series "or" 연산자 사용 금지 위반 수정 (3부 규칙)
-        cur_data = fred_data.get(key) or hist → 안전한 None/empty 체크로 교체
-V27 - BUG FIX: 단계 바 HTML 중첩 렌더링 오류 수정 (별도 st.markdown 분리)
-        BUG FIX: TGA·RRP 백분위 계산 오류 (limit=60 → 2000년 전체 역사 로드)
-        BUG FIX: M2 limit=30 부족 → fred_history 전용 로더 추가
-V26 - 유동성 100점 점수 시스템 (역사 백분위 기반, FRED 전체 데이터 활용)
-        투자 단계 5단계 한글화 (적극매수/선별매수/관망/투자보류/현금보유)
-        유동성 5단계 진행 바 + 단계별 명확한 범례 표시
-        Layer 2 지표 점수판 (6개 지표 × 100점 + 위험 기준선 시각화)
-        종목맵 섹터 박스 배경 진하게 수정 (흰배경 흰글씨 가독성 버그 수정)
-        RISK ON/OFF → 한글 투자 행동 단계로 전면 교체
-        투자금 규모(사이드바 직접 입력)에 따른 5단계 전략 자동 결정
-        유동성 단계 × 시장 상태 → 실질 투자 가능 금액 자동 계산
-        3계층 종목풀 (공격/방어/헤지) + 규모별 헤지 자산 자동 추가
-        날짜별 분할 매수 스케줄 (1~3차 구체적 금액 표)
-        포트폴리오 리스크 점수 (0~100, 섹터집중도+RS+유동성)
-        청산 신호 별도 패널로 분리
-        BUG FIX: _dir_arrow 절대값 임계값 → 상대값 기준으로 수정 (M2 단위 오류 해결)
-        BUG FIX: pe_current falsy 체크 → is not None 패턴 통일
-        BUG FIX: sector ETF 로드 기간 3mo → 6mo (마진 확보)
-        BUG FIX: TAB1 주석 3중 중복 제거
-        BUG FIX: dir() 체크 패턴 정리 (module-scope 변수 직접 참조)
-        NEW: 실적 발표일 경고 (매수 3일 전 경고 — 우선순위 1위)
-        NEW: 52주 신고가 대비 위치 게이지 시각화 (우선순위 2위)
-        NEW: 환율 차트 USD/KRW · USD/JPY 세계시장 탭 추가 (우선순위 5위)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-코딩 원칙 (V106+, 모든 버전에 적용)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-[데이터 정확성 원칙]
-1. 핵심 판단 데이터는 항상 실시간/공식 소스에서 수집한다.
-   - 주가, 배당수익률, 재무 지표 → yfinance 실제 데이터
-   - 유동성 지표 → FRED API 공식 데이터
-   - 하드코딩 고정값 사용 금지 (임시 fallback 포함)
-
-2. 데이터가 불확실하거나 누락된 경우 반드시 UI에 고지한다.
-   - 표시 방식: "⚠️ 데이터 없음", "N/A", "추정값" 명시
-   - 추정/근사값을 실제값처럼 표시하는 것은 절대 금지
-   - 고지 없이 0 또는 기본값으로 대체 금지
-
-3. 데이터 수집 실패 시 해당 항목을 None/N/A로 표시하고
-   판단 로직에서 제외한다. 오류를 숨기지 않는다.
-
-[UI 표시 원칙]
-4. 추정값·근사값·지연 데이터는 항상 출처와 기준일을 표시한다.
-5. "실시간" 표현은 실제로 실시간 수집 시에만 사용한다.
-
-[코드 품질 원칙]
-6. st.expander 사용 금지 → session_state 토글 + st.container
-7. st.plotly_chart에 항상 key= 포함
-8. pandas Series or 연산자 사용 금지
-9. 모든 종목 루프는 개별 try-except
-10. 버전 수정 시 VERSION·APP_VERSION·타이틀·파일명·app.py 5곳 동시
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"""
+# VERSION : APP_V124
+# QUANTUM INSTITUTIONAL OS — Institutional Leader Engine
+# CHANGELOG: see CHANGELOG.md
 
 import io, sys, re, requests, warnings, json
 from pathlib import Path
 from datetime import datetime, timedelta
+
+
+# =========================================================
+# INSTITUTIONAL LEADER ENGINE (CLAUDE_RULES.md v2)
+# "시장 무너질 때도 안 죽는 종목" 탐지
+# =========================================================
+
+def calculate_leader_score(row: dict, market_ctx: dict) -> dict:
+    """
+    기관형 리더주 종합 점수 계산
+    입력: row(종목 데이터), market_ctx(시장 환경)
+    출력: {score, grade, reasons, acc_score}
+    """
+    score   = 0
+    reasons = []
+
+    # ── 1. 시장 환경 필터 (최우선) ──────────────────────────
+    liq_stage     = market_ctx.get("liquidity_stage", 3)
+    recession_risk= market_ctx.get("recession_risk", 50)
+    vix           = market_ctx.get("vix", 20)
+    qqq_trend     = market_ctx.get("qqq_trend", "NEUTRAL")
+    market_drop   = market_ctx.get("market_drawdown", 0)
+
+    if liq_stage <= 2:
+        score -= 20; reasons.append("⚠️ 유동성 위험")
+    elif liq_stage >= 4:
+        score += 10; reasons.append("💧 유동성 우호")
+
+    if recession_risk >= 70:
+        score -= 25; reasons.append("⚠️ 침체 위험")
+    elif recession_risk <= 35:
+        score += 10
+
+    if vix >= 28:
+        score -= 25; reasons.append("⚠️ VIX 급등")
+    elif vix <= 18:
+        score += 5
+
+    if qqq_trend == "BULL":
+        score += 10; reasons.append("📈 시장 상승 추세")
+    elif qqq_trend == "BEAR":
+        score -= 15; reasons.append("📉 시장 약세")
+
+    # ── 2. 상대강도 RS ──────────────────────────────────────
+    rs = row.get("RS Score", row.get("RS Raw", 0)) or 0
+    if rs >= 95:
+        score += 35; reasons.append("🚀 초강세 RS")
+    elif rs >= 90:
+        score += 25
+    elif rs >= 80:
+        score += 15
+    elif rs < 70:
+        score -= 25; reasons.append("RS 약세")
+
+    # ── 3. 신고가 근처 유지 여부 ────────────────────────────
+    high_dist = row.get("52주 고점%", -100) or -100
+    if high_dist >= -5:
+        score += 25; reasons.append("🔥 신고가 근처")
+    elif high_dist >= -10:
+        score += 15
+    elif high_dist <= -25:
+        score -= 20; reasons.append("신고가 대비 약세")
+
+    # ── 4. 기관 거래량 탐지 ─────────────────────────────────
+    vol_ratio = row.get("Vol Ratio", 1) or 1
+    if vol_ratio >= 2.0:
+        score += 25; reasons.append("🏦 기관 거래량")
+    elif vol_ratio >= 1.5:
+        score += 15
+    elif vol_ratio <= 0.7:
+        score -= 10; reasons.append("거래량 약세")
+
+    # ── 5. 실적 성장 ────────────────────────────────────────
+    eps_growth   = row.get("EPS Growth%", 0) or 0
+    sales_growth = row.get("Rev Growth%", 0) or 0
+
+    if eps_growth >= 50:
+        score += 25; reasons.append("📈 초고성장 EPS")
+    elif eps_growth >= 30:
+        score += 20; reasons.append("📈 EPS 고성장")
+    elif eps_growth < 0:
+        score -= 25; reasons.append("EPS 감소")
+
+    if sales_growth >= 30:
+        score += 15
+    elif sales_growth >= 20:
+        score += 10
+    elif sales_growth < 0:
+        score -= 10
+
+    # ── 6. 추세 구조 (MA) ───────────────────────────────────
+    above_ma20  = row.get("ABOVE_MA20",  False)
+    above_ma50  = row.get("ABOVE_MA50",  False)
+    above_ma200 = row.get("ABOVE_MA200", False)
+
+    if above_ma20:  score += 5
+    if above_ma50:  score += 10
+    if above_ma200:
+        score += 20; reasons.append("📊 장기 상승 추세")
+    else:
+        score -= 35; reasons.append("200MA 아래")
+
+    # ── 7. 하락장 생존 리더 (핵심 차별화) ──────────────────
+    if market_drop <= -10:
+        if rs >= 90 and high_dist >= -10:
+            score += 35; reasons.append("🛡️ 하락장 생존 리더")
+        if vol_ratio >= 1.5:
+            score += 10
+
+    # ── 8. 리더 섹터 보너스 ─────────────────────────────────
+    sector_score = row.get("섹터 AI Score", row.get("SECTOR_SCORE", 50)) or 50
+    if sector_score >= 85:
+        score += 20; reasons.append("🏆 리더 섹터")
+    elif sector_score >= 70:
+        score += 10
+    elif sector_score <= 40:
+        score -= 10
+
+    # ── 9. 실적 발표 위험 ────────────────────────────────────
+    if row.get("실적경고"):
+        score -= 10; reasons.append("⚠️ 실적 발표 임박")
+
+    # ── 10. 기관 매집 점수 (Accumulation Score) ─────────────
+    acc = 0
+    if row.get("UP_VOL_RATIO", 1) >= 1.3: acc += 10
+    if row.get("GAP_HOLD",   False):       acc += 10
+    if row.get("ABOVE_VWAP", False):       acc += 10
+    if row.get("OBV_TREND",  0) > 0:       acc += 10
+
+    # 브레이크아웃 + 거래량 급증 = 기관 매집 신호
+    if row.get("Breakout") == "✅" and vol_ratio >= 1.5:
+        acc += 10
+
+    score += acc
+    if acc >= 25: reasons.append("🏦 기관 매집 강화")
+
+    # ── 11. 침체 위험 × RS 조합 제한 ────────────────────────
+    if recession_risk >= 75 and rs < 95:
+        score -= 15
+
+    # ── 12. 최종 등급 ────────────────────────────────────────
+    if   score >= 140: grade = "🚀 ELITE LEADER"
+    elif score >= 110: grade = "🔥 STRONG LEADER"
+    elif score >= 80:  grade = "✅ WATCHLIST"
+    else:              grade = "⚠️ WEAK"
+
+    return {
+        "score":     round(score, 1),
+        "grade":     grade,
+        "reasons":   ", ".join(reasons),
+        "acc_score": acc,
+    }
+
+
+def build_market_ctx(liq_stage, liq_pct, rec_score, mkt_data) -> dict:
+    """
+    시장 환경 컨텍스트 생성
+    liq_stage: 1~5, liq_pct: 0~1,
+    rec_score: 0~100 (경기침체 위험),
+    mkt_data: yfinance QQQ/VIX 데이터
+    """
+    ctx = {
+        "liquidity_stage": liq_stage,
+        "recession_risk":  rec_score,
+        "vix":             20,
+        "qqq_trend":       "NEUTRAL",
+        "market_drawdown": 0,
+    }
+    try:
+        # VIX
+        vix_s = mkt_data.get("VIX") if mkt_data else None
+        if vix_s is not None and len(vix_s) > 0:
+            ctx["vix"] = float(vix_s.iloc[-1])
+
+        # QQQ 추세 (20일 MA 기준)
+        qqq_s = mkt_data.get("QQQ") if mkt_data else None
+        if qqq_s is not None and len(qqq_s) >= 20:
+            _cur = float(qqq_s.iloc[-1])
+            _ma20= float(qqq_s.rolling(20).mean().iloc[-1])
+            _ma50= float(qqq_s.rolling(50).mean().iloc[-1]) if len(qqq_s) >= 50 else _ma20
+            if _cur > _ma20 > _ma50:
+                ctx["qqq_trend"] = "BULL"
+            elif _cur < _ma20 < _ma50:
+                ctx["qqq_trend"] = "BEAR"
+
+            # 52주 고점 대비 낙폭
+            _hi52 = float(qqq_s.rolling(min(252, len(qqq_s))).max().iloc[-1])
+            if _hi52 > 0:
+                ctx["market_drawdown"] = round((_cur - _hi52) / _hi52 * 100, 1)
+    except Exception:
+        pass
+    return ctx
 
 # ── Google Sheets 연동 (선택적 임포트) ───────────────────
 try:
@@ -257,7 +229,7 @@ def _get_gsheet():
         return None
 
 def _save_screening_result(tickers_selected: list, liq_stage: int):
-    """오늘 날짜 + 선택 종목을 Sheets에 기록"""
+    """오늘 날짜 + 선택 종목을 Sheets에 기록 (중복 방지)"""
     try:
         _sh = _get_gsheet()
         if _sh is None:
@@ -269,15 +241,15 @@ def _save_screening_result(tickers_selected: list, liq_stage: int):
             _ws = _sh.add_worksheet(title="History", rows=1000, cols=200)
             _ws.append_row(["Date", "LiqStage", "Count", "Tickers"])
         _today = datetime.now().strftime("%Y-%m-%d")
-        # 오늘 이미 기록했으면 덮어쓰지 않음
-        _all = _ws.get_all_values()
-        for i, row in enumerate(_all):
-            if row and row[0] == _today:
-                # 업데이트
-                _ws.update(f"A{i+1}", [[_today, liq_stage,
-                    len(tickers_selected), ",".join(tickers_selected)]])
-                return True
-        # 신규 추가
+        _all   = _ws.get_all_values()
+
+        # 오늘 날짜 기존 행 모두 삭제 (중복 완전 제거)
+        _del_rows = [i+1 for i, row in enumerate(_all)
+                     if row and row[0] == _today]
+        for _ri in sorted(_del_rows, reverse=True):
+            _ws.delete_rows(_ri)
+
+        # 신규 저장 (항상 최신 1건만)
         _ws.append_row([_today, liq_stage,
             len(tickers_selected), ",".join(tickers_selected)])
         return True
@@ -370,7 +342,7 @@ from datetime import datetime
 # ─────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────
-st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V122",
+st.set_page_config(page_title="QUANTUM INSTITUTIONAL OS V124",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ── V99: PC 전용 CSS (Desktop-First) ─────────────────────
@@ -1134,7 +1106,7 @@ sb.markdown(
     "<div style='font-family:Space Mono,monospace;font-size:13px;font-weight:600;"
     "color:#3B5BA5;letter-spacing:1px;padding:6px 0 1px'>"
     "QUANTUM INSTITUTIONAL OS</div>"
-    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V122 &nbsp;·&nbsp; 💻 PC VERSION</div>"
+    "<div style='font-size:10px;color:#9CA3AF;margin-bottom:2px'>V124 &nbsp;·&nbsp; 💻 PC VERSION</div>"
     "<div style='font-size:10px;color:#9CA3AF;margin-bottom:8px'>"
     "나스닥 중심 투자 스크리너</div>",
     unsafe_allow_html=True)
@@ -1222,7 +1194,7 @@ sb.markdown("<hr style='border-color:#E2E6ED;margin:6px 0'>", unsafe_allow_html=
 # ─────────────────────────────────────────────────────────
 # TITLE
 # ─────────────────────────────────────────────────────────
-APP_VERSION = "V122"
+APP_VERSION = "V124"
 st.markdown(f"""
 <div style="padding:16px 0 10px 0;border-bottom:1px solid #E2E6ED;margin-bottom:4px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
@@ -1232,7 +1204,7 @@ st.markdown(f"""
         QUANTUM INSTITUTIONAL OS
       </span><br>
       <span style="font-size:11px;color:#6B7280;letter-spacing:2px">
-        V122  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
+        V124  |  유동성 → 시장 → 주식  |  데이터 → 해석 → 행동
       </span><br>
       <span style="font-size:11px;color:#9CA3AF;margin-top:4px;display:inline-block;
             border-left:3px solid #3B5BA5;padding-left:8px;line-height:1.6">
@@ -1631,6 +1603,54 @@ def load_stocks(tickers, _bust=0):
             vol_ratio=float(volume.iloc[-1])/avg_v if avg_v>0 else 1.0
             _liq_pct_safe = liq_pct if 'liq_pct' in dir() and isinstance(liq_pct, (int,float)) else 0.5
             # V96: 거래량 가중치 0.10→0.15 / EPS 0.20→0.15
+            # ── MA200·VWAP·OBV·갭홀드 계산 (Accumulation) ──────
+            _above_ma20 = _above_ma50 = _above_ma200 = False
+            _up_vol_ratio = 1.0
+            _gap_hold     = False
+            _above_vwap   = False
+            _obv_trend    = 0
+            try:
+                _cur_p = float(close.iloc[-1])
+                if len(close) >= 20:
+                    _above_ma20  = _cur_p > float(close.rolling(20).mean().iloc[-1])
+                if len(close) >= 50:
+                    _above_ma50  = _cur_p > float(close.rolling(50).mean().iloc[-1])
+                if len(close) >= 200:
+                    _above_ma200 = _cur_p > float(close.rolling(200).mean().iloc[-1])
+
+                # OBV 추세 (최근 20일 OBV 기울기)
+                if len(close) >= 20 and len(volume) >= 20:
+                    _price_diff = close.diff().iloc[-20:]
+                    _obv_daily  = volume.iloc[-20:] * _price_diff.apply(
+                        lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
+                    _obv_cum    = _obv_daily.cumsum()
+                    _obv_trend  = 1 if _obv_cum.iloc[-1] > _obv_cum.iloc[0] else -1
+
+                # 양봉 거래량 비율 (최근 10일)
+                if len(close) >= 10 and len(volume) >= 10:
+                    _up_days  = close.diff().iloc[-10:] > 0
+                    _up_vol   = volume.iloc[-10:][_up_days].mean() if _up_days.any() else 0
+                    _dn_vol   = volume.iloc[-10:][~_up_days].mean() if (~_up_days).any() else 1
+                    _up_vol_ratio = float(_up_vol / _dn_vol) if _dn_vol > 0 else 1.0
+
+                # VWAP (당일 기준 근사: 20일 평균가격/거래량 가중)
+                if len(close) >= 5 and len(volume) >= 5:
+                    _vwap = float(
+                        (close.iloc[-5:] * volume.iloc[-5:]).sum() /
+                        volume.iloc[-5:].sum()
+                    ) if volume.iloc[-5:].sum() > 0 else _cur_p
+                    _above_vwap = _cur_p >= _vwap
+
+                # 갭업 유지 (어제 고가 대비 오늘 시가 갭 후 유지)
+                try:
+                    _hi_prev = float(data["High"].iloc[-2]) if "High" in data.columns else 0
+                    _open_today = float(data["Open"].iloc[-1]) if "Open" in data.columns else _cur_p
+                    _gap_hold = (_open_today > _hi_prev * 1.01) and (_cur_p >= _open_today * 0.99)
+                except Exception:
+                    _gap_hold = False
+            except Exception:
+                pass
+
             ai=round(max(0,min(100,
                 max(rs_raw,0)*0.30 +
                 max(eps,0)*0.15 +
@@ -1722,6 +1742,9 @@ def load_stocks(tickers, _bust=0):
                 "추적손절":"✅" if trailing_stop else "—",
                 "Breakout":"✅" if breakout else "—","Vol Surge":"✅" if vol_surge else "—",
                 "3연상":"✅" if consecutive_rise else "—",
+                "ABOVE_MA200": _above_ma200, "ABOVE_MA50": _above_ma50, "ABOVE_MA20": _above_ma20,
+                "OBV_TREND": _obv_trend, "ABOVE_VWAP": _above_vwap,
+                "GAP_HOLD": _gap_hold, "UP_VOL_RATIO": round(_up_vol_ratio, 2),
                 "MA10회복":"✅" if ma10_recovery else "—",
                 "갭업":"✅" if earnings_gap_up else "—",
                 "Exit Signal":"⚠️" if exit_signal else "—","Signal":signal,
@@ -1786,6 +1809,60 @@ else:
             df_all = df_all.sort_values(
                 "섹터 AI Score", ascending=False).reset_index(drop=True)
             df_all.index = df_all.index + 1
+
+            # ── Leader Score 계산 (CLAUDE_RULES.md) ─────────
+            try:
+                # 경기침체 위험 점수 (session_state에 저장된 값 사용)
+                _rec_risk = st.session_state.get("recession_risk_score", 50)
+                # QQQ 시계열 (mkt에서 추출)
+                _qqq_hist = None
+                try:
+                    _qqq_hist = yf.download("QQQ", period="1y",
+                        auto_adjust=True, progress=False)["Close"]
+                except Exception:
+                    pass
+                # 시장 컨텍스트 생성
+                _mkt_prices = {"QQQ": _qqq_hist} if _qqq_hist is not None else {}
+                try:
+                    _vix_last = float(mkt.get("VIX", pd.Series([20])).iloc[-1])
+                    _mkt_prices["VIX"] = mkt.get("VIX", pd.Series([_vix_last]))
+                except Exception:
+                    pass
+                _mkt_ctx = build_market_ctx(
+                    liq_stage=int(IND_SCORE_100.get("LiqStage", {}).get("score", 3) / 20) + 1
+                        if "LiqStage" in IND_SCORE_100 else 3,
+                    liq_pct=liq_pct if 'liq_pct' in dir() else 0.5,
+                    rec_score=_rec_risk,
+                    mkt_data=_mkt_prices,
+                )
+                # 각 종목 leader score 계산
+                _leader_results = df_all.to_dict("records")
+                _ls_scores  = []
+                _ls_grades  = []
+                _ls_reasons = []
+                _ls_acc     = []
+                for _rr in _leader_results:
+                    _res = calculate_leader_score(_rr, _mkt_ctx)
+                    _ls_scores.append(_res["score"])
+                    _ls_grades.append(_res["grade"])
+                    _ls_reasons.append(_res["reasons"])
+                    _ls_acc.append(_res["acc_score"])
+                df_all["Leader Score"]  = _ls_scores
+                df_all["Leader Grade"]  = _ls_grades
+                df_all["Leader Signal"] = _ls_reasons
+                df_all["Acc Score"]     = _ls_acc
+                # Leader Score 기준 재정렬
+                df_all = df_all.sort_values(
+                    ["Leader Score","섹터 AI Score"],
+                    ascending=[False, False]
+                ).reset_index(drop=True)
+                df_all.index = df_all.index + 1
+                st.session_state["market_ctx"] = _mkt_ctx
+            except Exception as _le:
+                df_all["Leader Score"]  = df_all.get("섹터 AI Score", 50)
+                df_all["Leader Grade"]  = "—"
+                df_all["Leader Signal"] = "—"
+                df_all["Acc Score"]     = 0
         # ── Sheets 기록 + 가중치 로드 ──────────────────────────
         try:
             # 오늘 스크리닝 결과 저장 (5개 조건 이상 종목)
@@ -5365,10 +5442,10 @@ with tab2:
         # PC: 컬럼 구성 고정 — 모드 무관 항상 동일한 순서
         # 배당수익률%는 항시 표시 (데이터 없으면 N/A)
         _showcols = [c for c in [
-            "Ticker","섹터","조건/9","연속선택일",
-            "RS✅","AI✅","EPS✅","RSI✅","신고가✅",
+            "Ticker","섹터","Leader Grade","Leader Score","연속선택일",
+            "조건/9","RS✅","AI✅","EPS✅","RSI✅","신고가✅",
             "Breakout","Vol Surge","3연상","MA10회복","갭업",
-            "Price","배당수익률%","ATR손절","PEG","Rev Growth%",
+            "Acc Score","Price","배당수익률%","ATR손절","PEG","Rev Growth%",
             "실적예정","실적경고"
         ] if c in _disp_df.columns]
 
@@ -5377,6 +5454,10 @@ with tab2:
             use_container_width=True,
             height=520,
             column_config={
+                "Leader Grade": st.column_config.TextColumn("🏆등급", width="small"),
+                "Leader Score": st.column_config.NumberColumn("리더점수", width="small", format="%.0f"),
+                "Acc Score":    st.column_config.NumberColumn("매집점수", width="small", format="%.0f",
+                    help="OBV·VWAP·갭홀드·양봉비율 기반 기관 매집 점수"),
                 "조건/9":  st.column_config.TextColumn("조건/9",  width="small"),
                 "연속선택일": st.column_config.TextColumn("📅연속", width="small",
                     help="최근 7일간 이 종목이 스크리닝에 선택된 횟수\n🔥5일↑ ✅3~4일 🟡1~2일"),
@@ -6243,6 +6324,8 @@ with tab4:
         return round(total, 1), signals
 
     _rec_score, _rec_signals = _calc_recession_score(_rec_data, fred_data)
+    # 전역 session_state에 저장 → Leader Engine에서 활용
+    st.session_state["recession_risk_score"] = _rec_score
 
     if   _rec_score >= 70: _rg_col="#B91C1C"; _rg_bg="#FFFFFF"; _rg_lbl="🔴 높은 위험"; _rg_bc="#FECACA"
     elif _rec_score >= 50: _rg_col="#C2410C"; _rg_bg="#FFFFFF"; _rg_lbl="🟠 주의 구간"; _rg_bc="#FED7AA"
@@ -6264,6 +6347,60 @@ with tab4:
         f"height:100%;border-radius:99px'></div></div>"
         f"<div style='font-size:13px;font-weight:600;color:{_rg_col}'>{_rg_lbl}</div>"
         f"</div>",
+        unsafe_allow_html=True)
+
+    # ── 침체 위험 → 투자 행동 지침 ─────────────────────────
+    if _rec_score >= 70:
+        _act_bg="#FEF2F2"; _act_bc="#FECACA"; _act_tc="#B91C1C"
+        _act_title = "🚨 경기침체 고위험 — 즉시 방어 전환"
+        _act_items = [
+            "신규 매수 전면 중단",
+            "포지션 50% 이상 현금 확보",
+            "GLD(금)·TLT(채권) 헤지 비중 확대",
+            "리더주 기준 RS 95↑ 초강세만 유지",
+            "손절 기준 강화 (-5%로 축소)",
+        ]
+    elif _rec_score >= 50:
+        _act_bg="#FFF7ED"; _act_bc="#FED7AA"; _act_tc="#C2410C"
+        _act_title = "⚠️ 경기침체 주의 — 방어적 포지션"
+        _act_items = [
+            "신규 매수 소량만 허용 (투자금 20% 이하)",
+            "현금 비중 40~50% 유지",
+            "섹터 공격성 축소 (헬스케어·필수소비 비중 증가)",
+            "RS 90↑ 생존 리더주만 편입",
+            "손절 기준 -6%로 강화",
+        ]
+    elif _rec_score >= 30:
+        _act_bg="#FFFBEB"; _act_bc="#FDE68A"; _act_tc="#92400E"
+        _act_title = "🟡 경기침체 관찰 — 선택적 진입"
+        _act_items = [
+            "유동성 단계 확인 후 분할 매수 가능",
+            "현금 비중 30% 유지",
+            "리더 섹터 중심 집중",
+            "RS 80↑ 기준 유지",
+            "손절 기준 표준 -8%",
+        ]
+    else:
+        _act_bg="#F0FDF4"; _act_bc="#86EFAC"; _act_tc="#15803d"
+        _act_title = "🟢 경기침체 안전 — 공격 가능"
+        _act_items = [
+            "유동성 단계에 따라 적극 매수 가능",
+            "현금 비중 최소화 (20% 이하)",
+            "리더 섹터 집중 공략",
+            "RS 80↑ ELITE/STRONG LEADER 우선 진입",
+            "손절 기준 표준 -8%",
+        ]
+
+    _items_html = "".join(
+        f"<div style='font-size:11px;color:{_act_tc};padding:2px 0'>"
+        f"<span style='margin-right:6px'>→</span>{it}</div>"
+        for it in _act_items)
+    st.markdown(
+        f"<div style='background:{_act_bg};border:1.5px solid {_act_bc};"
+        f"border-radius:10px;padding:14px 18px;margin-bottom:14px'>"
+        f"<div style='font-size:13px;font-weight:700;color:{_act_tc};"
+        f"margin-bottom:8px'>{_act_title}</div>"
+        f"{_items_html}</div>",
         unsafe_allow_html=True)
 
     if not _rec_signals:
@@ -6892,8 +7029,8 @@ with tab6:
     st.markdown(
         f"<div style='text-align:center;font-size:10px;color:#9CA3AF;"
         f"padding:12px 0 4px 0;border-top:1px solid #E2E6ED;margin-top:12px;line-height:2'>"
-        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V122</b>"
-        f" &nbsp;|&nbsp; APP_V122 &nbsp;|&nbsp;"
+        f"<b style='color:#374151'>QUANTUM INSTITUTIONAL OS V124</b>"
+        f" &nbsp;|&nbsp; APP_V124 &nbsp;|&nbsp;"
         f"{datetime.now().strftime('%Y-%m-%d %H:%M')} KST<br>"
         f"데이터 출처: FRED (미국 연방준비제도) · Yahoo Finance · multpl.com<br>"
         f"<span style='color:#B91C1C;font-weight:500'>"

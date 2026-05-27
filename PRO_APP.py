@@ -497,7 +497,7 @@ def calculate_leader_score(row: dict, mctx: dict, cfg: dict = None) -> dict:
     # 등급
     if   score >= 140: grade = "🚀 ELITE"
     elif score >= 110: grade = "🔥 STRONG"
-    elif score >= 80:  grade = "✅ WATCH"
+    elif score >= 80:  grade = "🔍 WATCH"
     else:              grade = "⚠️ WEAK"
 
     return {"score": round(score,1), "grade": grade,
@@ -1150,7 +1150,7 @@ with t_leaders:
     _fc1, _fc2 = st.columns(2)
     with _fc1:
         _min_grade = st.selectbox("최소 등급",
-            ["전체","✅ WATCH↑","🔥 STRONG↑","🚀 ELITE"],
+            ["전체","🔍 WATCH↑","🔥 STRONG↑","🚀 ELITE"],
             key="pro_grade_filter")
     with _fc2:
         _min_rs = st.number_input("최소 RS", 0, 100, 70, 5, key="pro_rs_filter")
@@ -1163,7 +1163,7 @@ with t_leaders:
         _fdf = _fdf[_fdf["LeaderGrade"].str.contains("ELITE")]
     elif _min_grade == "🔥 STRONG↑":
         _fdf = _fdf[_fdf["LeaderGrade"].str.contains("ELITE|STRONG")]
-    elif _min_grade == "✅ WATCH↑":
+    elif _min_grade == "🔍 WATCH↑":
         _fdf = _fdf[_fdf["LeaderGrade"].str.contains("ELITE|STRONG|WATCH")]
     if _min_rs > 0:
         _fdf = _fdf[_fdf["RS"] >= _min_rs]
@@ -1176,10 +1176,10 @@ with t_leaders:
     _watch_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("WATCH")])
     _summary_df = pd.DataFrame([
         {"항목": "전체 종목",       "수": len(df),        "비고": ""},
-        {"항목": "MA200 위 ✅",     "수": len(df_above),  "비고": "매수 가능"},
-        {"항목": "🚀 ELITE",        "수": _elite_cnt,     "비고": f"즉시 진입 검토"},
-        {"항목": "🔥 STRONG",       "수": _strong_cnt,    "비고": f"분할 매수"},
-        {"항목": "✅ WATCH",        "수": _watch_cnt,     "비고": f"관찰"},
+        {"항목": "MA200 위",        "수": len(df_above),  "비고": "매수 가능"},
+        {"항목": "🚀 ELITE",        "수": _elite_cnt,     "비고": "즉시 진입 검토"},
+        {"항목": "🔥 STRONG",       "수": _strong_cnt,    "비고": "분할 매수"},
+        {"항목": "🔍 WATCH",        "수": _watch_cnt,     "비고": "관찰"},
         {"항목": "⛔ MA200 아래",   "수": len(df_below),  "비고": "매수 금지"},
     ])
     st.dataframe(
@@ -1420,7 +1420,7 @@ with t_backtest:
             unsafe_allow_html=True)
 
         _grade_stats = []
-        for grade in ["🚀 ELITE","🔥 STRONG","✅ WATCH"]:
+        for grade in ["🚀 ELITE","🔥 STRONG","🔍 WATCH"]:
             _g = hist[hist["LeaderGrade"].str.contains(
                 grade.split()[-1], na=False)]
             if len(_g) > 0:

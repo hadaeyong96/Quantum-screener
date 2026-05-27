@@ -13,6 +13,21 @@ import pandas as pd
 import yfinance as yf
 import streamlit as st
 
+# ── 회사 프로필 로드 ───────────────────────────────────────
+@st.cache_data(ttl=3600)
+def load_company_profiles():
+    """GitHub의 company_profiles.json 로드"""
+    try:
+        import os
+        # 앱과 같은 디렉토리에서 읽기
+        _path = os.path.join(os.path.dirname(__file__), "company_profiles.json")
+        if os.path.exists(_path):
+            with open(_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
 # ── Google Sheets ─────────────────────────────────────────
 try:
     import gspread
@@ -1294,13 +1309,19 @@ with t_leaders:
                 if _sh_diag is None:
                     st.error(f"❌ Sheets 연결 실패: {_diag_msg}")
                 else:
-                    # MA200 위 + WATCH 이상만 저장
-                    _save_rows = [
+                    # MA200 위 + WATCH 이상 저장
+                    _save_rows_above = [
                         r for r in _scored
                         if r.get("MA200") and r.get("LeaderScore",0) >= _cfg.get("cfg_watch_min",80)
                     ]
+                    # MA200 아래 전체 저장 (백테스트 비교용)
+                    _save_rows_below = [
+                        r for r in _scored
+                        if not r.get("MA200")
+                    ]
+                    _save_rows = _save_rows_above + _save_rows_below
                     if not _save_rows:
-                        st.warning("저장할 종목 없음 (MA200 위 + WATCH↑ 조건 미충족)")
+                        st.warning("저장할 종목 없음")
                     else:
                         with st.spinner(f"{len(_save_rows)}개 저장 중..."):
                             _ok, _msg = save_pro_results(
@@ -1313,28 +1334,51 @@ with t_leaders:
                         else:
                             st.error(f"❌ {_msg}")
 
-    # ── Signal 상세 (ELITE만) ────────────────────────────
-    _elite = df_above[df_above["LeaderGrade"].str.contains("ELITE|STRONG")].head(5)
-    if not _elite.empty:
+    # ── 오늘 선별 종목 회사 프로필 ──────────────────────────
+    _profiles = load_company_profiles()
+    _show_df  = df_above[
+        df_above["LeaderGrade"].str.contains("ELITE|STRONG", na=False)
+    ].head(10)
+
+    if not _show_df.empty:
         st.markdown("---")
         st.markdown(
             "<div style='font-size:11px;color:#374151;"
-            "font-family:Space Mono,monospace;margin-bottom:6px'>"
-            "TOP 5 SIGNAL DETAIL</div>",
+            "font-family:Space Mono,monospace;margin-bottom:8px'>"
+            "TODAY'S LEADER — 회사 프로필</div>",
             unsafe_allow_html=True)
-        for _, row in _elite.iterrows():
-            _gc = "#00D4FF" if "ELITE" in str(row["LeaderGrade"]) else "#10B981"
+
+        for _, row in _show_df.iterrows():
+            _tk    = row["Ticker"]
+            _nm    = row.get("Name", _tk)
+            _grade = row.get("LeaderGrade", "")
+            _score = row.get("LeaderScore", 0)
+            _rs    = row.get("RS", 0)
+            _desc  = _profiles.get(_tk, "—")
+
+            if "ELITE"  in _grade: _gc = "#B91C1C"
+            elif "STRONG" in _grade: _gc = "#92400E"
+            else: _gc = "#374151"
+
             st.markdown(
-                f"<div style='background:#FFFFFF;border:1px solid {_gc};"
-                f"border-radius:4px;padding:4px 8px;margin-bottom:3px;"
-                f"display:flex;gap:12px;align-items:center'>"
-                f"<span style='color:{_gc};font-weight:700;min-width:60px'>"
-                f"{row['Ticker']}</span>"
-                f"<span style='color:#374151;font-size:10px'>{row.get('LeaderGrade','')}</span>"
-                f"<span style='color:#6B7280;font-size:10px'>점수:{row.get('LeaderScore',0):.0f}</span>"
-                f"<span style='color:#6B7280;font-size:9px'>{row.get('Signal','')[:80]}</span>"
+                f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+                f"border-left:3px solid {_gc};"
+                f"border-radius:3px;padding:8px 12px;margin-bottom:5px'>"
+                f"<div style='display:flex;align-items:center;gap:8px;margin-bottom:4px'>"
+                f"<span style='font-family:Space Mono,monospace;font-size:12px;"
+                f"font-weight:700;color:{_gc}'>{_tk}</span>"
+                f"<span style='font-size:11px;color:#374151'>{_nm}</span>"
+                f"<span style='font-size:10px;color:#6B7280;margin-left:auto'>"
+                f"{_grade} &nbsp;|&nbsp; {_score:.0f}점 &nbsp;|&nbsp; RS {_rs:.0f}</span>"
+                f"</div>"
+                f"<div style='font-size:11px;color:#374151;line-height:1.5'>{_desc}</div>"
                 f"</div>",
                 unsafe_allow_html=True)
+
+        st.markdown(
+            "<div style='font-size:9px;color:#9CA3AF;margin-top:4px'>"
+            "💡 설명 수정: GitHub → company_profiles.json 편집</div>",
+            unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════
 # TAB 2 — BACKTEST

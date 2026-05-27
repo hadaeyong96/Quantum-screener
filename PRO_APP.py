@@ -1895,86 +1895,79 @@ with t_backtest:
             "<b>30일 이상 축적 후 의미 있는 백테스트 가능</b></div>",
             unsafe_allow_html=True)
     else:
-        # 현재가 수집 (수익률 계산용)
-        _all_tks = hist["Ticker"].unique().tolist()
-        @st.cache_data(ttl=900)
-        def _get_current_prices(tks):
-            result = {}
-            try:
-                _tklist = list(tks)
-                raw = yf.download(_tklist, period="5d",
-                    auto_adjust=True, progress=False)
+        # ══ 방법 2: Sheets 저장 데이터 간 수익률 계산 ══════════
+        # 외부 API 불필요 · 이미 저장된 EntryPrice 활용
+        # N일차 EntryPrice vs N+7일차 EntryPrice 비교
 
-                if "Close" not in raw.columns.get_level_values(0)                         if hasattr(raw.columns, 'get_level_values')                         else "Close" not in raw.columns:
-                    # 단일 종목인 경우
-                    if not raw.empty and "Close" in raw.columns:
-                        for tk in _tklist:
-                            v = _safe_float(raw["Close"].dropna().iloc[-1])
-                            if v > 0: result[tk] = v
-                    return result
+        hist = hist.sort_values(["Ticker","Date"]).reset_index(drop=True)
 
-                _close = raw["Close"]
+        def _calc_return_from_sheets(df):
+            """
+            같은 종목의 날짜별 EntryPrice를 이용해 수익률 계산
+            기준일 EntryPrice vs 기준일+7일(이후 가장 가까운 날) EntryPrice
+            """
+            result = []
+            for tk, grp in df.groupby("Ticker"):
+                grp = grp.sort_values("Date").reset_index(drop=True)
+                for i, row in grp.iterrows():
+                    entry_date  = row["Date"]
+                    entry_price = row["EntryPrice"]
+                    if entry_price <= 0:
+                        continue
+                    # 7일 후 가장 가까운 기록 찾기
+                    future = grp[grp["Date"] > entry_date + pd.Timedelta(days=6)]
+                    if not future.empty:
+                        exit_row   = future.iloc[0]
+                        exit_price = exit_row["EntryPrice"]
+                        exit_date  = exit_row["Date"]
+                        hold_days  = (exit_date - entry_date).days
+                        ret_pct    = round((exit_price - entry_price)
+                                           / entry_price * 100, 2)
+                        result.append({
+                            "Date":        entry_date,
+                            "Ticker":      tk,
+                            "EntryPrice":  entry_price,
+                            "ExitPrice":   exit_price,
+                            "Return%":     ret_pct,
+                            "Days":        hold_days,
+                            "LeaderGrade": row.get("LeaderGrade",""),
+                            "LeaderScore": row.get("LeaderScore", 0),
+                            "MA200":       row.get("MA200","N"),
+                            "RS":          row.get("RS", 0),
+                            "AccScore":    row.get("AccScore", 0),
+                            "LiqStage":    row.get("LiqStage", 0),
+                            "Sector":      row.get("Sector",""),
+                        })
+            return pd.DataFrame(result) if result else pd.DataFrame()
 
-                # MultiIndex 처리
-                if isinstance(_close.columns, pd.MultiIndex):
-                    for tk in _tklist:
-                        try:
-                            s = _close[tk].dropna()
-                            if len(s) > 0:
-                                v = _safe_float(s.iloc[-1])
-                                if v > 0: result[tk] = v
-                        except: pass
-                else:
-                    for tk in _tklist:
-                        if tk in _close.columns:
-                            s = _close[tk].dropna()
-                            if len(s) > 0:
-                                v = _safe_float(s.iloc[-1])
-                                if v > 0: result[tk] = v
-            except Exception as e:
-                # 개별 요청으로 재시도
-                for tk in list(tks)[:20]:  # 최대 20개
-                    try:
-                        _d = yf.download(tk, period="5d",
-                            auto_adjust=True, progress=False)
-                        if not _d.empty and "Close" in _d.columns:
-                            v = _safe_float(_d["Close"].dropna().iloc[-1])
-                            if v > 0: result[tk] = v
-                    except: pass
-            return result
-
-        _cur_prices = _get_current_prices(tuple(_all_tks))
-
-        # 수익률 계산
-        hist["CurPrice"]  = hist["Ticker"].map(_cur_prices)
-        # Return% 계산 (진입가 0이면 NaN 방지)
-        hist["Return%"] = hist.apply(
-            lambda row: round(
-                (row["CurPrice"] - row["EntryPrice"])
-                / row["EntryPrice"] * 100, 2
-            ) if (pd.notna(row["CurPrice"]) and
-                  row["EntryPrice"] > 0) else float("nan"),
-            axis=1
+        _bt = _calc_return_from_sheets(hist)
+        _days_range = (
+            f"{hist['Date'].min().strftime('%Y-%m-%d')} ~ "
+            f"{hist['Date'].max().strftime('%Y-%m-%d')}"
         )
-        hist["Days"] = (datetime.now() - hist["Date"]).dt.days
 
-        # QQQ 기준 수익률 (동기간)
-        @st.cache_data(ttl=900)
-        def _qqq_return_since(entry_date_str):
-            try:
-                s  = yf.download("QQQ", start=entry_date_str,
-                    auto_adjust=True, progress=False)["Close"].dropna()
-                if len(s) < 2: return 0.0
-                return round((_safe_float(s.iloc[-1])-_safe_float(s.iloc[0]))
-                              / _safe_float(s.iloc[0])*100, 2)
-            except Exception:
-                return 0.0
+        # 데이터 부족 안내
+        if _bt.empty:
+            st.markdown(
+                "<div style='background:#FFFBEB;border:1px solid #FDE68A;"
+                "border-radius:3px;padding:10px;text-align:center;"
+                "color:#92400E;font-size:11px'>"
+                "⏳ 수익률 계산에는 7일 이상 간격의 데이터가 필요합니다.<br>"
+                f"현재 기간: {_days_range}<br>"
+                "매일 저장이 계속되면 자동으로 계산됩니다.</div>",
+                unsafe_allow_html=True)
+            # 데이터 없어도 요약은 표시
+            _total       = len(hist)
+            _profitable  = 0
+            _avg_ret     = float("nan")
+        else:
+            _total      = len(_bt)
+            _profitable = len(_bt[_bt["Return%"] > 0])
+            _avg_ret    = round(_bt["Return%"].mean(), 2)
 
-        # ── 요약 지표 ────────────────────────────────────
-        _total  = len(hist)
-        _profitable = len(hist[hist["Return%"] > 0]) if "Return%" in hist.columns else 0
-        _avg_ret= hist["Return%"].mean() if "Return%" in hist.columns else 0
-        _days_range = f"{hist['Date'].min().strftime('%Y-%m-%d')} ~ {hist['Date'].max().strftime('%Y-%m-%d')}"
+
+        # ── 요약 지표 (방법 2: _bt 기반) ─────────────────
+        _days_range = _days_range  # 이미 위에서 계산됨"
 
         st.markdown(
             "<div style='font-size:11px;color:#374151;"
@@ -2011,9 +2004,10 @@ with t_backtest:
             unsafe_allow_html=True)
 
         _grade_stats = []
+        _bt_src = _bt if not _bt.empty else pd.DataFrame()
         for grade in ["🚀 ELITE","🔥 STRONG","🔍 WATCH"]:
-            _g = hist[hist["LeaderGrade"].str.contains(
-                grade.split()[-1], na=False)]
+            _g = _bt_src[_bt_src["LeaderGrade"].str.contains(
+                grade.split()[-1], na=False)] if not _bt_src.empty else pd.DataFrame()
             if len(_g) > 0:
                 _grade_stats.append({
                     "등급": grade,
@@ -2046,8 +2040,16 @@ with t_backtest:
             "MA200 필터 효과 검증</div>",
             unsafe_allow_html=True)
 
-        _ma_above = hist[hist["MA200_bool"]]
-        _ma_below = hist[~hist["MA200_bool"]]
+        # MA200 필터: _bt 기반 (7일 수익률 비교)
+        _bt_ma = _bt.copy() if not _bt.empty else pd.DataFrame(
+            columns=["MA200","Return%"])
+        if not _bt_ma.empty:
+            _bt_ma["MA200_bool"] = _bt_ma["MA200"] == "Y"
+            _ma_above = _bt_ma[_bt_ma["MA200_bool"]]
+            _ma_below = _bt_ma[~_bt_ma["MA200_bool"]]
+        else:
+            _ma_above = pd.DataFrame()
+            _ma_below = pd.DataFrame()
         _ma_cmp = pd.DataFrame([
             {"구분":"MA200 위",   "건수":len(_ma_above),
              "평균수익률": round(_ma_above["Return%"].mean(),2) if len(_ma_above)>0 else 0,
@@ -2076,17 +2078,25 @@ with t_backtest:
             "전체 기록</div>",
             unsafe_allow_html=True)
 
-        _hist_disp = hist[[
-            "Date","Ticker","LeaderGrade","LeaderScore",
-            "EntryPrice","CurPrice","Return%","Days",
-            "RS","MA200","AccScore","LiqStage","RecRisk"
-        ]].copy().sort_values(["Date","LeaderScore"],
-                              ascending=[False,False])
+        if not _bt.empty:
+            _hist_disp = _bt[[
+                c for c in ["Date","Ticker","LeaderGrade","LeaderScore",
+                "EntryPrice","ExitPrice","Return%","Days",
+                "RS","MA200","AccScore","LiqStage","Sector"]
+                if c in _bt.columns
+            ]].copy().sort_values(["Date","LeaderScore"],
+                                  ascending=[False,False])
+            _hist_disp["MA200"] = _hist_disp["MA200"].map(
+                {"Y":"✅","N":"⛔"}).fillna("—")
+            _hist_disp["Date"] = pd.to_datetime(
+                _hist_disp["Date"]).dt.strftime("%Y-%m-%d")
+        else:
+            _hist_disp = pd.DataFrame()
 
-        _hist_disp["MA200"] = _hist_disp["MA200"].map({"Y":"✅","N":"⛔"})
-        _hist_disp["Date"]  = _hist_disp["Date"].dt.strftime("%Y-%m-%d")
-
-        st.dataframe(
+        if _hist_disp.empty:
+            st.info("7일 이상 데이터가 쌓이면 전체 기록이 표시됩니다.")
+        else:
+         st.dataframe(
             _hist_disp,
             use_container_width=True, hide_index=True,
             column_config={
@@ -2094,10 +2104,10 @@ with t_backtest:
                 "Ticker":     st.column_config.TextColumn("Ticker",  width="small"),
                 "LeaderGrade":st.column_config.TextColumn("등급",    width="small"),
                 "LeaderScore":st.column_config.NumberColumn("점수",  format="%.0f"),
-                "EntryPrice": st.column_config.NumberColumn("진입가", format="$%.2f"),
-                "CurPrice":   st.column_config.NumberColumn("현재가", format="$%.2f"),
-                "Return%":    st.column_config.NumberColumn("수익률", format="%+.2f%%"),
-                "Days":       st.column_config.NumberColumn("보유일", format="%d일"),
+                "EntryPrice": st.column_config.NumberColumn("진입가",   format="$%.2f"),
+                "ExitPrice":  st.column_config.NumberColumn("청산가",   format="$%.2f"),
+                "Return%":    st.column_config.NumberColumn("7일수익률",format="%+.2f%%"),
+                "Days":       st.column_config.NumberColumn("보유일",   format="%d일"),
                 "RS":         st.column_config.NumberColumn("RS",    format="%.1f"),
                 "MA200":      st.column_config.TextColumn("MA200",   width="small"),
                 "AccScore":   st.column_config.NumberColumn("매집",  format="%.0f"),

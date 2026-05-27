@@ -987,6 +987,115 @@ def calc_rec_score(fred: dict) -> float:
         signals.append(80 if chg>0.5 else (50 if chg>0.2 else (25 if chg>0 else 8)))
     return round(sum(signals)/len(signals), 1) if signals else 50.0
 
+# =========================================================
+# AUTO STANCE ENGINE
+# 유동성·침체 기반 자동 투자 스탠스 판단
+# 텔레그램 알림·자동 저장 규칙과 연동 가능하도록 설계
+# =========================================================
+
+def calc_auto_stance(liq_stage: int, liq_score: float,
+                     rec_score: float, vix: float) -> dict:
+    """
+    시장 환경 기반 자동 스탠스 계산
+    반환값: {
+        "stance":      "ATTACK" / "DEFENSE" / "DANGER",
+        "label":       "🟢 공격" / "🟡 방어" / "🔴 위험",
+        "color":       색상 코드,
+        "min_grade":   표시 최소 등급 ("WATCH" / "STRONG" / "ELITE"),
+        "save_ok":     Sheets 저장 허용 여부,
+        "buy_ok":      매수 허용 여부,
+        "reason":      판단 근거 문자열 (텔레그램 알림에 재사용),
+        "alert":       True/False (알림 발송 필요 여부),
+    }
+    """
+    reasons = []
+
+    # ── 위험 조건 (하나라도 해당) ──────────────────────────
+    is_danger = False
+    if liq_stage <= 2:
+        is_danger = True
+        reasons.append(f"유동성 {liq_stage}단계")
+    if rec_score >= 70:
+        is_danger = True
+        reasons.append(f"침체위험 {rec_score:.0f}점")
+    if vix >= 35:
+        is_danger = True
+        reasons.append(f"VIX {vix:.1f}")
+
+    # ── 방어 조건 ──────────────────────────────────────────
+    is_defense = False
+    if not is_danger:
+        if liq_stage == 3:
+            is_defense = True
+            reasons.append(f"유동성 {liq_stage}단계")
+        if 50 <= rec_score < 70:
+            is_defense = True
+            reasons.append(f"침체주의 {rec_score:.0f}점")
+        if 28 <= vix < 35:
+            is_defense = True
+            reasons.append(f"VIX {vix:.1f}")
+
+    reason_str = " · ".join(reasons) if reasons else "정상"
+
+    if is_danger:
+        return {
+            "stance":    "DANGER",
+            "label":     "🔴 위험 스탠스",
+            "color":     "#B91C1C",
+            "bg":        "#FEF2F2",
+            "border":    "#FECACA",
+            "min_grade": "ELITE",
+            "save_ok":   False,
+            "buy_ok":    False,
+            "reason":    reason_str,
+            "alert":     True,
+            "actions":   [
+                "신규매수 전면 금지",
+                "포지션 50%↑ 현금화",
+                "GLD·TLT 헤지 검토",
+                "손절 -5% 강화",
+            ],
+        }
+    elif is_defense:
+        return {
+            "stance":    "DEFENSE",
+            "label":     "🟡 방어 스탠스",
+            "color":     "#92400E",
+            "bg":        "#FFFBEB",
+            "border":    "#FDE68A",
+            "min_grade": "STRONG",
+            "save_ok":   True,
+            "buy_ok":    True,
+            "reason":    reason_str,
+            "alert":     False,
+            "actions":   [
+                "STRONG↑ 등급만 매수",
+                "현금 40% 이상 유지",
+                "분할 매수 (투자금 30% 이하)",
+                "손절 -6% 강화",
+            ],
+        }
+    else:
+        return {
+            "stance":    "ATTACK",
+            "label":     "🟢 공격 스탠스",
+            "color":     "#166534",
+            "bg":        "#F0FDF4",
+            "border":    "#86EFAC",
+            "min_grade": "WATCH",
+            "save_ok":   True,
+            "buy_ok":    True,
+            "reason":    reason_str,
+            "alert":     False,
+            "actions":   [
+                f"유동성 {liq_stage}단계 — 적극 매수 가능",
+                "ELITE·STRONG 우선 진입",
+                "현금 20% 이하",
+                "손절 -8% 표준",
+            ],
+        }
+
+
 def build_market_ctx(liq_stage, rec_score, mkt_data):
     """시장 컨텍스트 생성"""
     ctx = {"liq_stage":liq_stage,"rec_risk":rec_score,
@@ -1096,10 +1205,17 @@ with t_market:
     rec_score = calc_rec_score(fred)
     mkt_ctx   = build_market_ctx(liq_stage, rec_score, mkt)
 
+    # 자동 스탠스 계산
+    _auto_stance = calc_auto_stance(
+        liq_stage, liq_score, rec_score, mkt_ctx.get("vix", 20))
+
     st.session_state.update({
-        "liq_score": liq_score, "liq_stage": liq_stage,
-        "rec_score": rec_score, "mkt_ctx":   mkt_ctx,
-        "fred_ready": True,
+        "liq_score":   liq_score,
+        "liq_stage":   liq_stage,
+        "rec_score":   rec_score,
+        "mkt_ctx":     mkt_ctx,
+        "auto_stance": _auto_stance,
+        "fred_ready":  True,
     })
 
     # ══ 1. 유동성 5단계 범례 ════════════════════════════════
@@ -1166,41 +1282,32 @@ with t_market:
 
     _evidence = _liq_evidence(liq_detail)
 
-    if rec_score >= 70:
-        _a_color="#B91C1C"; _a_title="🚨 침체 고위험 — 매수 전면 중단"
-        _actions = ["신규매수 금지", "포지션 50%↑ 현금화",
-                    "GLD·TLT 헤지 확대", "손절 -5% 강화"]
-    elif rec_score >= 50:
-        _a_color="#92400E"; _a_title="⚠️ 침체 주의 — 방어적 포지션"
-        _actions = ["신규매수 투자금 20% 이하", "현금 40~50% 유지",
-                    "RS 90↑ 생존 리더만", "손절 -6% 강화"]
-    elif rec_score >= 30:
-        _a_color="#92400E"; _a_title="🟡 침체 관찰 — 선택적 진입"
-        _actions = ["유동성 확인 후 분할매수", "현금 30% 유지",
-                    "리더섹터 집중", "손절 -8% 표준"]
-    else:
-        _a_color="#166534"; _a_title="🟢 침체 안전 — 공격 가능"
-        _actions = [
-            f"유동성 {liq_stage}단계 — 적극 매수 가능",
-            "현금 비중 20% 이하 유지",
-            "ELITE·STRONG 우선 진입",
-            "손절 기준 -8% 표준",
-        ]
+    # ══ 자동 스탠스 표시 (Auto Stance Engine) ══════════════
+    _st = _auto_stance
+    _act_list = list(_st["actions"])
     if _evidence:
-        _actions.insert(0, f"근거: {_evidence}")
+        _act_list.insert(0, f"근거: {_evidence}")
 
     st.markdown(
-        f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-        f"border-left:3px solid {_a_color};"
+        f"<div style='background:{_st['bg']};"
+        f"border:1.5px solid {_st['border']};"
+        f"border-left:4px solid {_st['color']};"
         f"border-radius:3px;padding:8px 12px'>"
-        f"<div style='font-size:12px;font-weight:700;color:{_a_color};"
-        f"margin-bottom:5px'>{_a_title}</div>"
+        f"<div style='display:flex;align-items:center;"
+        f"justify-content:space-between;margin-bottom:5px'>"
+        f"<span style='font-size:13px;font-weight:700;"
+        f"color:{_st['color']}'>{_st['label']}</span>"
+        f"<span style='font-size:10px;color:#6B7280'>"
+        f"{_st['reason']}</span></div>"
         + "".join(
             f"<div style='font-size:11px;color:#374151;padding:2px 0'>"
-            f"<span style='color:{_a_color};margin-right:6px'>→</span>{a}</div>"
-            for a in _actions)
+            f"<span style='color:{_st['color']};margin-right:6px'>→</span>{a}</div>"
+            for a in _act_list)
+        + f"<div style='font-size:9px;color:#9CA3AF;margin-top:6px'>"
+        f"자동 판단 · 수동 변경: ⚙️ 설정 탭</div>"
         + "</div>",
         unsafe_allow_html=True)
+
 
     # ══ 4. LIQUIDITY BREAKDOWN 표 (점수만, 막대그래프 없음) ══
     st.markdown("---")
@@ -1371,14 +1478,29 @@ with t_leaders:
     _mkt_ctx   = st.session_state.get("mkt_ctx",
         {"liq_stage":3,"rec_risk":50,"vix":20,"qqq_trend":"NEUTRAL","mkt_drop":0})
 
-    # 유동성 단계 경고
-    if _liq_stage <= 2:
-        st.markdown(
-            "<div style='background:#FFFFFF;border:1px solid #EF4444;"
-            "border-radius:3px;padding:10px;margin-bottom:10px;"
-            "font-size:12px;color:#EF4444;font-weight:700'>"
-            "🚨 유동성 2단계 이하 — 신규 매수 금지 구간</div>",
-            unsafe_allow_html=True)
+    # 자동 스탠스 로드
+    _auto_stance = st.session_state.get("auto_stance", None)
+    if _auto_stance is None:
+        _auto_stance = calc_auto_stance(
+            _liq_stage,
+            st.session_state.get("liq_score", 50),
+            _rec_score,
+            _mkt_ctx.get("vix", 20)
+        )
+
+    # 스탠스 배너 (항상 상단 표시)
+    st.markdown(
+        f"<div style='background:{_auto_stance['bg']};"
+        f"border:1px solid {_auto_stance['border']};"
+        f"border-left:4px solid {_auto_stance['color']};"
+        f"border-radius:3px;padding:6px 12px;margin-bottom:10px;"
+        f"display:flex;justify-content:space-between;align-items:center'>"
+        f"<span style='font-size:12px;font-weight:700;"
+        f"color:{_auto_stance['color']}'>{_auto_stance['label']}</span>"
+        f"<span style='font-size:10px;color:#6B7280'>"
+        f"근거: {_auto_stance['reason']} &nbsp;|&nbsp; "
+        f"표시: {_auto_stance['min_grade']}↑</span></div>",
+        unsafe_allow_html=True)
 
     # 데이터 로드
     if not st.session_state.get("pro_results"):
@@ -1460,8 +1582,13 @@ with t_leaders:
     df_above.index = df_above.index + 1
 
 
-    # 설정 탭의 최소 RS 기준으로만 필터 (UI 제거)
+    # 자동 스탠스 기반 필터 + 설정 탭 RS 기준
     _fdf = df_above.copy()
+    _stance_min = _auto_stance.get("min_grade", "WATCH")
+    if _stance_min == "ELITE":
+        _fdf = _fdf[_fdf["LeaderGrade"].str.contains("ELITE", na=False)]
+    elif _stance_min == "STRONG":
+        _fdf = _fdf[_fdf["LeaderGrade"].str.contains("ELITE|STRONG", na=False)]
     if _min_rs > 0:
         _fdf = _fdf[_fdf["RS"] >= _min_rs]
 
@@ -1668,9 +1795,11 @@ with t_leaders:
             unsafe_allow_html=True)
     with _save_c2:
         if st.button("💾 Sheets 저장", use_container_width=True, key="pro_save"):
-            # ── 유동성 차단 확인 ──
-            if _liq_blocked:
-                st.error("🚨 유동성 2단계 이하 — Sheets 저장 중단됨")
+            # ── 자동 스탠스 저장 차단 확인 ──
+            if not _auto_stance.get("save_ok", True):
+                st.error(
+                    f"🚨 {_auto_stance['label']} — Sheets 저장 중단 "
+                    f"({_auto_stance['reason']})")
             else:
                 # ── 연결 진단 ──
                 _sh_diag, _diag_msg = _get_sheet(debug=True)
@@ -2023,26 +2152,38 @@ with t_settings:
     _num_row("🔍 WATCH 기준",  "cfg_watch_min",   80, step=5, min_v=40,  max_v=150, last=True)
     st.markdown("<div style='margin-bottom:10px'></div>", unsafe_allow_html=True)
 
-    # ══ ⑥ 자동 규칙 ═════════════════════════════════════════
+    # ══ ⑥ 자동 스탠스 설정 ══════════════════════════════════
     st.markdown(
         "<div style='font-size:11px;color:#374151;"
         "font-family:Space Mono,monospace;margin-bottom:4px'>"
-        "⑥ 자동 규칙</div>",
+        "⑥ 자동 스탠스 설정</div>",
         unsafe_allow_html=True)
 
-    _r1, _r2 = st.columns(2)
-    with _r1:
-        _liq_block = st.toggle(
-            "유동성 2단계↓ → Sheets 저장 중단",
-            value=st.session_state.get("cfg_liq_block", True),
-            key="toggle_liq_block")
-        st.session_state["cfg_liq_block"] = _liq_block
-    with _r2:
-        _rec_elite = st.toggle(
-            "침체 위험↑ → ELITE만 표시",
-            value=st.session_state.get("cfg_rec_elite", False),
-            key="toggle_rec_elite")
-        st.session_state["cfg_rec_elite"] = _rec_elite
+    # 현재 자동 스탠스 표시
+    _cur_st = st.session_state.get("auto_stance", {})
+    _cur_label = _cur_st.get("label", "계산 중...")
+    _cur_reason= _cur_st.get("reason", "MARKET 탭 먼저 접속")
+    st.markdown(
+        f"<div style='background:#F3F4F6;border:1px solid #E2E6ED;"
+        f"border-radius:3px;padding:6px 10px;margin-bottom:8px;"
+        f"font-size:10px;color:#374151'>"
+        f"현재 자동 판단: <b>{_cur_label}</b> — {_cur_reason}</div>",
+        unsafe_allow_html=True)
+
+    # 수동 오버라이드
+    _manual_override = st.selectbox(
+        "수동 오버라이드",
+        ["자동 (권장)", "🟢 공격 강제", "🟡 방어 강제", "🔴 위험 강제"],
+        index=0, key="manual_stance_override")
+
+    if _manual_override != "자동 (권장)":
+        _map = {
+            "🟢 공격 강제": calc_auto_stance(4, 80, 20, 15),
+            "🟡 방어 강제": calc_auto_stance(3, 55, 25, 20),
+            "🔴 위험 강제": calc_auto_stance(2, 80, 75, 35),
+        }
+        st.session_state["auto_stance"] = _map[_manual_override]
+        st.info(f"수동 설정 적용됨: {_manual_override}")
 
     st.markdown("---")
 

@@ -119,7 +119,7 @@ COMPANY_NAME = {
 st.set_page_config(
     page_title="QUANTUM PRO",
     page_icon="⚡",
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="collapsed",
 )
 
@@ -180,6 +180,56 @@ hr { border-color:#E2E6ED !important; }
 
 /* SPINNER */
 .stSpinner > div { border-top-color:#9CA3AF !important; }
+
+/* MOBILE 최적화 */
+@media (max-width: 768px) {
+    /* 폰트 크기 조정 */
+    body, p, span, div, label
+        { font-size:13px !important; }
+    /* 탭 버튼 작게 */
+    [data-testid="stTabs"] button
+        { font-size:11px !important; padding:8px 10px !important; }
+    /* 메트릭 카드 */
+    div[data-testid="metric-container"]
+        { padding:6px !important; }
+    /* 버튼 */
+    .stButton button
+        { font-size:11px !important; padding:6px 8px !important; }
+    /* 데이터프레임 스크롤 */
+    [data-testid="stDataFrame"]
+        { overflow-x: auto !important; }
+}
+
+/* SELECTBOX 모바일 대비 스타일 고정 */
+[data-testid="stSelectbox"] > div > div
+    { background-color:#FFFFFF !important;
+      color:#0D1117 !important; }
+[data-testid="stSelectbox"] > div > div > div
+    { color:#0D1117 !important; }
+[data-testid="stSelectbox"] span
+    { color:#0D1117 !important; }
+[data-testid="stSelectbox"] svg
+    { fill:#6B7280 !important; }
+[data-testid="stSelectbox"] > label
+    { color:#374151 !important; }
+
+/* 드롭다운 펼쳐진 목록 */
+[role="listbox"]
+    { background-color:#FFFFFF !important; }
+[role="option"]
+    { background-color:#FFFFFF !important;
+      color:#0D1117 !important; }
+[role="option"]:hover
+    { background-color:#F3F4F6 !important; }
+[role="option"][aria-selected="true"]
+    { background-color:#F3F4F6 !important;
+      color:#0D1117 !important; }
+
+/* NUMBER INPUT 모바일 */
+[data-testid="stNumberInput"] input
+    { background-color:#FFFFFF !important;
+      color:#0D1117 !important;
+      border-color:#D1D5DB !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -889,7 +939,8 @@ with t_market:
     st.session_state["mkt_ctx"]    = mkt_ctx
 
     # ── 핵심 지표 카드 ───────────────────────────────────
-    c1,c2,c3,c4 = st.columns(4)
+    c1,c2 = st.columns(2)
+    c3,c4 = st.columns(2)
 
     # ── 핵심 지표 — 엑셀형 소형 카드 ──────────────────────
     _lc = "#B91C1C" if liq_stage<=2 else ("#92400E" if liq_stage==3 else "#166534")
@@ -1096,16 +1147,15 @@ with t_leaders:
     df_above.index = df_above.index + 1
 
     # ── 필터 옵션 ────────────────────────────────────────
-    _fc1, _fc2, _fc3 = st.columns([1,1,2])
+    _fc1, _fc2 = st.columns(2)
     with _fc1:
         _min_grade = st.selectbox("최소 등급",
             ["전체","✅ WATCH↑","🔥 STRONG↑","🚀 ELITE"],
             key="pro_grade_filter")
     with _fc2:
         _min_rs = st.number_input("최소 RS", 0, 100, 70, 5, key="pro_rs_filter")
-    with _fc3:
-        _sectors = ["전체"] + sorted(df["Sector"].unique().tolist())
-        _sec_sel = st.selectbox("섹터", _sectors, key="pro_sector_filter")
+    _sectors = ["전체"] + sorted(df["Sector"].unique().tolist())
+    _sec_sel = st.selectbox("섹터", _sectors, key="pro_sector_filter")
 
     # 필터 적용
     _fdf = df_above.copy()
@@ -1121,12 +1171,13 @@ with t_leaders:
         _fdf = _fdf[_fdf["Sector"] == _sec_sel]
 
     # ── 요약 카운터 ──────────────────────────────────────
-    _s1,_s2,_s3,_s4,_s5 = st.columns(5)
+    _s1,_s2,_s3 = st.columns(3)
     _s1.metric("전체", len(df))
     _s2.metric("MA200 위", len(df_above))
-    _s3.metric("🚀 ELITE",  len(df_above[df_above["LeaderGrade"].str.contains("ELITE")]))
-    _s4.metric("🔥 STRONG", len(df_above[df_above["LeaderGrade"].str.contains("STRONG")]))
-    _s5.metric("⛔ MA200 아래", len(df_below), delta=None)
+    _s3.metric("⛔ MA200 아래", len(df_below))
+    _s4,_s5 = st.columns(2)
+    _s4.metric("🚀 ELITE",  len(df_above[df_above["LeaderGrade"].str.contains("ELITE")]))
+    _s5.metric("🔥 STRONG", len(df_above[df_above["LeaderGrade"].str.contains("STRONG")]))
 
     st.markdown("---")
 
@@ -1140,6 +1191,7 @@ with t_leaders:
     _disp_cols = ["Ticker","Name","Sector","LeaderGrade","LeaderScore","AccScore",
                   "RS","HighDist","VolRatio","EPS","RSI",
                   "Breakout","VolSurge","Consec","EntryPrice","CondCount"]
+    # 모바일: 핵심 컬럼 우선 표시 (전체는 가로 스크롤)
     _disp = _fdf[[c for c in _disp_cols if c in _fdf.columns]].copy()
 
     # bool → 기호 변환
@@ -1333,10 +1385,11 @@ with t_backtest:
         _avg_ret= hist["Return%"].mean() if "Return%" in hist.columns else 0
         _days_range = f"{hist['Date'].min().strftime('%Y-%m-%d')} ~ {hist['Date'].max().strftime('%Y-%m-%d')}"
 
-        _b1,_b2,_b3,_b4 = st.columns(4)
+        _b1,_b2 = st.columns(2)
         _b1.metric("총 기록",   f"{_total}건")
         _b2.metric("수익 종목", f"{_profitable}건",
                    f"{_profitable/_total*100:.0f}%" if _total>0 else "0%")
+        _b3,_b4 = st.columns(2)
         _b3.metric("평균 수익률", f"{_avg_ret:+.2f}%")
         _b4.metric("기간", f"{hist['Days'].max():.0f}일")
         st.markdown(

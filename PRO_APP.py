@@ -1551,6 +1551,75 @@ with t_leaders:
     )
 
 
+    # ── 섹터별 Leader Score 평균 ────────────────────────────
+    st.markdown("---")
+    st.markdown(
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:2px'>"
+        "섹터별 강도 분석</div>"
+        "<div style='font-size:9px;color:#6B7280;margin-bottom:6px'>"
+        "MA200 위 종목 기준 · Leader Score 평균 · 높을수록 강한 섹터</div>",
+        unsafe_allow_html=True)
+
+    if not df_above.empty:
+        _sec_grp = (
+            df_above.groupby("Sector")
+            .agg(
+                평균점수 =("LeaderScore", "mean"),
+                종목수   =("Ticker",      "count"),
+                최고점수 =("LeaderScore", "max"),
+                평균RS   =("RS",          "mean"),
+            )
+            .round(1)
+            .sort_values("평균점수", ascending=False)
+            .reset_index()
+        )
+        _sec_grp.columns = ["섹터","평균점수","종목수","최고점수","평균RS"]
+
+        # 순위 추가
+        _sec_grp.insert(0, "순위",
+            [f"{i+1}위" for i in range(len(_sec_grp))])
+
+        # ELITE·STRONG 수 추가
+        _elite_by_sec = (
+            df_above[df_above["LeaderGrade"].str.contains("ELITE|STRONG", na=False)]
+            .groupby("Sector")["Ticker"].count()
+            .rename("강세종목")
+        )
+        _sec_grp = _sec_grp.merge(
+            _elite_by_sec, left_on="섹터", right_index=True, how="left"
+        ).fillna(0)
+        _sec_grp["강세종목"] = _sec_grp["강세종목"].astype(int)
+
+        st.dataframe(
+            _sec_grp,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "순위":   st.column_config.TextColumn("순위",   width="small"),
+                "섹터":   st.column_config.TextColumn("섹터",   width="small"),
+                "평균점수":st.column_config.NumberColumn("평균점수", format="%.1f점"),
+                "종목수": st.column_config.NumberColumn("종목수", format="%d개",  width="small"),
+                "최고점수":st.column_config.NumberColumn("최고점수",format="%.0f점",width="small"),
+                "평균RS": st.column_config.NumberColumn("평균RS", format="%.1f",  width="small"),
+                "강세종목":st.column_config.NumberColumn("ELITE·STRONG", format="%d개", width="small"),
+            })
+
+        # 1위 섹터 요약 멘트
+        if len(_sec_grp) > 0:
+            _top_sec_name = _sec_grp.iloc[0]["섹터"]
+            _top_sec_score= _sec_grp.iloc[0]["평균점수"]
+            _top_sec_elite= _sec_grp.iloc[0]["강세종목"]
+            st.markdown(
+                f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+                f"border-left:3px solid #166534;"
+                f"border-radius:3px;padding:6px 12px;margin-top:6px;"
+                f"font-size:11px;color:#374151'>"
+                f"📊 최강 섹터: <b>{_top_sec_name}</b> "
+                f"— 평균 {_top_sec_score:.0f}점 "
+                f"/ ELITE·STRONG {_top_sec_elite}개</div>",
+                unsafe_allow_html=True)
+
     # ── MA200 이하 종목 — session_state 토글 (expander 사용 금지) ──
     if "show_ma200_below" not in st.session_state:
         st.session_state["show_ma200_below"] = False

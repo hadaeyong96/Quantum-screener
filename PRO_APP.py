@@ -544,6 +544,7 @@ def load_fred(api_key, _bust=0):
         "T10Y2Y":      "T10Y2Y",
         "SAHM":        "SAHMREALTIME",
         "UNRATE":      "UNRATE",
+        "CPI":         "CPIAUCSL",
     }
     for k, sid in series.items():
         s = _fred_series(sid, api_key)
@@ -809,35 +810,106 @@ def load_stocks(_bust=0):
 # ═══════════════════════════════════════════════════════════
 # 유동성 + 경기침체 점수 계산
 # ═══════════════════════════════════════════════════════════
+def _fred_last(fred, key, default):
+    """FRED 시리즈 최신값 안전 추출"""
+    s = fred.get(key)
+    if isinstance(s, pd.Series) and len(s) > 0:
+        return _safe_float(s.iloc[-1])
+    return default
+
 def calc_liq_score(fred: dict) -> tuple:
-    """유동성 점수 (0~100) + 단계 (1~5)"""
+    """유동성 점수 (0~100) + 단계 (1~5) + 9개 지표 상세"""
     score = 50
-    detail = {}
+    detail = {}  # {지표명: (현재값, 점수0~100, 신호🟢🟡🔴)}
 
-    ff = _safe_float(fred.get("FedFunds", pd.Series([5])).iloc[-1] if isinstance(fred.get("FedFunds"), pd.Series) else 5)
-    rr = _safe_float(fred.get("RealRate", pd.Series([1])).iloc[-1] if isinstance(fred.get("RealRate"), pd.Series) else 1)
-    cs = _safe_float(fred.get("CreditSpread", pd.Series([4])).iloc[-1] if isinstance(fred.get("CreditSpread"), pd.Series) else 4)
-    rrp= _safe_float(fred.get("RRP",  pd.Series([500])).iloc[-1] if isinstance(fred.get("RRP"),  pd.Series) else 500)
-    res= _safe_float(fred.get("Reserves",pd.Series([3000])).iloc[-1] if isinstance(fred.get("Reserves"), pd.Series) else 3000)
+    # ① 기준금리
+    ff = _fred_last(fred, "FedFunds", 5.0)
+    if   ff > 5.0: _fs=-10; _fg="🔴"; _fsc=25
+    elif ff > 3.0: _fs=0;   _fg="🟡"; _fsc=50
+    elif ff < 2.0: _fs=10;  _fg="🟢"; _fsc=85
+    else:          _fs=5;   _fg="🟢"; _fsc=70
+    score += _fs
+    detail["기준금리"] = (f"{ff:.2f}%", _fsc, _fg)
 
-    if ff > 5:    score -= 10; detail["금리"] = f"긴축({ff:.1f}%)"
-    elif ff < 2:  score += 10; detail["금리"] = f"완화({ff:.1f}%)"
-    else:         detail["금리"] = f"중립({ff:.1f}%)"
+    # ② M2 통화량
+    m2s = fred.get("M2")
+    _m2_v="N/A"; _m2_g="🟡"; _m2_sc=50
+    if isinstance(m2s, pd.Series) and len(m2s) >= 52:
+        _cur = _safe_float(m2s.iloc[-1])
+        _prev= _safe_float(m2s.iloc[-52])
+        if _prev > 0:
+            _yoy = (_cur - _prev) / _prev * 100
+            _m2_v = f"{_cur/1000:.1f}T$ ({_yoy:+.1f}%)"
+            if   _yoy > 5:  score+=8;  _m2_g="🟢"; _m2_sc=80
+            elif _yoy > 0:  score+=3;  _m2_g="🟢"; _m2_sc=65
+            elif _yoy > -2: pass;      _m2_g="🟡"; _m2_sc=45
+            else:           score-=8;  _m2_g="🔴"; _m2_sc=20
+    detail["M2 통화량"] = (_m2_v, _m2_sc, _m2_g)
 
-    if rr > 2:    score -= 10; detail["실질금리"] = f"높음({rr:.2f}%)"
-    elif rr < 0:  score += 10; detail["실질금리"] = f"마이너스({rr:.2f}%)"
-    else:         detail["실질금리"] = f"중립({rr:.2f}%)"
+    # ③ RRP 역레포
+    rrp = _fred_last(fred, "RRP", 500)
+    if   rrp > 1500: score-=8;  _rg="🔴"; _rsc=20
+    elif rrp > 500:  score-=3;  _rg="🟡"; _rsc=45
+    elif rrp > 100:  score+=5;  _rg="🟢"; _rsc=70
+    else:            score+=8;  _rg="🟢"; _rsc=85
+    detail["RRP 역레포"] = (f"{rrp/1e3:.2f}T$", _rsc, _rg)
 
-    if cs > 5:    score -= 15; detail["크레딧"] = f"위험({cs:.2f}%)"
-    elif cs < 3.5:score += 10; detail["크레딧"] = f"안정({cs:.2f}%)"
-    else:         detail["크레딧"] = f"주의({cs:.2f}%)"
+    # ④ TGA 재무부
+    tga = _fred_last(fred, "TGA", 700)
+    if   tga > 1000: score-=5;  _tg="🔴"; _tsc=30
+    elif tga > 500:  pass;      _tg="🟡"; _tsc=50
+    else:            score+=5;  _tg="🟢"; _tsc=72
+    detail["TGA 재무부"] = (f"{tga/1e3:.2f}T$", _tsc, _tg)
 
-    if rrp > 1000: score -= 5; detail["RRP"] = f"잠김({rrp/1e3:.1f}T)"
-    else:          score += 5; detail["RRP"] = f"해소({rrp/1e3:.1f}T)"
+    # ⑤ 은행 준비금
+    res = _fred_last(fred, "Reserves", 3000)
+    if   res < 2000: score-=10; _sg="🔴"; _ssc=20
+    elif res < 2500: score-=3;  _sg="🟡"; _ssc=45
+    elif res > 3000: score+=5;  _sg="🟢"; _ssc=80
+    else:            pass;      _sg="🟢"; _ssc=65
+    detail["은행 준비금"] = (f"{res/1e3:.2f}T$", _ssc, _sg)
 
-    if res < 2000: score -= 10; detail["준비금"] = f"부족({res/1e3:.1f}T)"
-    elif res > 3000:score += 5; detail["준비금"] = f"충분({res/1e3:.1f}T)"
-    else:          detail["준비금"] = f"보통({res/1e3:.1f}T)"
+    # ⑥ 실질금리
+    rr = _fred_last(fred, "RealRate", 1.0)
+    if   rr > 2.5:  score-=12; _rg2="🔴"; _rsc2=15
+    elif rr > 1.0:  score-=5;  _rg2="🟡"; _rsc2=40
+    elif rr > 0:    pass;      _rg2="🟡"; _rsc2=55
+    elif rr > -1:   score+=8;  _rg2="🟢"; _rsc2=75
+    else:           score+=12; _rg2="🟢"; _rsc2=90
+    detail["실질금리"] = (f"{rr:.2f}%", _rsc2, _rg2)
+
+    # ⑦ 크레딧 스프레드
+    cs = _fred_last(fred, "CreditSpread", 3.5)
+    if   cs > 6.0:  score-=15; _csg="🔴"; _cssc=10
+    elif cs > 5.0:  score-=10; _csg="🔴"; _cssc=25
+    elif cs > 4.0:  score-=5;  _csg="🟡"; _cssc=40
+    elif cs > 3.5:  pass;      _csg="🟡"; _cssc=55
+    else:           score+=10; _csg="🟢"; _cssc=80
+    detail["크레딧 스프레드"] = (f"{cs:.2f}%", _cssc, _csg)
+
+    # ⑧ CPI 물가
+    cpis = fred.get("CPI")
+    _cpi_v="N/A"; _cpi_g="🟡"; _cpi_sc=50
+    if isinstance(cpis, pd.Series) and len(cpis) > 0:
+        _cpi = _safe_float(cpis.iloc[-1])
+        _cpi_v = f"{_cpi:.1f}%"
+        if   _cpi > 5.0: score-=8;  _cpi_g="🔴"; _cpi_sc=20
+        elif _cpi > 3.0: score-=3;  _cpi_g="🟡"; _cpi_sc=45
+        elif _cpi > 2.0: score+=2;  _cpi_g="🟢"; _cpi_sc=65
+        else:            score+=5;  _cpi_g="🟢"; _cpi_sc=82
+    detail["CPI 물가"] = (_cpi_v, _cpi_sc, _cpi_g)
+
+    # ⑨ 장단기 금리차 (T10Y2Y)
+    t10s = fred.get("T10Y2Y")
+    _ty_v="N/A"; _ty_g="🟡"; _ty_sc=50
+    if isinstance(t10s, pd.Series) and len(t10s) > 0:
+        _ty = _safe_float(t10s.iloc[-1])
+        _ty_v = f"{_ty:+.2f}%"
+        if   _ty < -0.5: score-=8;  _ty_g="🔴"; _ty_sc=20
+        elif _ty < 0:    score-=3;  _ty_g="🟡"; _ty_sc=40
+        elif _ty < 0.5:  score+=2;  _ty_g="🟢"; _ty_sc=62
+        else:            score+=5;  _ty_g="🟢"; _ty_sc=80
+    detail["장단기 금리차"] = (_ty_v, _ty_sc, _ty_g)
 
     score = max(0, min(100, score))
     if   score >= 80: stage = 5
@@ -1030,24 +1102,44 @@ with t_market:
         "</div></div>",
         unsafe_allow_html=True)
 
-    _liq_df = pd.DataFrame([
-        {"지표": k, "상태": v,
-         "신호": "🟢" if any(x in v for x in ["완화","해소","충분","안정","마이너스"])
-                 else ("🔴" if any(x in v for x in ["긴축","잠김","부족","위험","높음"])
-                 else "🟡")}
-        for k, v in liq_detail.items()
-    ])
+    # detail = {지표명: (현재값, 점수, 신호)} 구조
+    _liq_rows = []
+    for _k, _v in liq_detail.items():
+        if isinstance(_v, tuple) and len(_v) == 3:
+            _liq_rows.append({"지표":_k, "현재값":_v[0], "점수":_v[1], "신호":_v[2]})
+        else:
+            # 구버전 호환
+            _liq_rows.append({"지표":_k, "현재값":str(_v), "점수":50, "신호":"🟡"})
+
+    _liq_df = pd.DataFrame(_liq_rows)
     st.dataframe(
         _liq_df, use_container_width=True, hide_index=True,
         column_config={
-            "지표":  st.column_config.TextColumn("지표", width="small"),
-            "상태":  st.column_config.TextColumn("상태"),
-            "신호":  st.column_config.TextColumn("신호", width="small"),
+            "지표":   st.column_config.TextColumn("지표",   width="small"),
+            "현재값": st.column_config.TextColumn("현재값", width="small"),
+            "점수":   st.column_config.ProgressColumn("점수",
+                        min_value=0, max_value=100, format="%d"),
+            "신호":   st.column_config.TextColumn("신호",   width="small"),
         })
 
     st.markdown("---")
 
     # ── 투자 행동 지침 ───────────────────────────────────
+    # 실제 지표값으로 근거 문장 자동 생성
+    def _liq_evidence(det):
+        evs = []
+        for k, v in det.items():
+            if isinstance(v, tuple) and v[2] == "🟢":
+                if k == "기준금리":   evs.append(f"금리 {v[0]} 우호")
+                elif k == "M2 통화량":evs.append(f"M2 증가 중")
+                elif k == "RRP 역레포":evs.append(f"RRP 해소")
+                elif k == "은행 준비금":evs.append(f"준비금 충분")
+                elif k == "실질금리": evs.append(f"실질금리 {v[0]}")
+                elif k == "크레딧 스프레드":evs.append(f"스프레드 안정")
+        return " · ".join(evs[:3]) if evs else ""
+
+    _evidence = _liq_evidence(liq_detail)
+
     if rec_score >= 70:
         _a_color="#EF4444"; _a_title="🚨 침체 고위험 — 매수 전면 중단"
         _actions = ["신규매수 금지","포지션 50%↑ 현금화",
@@ -1061,9 +1153,15 @@ with t_market:
         _actions = ["유동성 확인 후 분할매수","현금 30% 유지",
                     "리더섹터 집중","손절 -8% 표준"]
     else:
-        _a_color="#10B981"; _a_title="🟢 침체 안전 — 공격 가능"
-        _actions = ["유동성 단계 기준 적극매수","현금 20% 이하",
-                    "ELITE·STRONG 우선 진입","손절 -8% 표준"]
+        _a_color="#166534"; _a_title="🟢 침체 안전 — 공격 가능"
+        _actions = [
+            f"유동성 {liq_stage}단계 — 적극 매수 가능",
+            "현금 비중 20% 이하 유지",
+            "ELITE·STRONG 우선 진입",
+            "손절 기준 -8% 표준",
+        ]
+        if _evidence:
+            _actions.insert(0, f"근거: {_evidence}")
 
     st.markdown(
         f"<div style='background:#FFFFFF;border:1px solid {_a_color};"
@@ -1157,6 +1255,32 @@ with t_market:
         # 강세 섹터 요약
         _hot = [r["섹터"] for r in _sector_rows if "강세" in r["상태"] or "유입" in r["상태"]]
         _cold= [r["섹터"] for r in _sector_rows if "약세" in r["상태"] or "유출" in r["상태"]]
+        # 자금 흐름 원인 자동 분석
+        def _sector_reason(hot_sectors, liq_det, rec_s, mkt_c):
+            reasons = []
+            _rr = 0
+            for k, v in liq_det.items():
+                if isinstance(v, tuple) and k == "실질금리":
+                    try: _rr = float(v[0].replace("%",""))
+                    except: pass
+
+            if "기술" in hot_sectors or "통신" in hot_sectors:
+                if _rr < 1.5:
+                    reasons.append(f"실질금리 {_rr:.1f}% → 성장주 밸류에이션 우호")
+                if mkt_c.get("qqq_trend") == "BULL":
+                    reasons.append("QQQ 상승 추세 → 기술 섹터 모멘텀 지속")
+            if "에너지" in hot_sectors:
+                reasons.append("에너지 가격 상승 또는 지정학적 리스크 반영")
+            if "헬스케어" in hot_sectors or "필수소비재" in hot_sectors:
+                reasons.append("경기 방어주 선호 → 위험 회피 심리 일부 작동")
+            if "금융" in hot_sectors:
+                reasons.append("금리 안정화 기대 → 은행·보험 수익성 개선 전망")
+            if rec_s >= 50 and ("유틸리티" in hot_sectors or "필수소비재" in hot_sectors):
+                reasons.append(f"침체 위험 {rec_s:.0f}점 → 방어 섹터로 자금 이동")
+            return reasons
+
+        _reasons = _sector_reason(_hot, liq_detail, rec_score, mkt_ctx)
+
         if _hot:
             st.markdown(
                 f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
@@ -1172,6 +1296,15 @@ with t_market:
                 f"border-radius:3px;padding:6px 12px;margin-top:4px;"
                 f"font-size:11px;color:#374151'>"
                 f"📉 자금 유출: <b>{' · '.join(_cold)}</b></div>",
+                unsafe_allow_html=True)
+        if _reasons:
+            _r_html = " &nbsp;·&nbsp; ".join(_reasons)
+            st.markdown(
+                f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+                f"border-left:3px solid #374151;"
+                f"border-radius:3px;padding:6px 12px;margin-top:4px;"
+                f"font-size:10px;color:#374151'>"
+                f"💡 분석: {_r_html}</div>",
                 unsafe_allow_html=True)
     else:
         st.info("섹터 데이터 로드 중...")

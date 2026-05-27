@@ -1401,29 +1401,12 @@ with t_leaders:
     df_above = df_above.sort_values("LeaderScore", ascending=False).reset_index(drop=True)
     df_above.index = df_above.index + 1
 
-    # ── 필터 옵션 ────────────────────────────────────────
-    _fc1, _fc2 = st.columns(2)
-    with _fc1:
-        _min_grade = st.selectbox("최소 등급",
-            ["전체","🔍 WATCH↑","🔥 STRONG↑","🚀 ELITE"],
-            key="pro_grade_filter")
-    with _fc2:
-        _min_rs = st.number_input("최소 RS", 0, 100, 70, 5, key="pro_rs_filter")
-    _sectors = ["전체"] + sorted(df["Sector"].unique().tolist())
-    _sec_sel = st.selectbox("섹터", _sectors, key="pro_sector_filter")
 
-    # 필터 적용
+    # 설정 탭의 최소 RS 기준으로만 필터 (UI 제거)
     _fdf = df_above.copy()
-    if _min_grade == "🚀 ELITE":
-        _fdf = _fdf[_fdf["LeaderGrade"].str.contains("ELITE")]
-    elif _min_grade == "🔥 STRONG↑":
-        _fdf = _fdf[_fdf["LeaderGrade"].str.contains("ELITE|STRONG")]
-    elif _min_grade == "🔍 WATCH↑":
-        _fdf = _fdf[_fdf["LeaderGrade"].str.contains("ELITE|STRONG|WATCH")]
     if _min_rs > 0:
         _fdf = _fdf[_fdf["RS"] >= _min_rs]
-    if _sec_sel != "전체":
-        _fdf = _fdf[_fdf["Sector"] == _sec_sel]
+
 
     # ── 요약 카운터 ──────────────────────────────────────
     _elite_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("ELITE")])

@@ -1171,13 +1171,26 @@ with t_leaders:
         _fdf = _fdf[_fdf["Sector"] == _sec_sel]
 
     # ── 요약 카운터 ──────────────────────────────────────
-    _s1,_s2,_s3 = st.columns(3)
-    _s1.metric("전체", len(df))
-    _s2.metric("MA200 위", len(df_above))
-    _s3.metric("⛔ MA200 아래", len(df_below))
-    _s4,_s5 = st.columns(2)
-    _s4.metric("🚀 ELITE",  len(df_above[df_above["LeaderGrade"].str.contains("ELITE")]))
-    _s5.metric("🔥 STRONG", len(df_above[df_above["LeaderGrade"].str.contains("STRONG")]))
+    _elite_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("ELITE")])
+    _strong_cnt = len(df_above[df_above["LeaderGrade"].str.contains("STRONG")])
+    _watch_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("WATCH")])
+    _summary_df = pd.DataFrame([
+        {"항목": "전체 종목",       "수": len(df),        "비고": ""},
+        {"항목": "MA200 위 ✅",     "수": len(df_above),  "비고": "매수 가능"},
+        {"항목": "🚀 ELITE",        "수": _elite_cnt,     "비고": f"즉시 진입 검토"},
+        {"항목": "🔥 STRONG",       "수": _strong_cnt,    "비고": f"분할 매수"},
+        {"항목": "✅ WATCH",        "수": _watch_cnt,     "비고": f"관찰"},
+        {"항목": "⛔ MA200 아래",   "수": len(df_below),  "비고": "매수 금지"},
+    ])
+    st.dataframe(
+        _summary_df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "항목": st.column_config.TextColumn("항목",   width="medium"),
+            "수":   st.column_config.NumberColumn("종목 수", format="%d개", width="small"),
+            "비고": st.column_config.TextColumn("비고",   width="small"),
+        })
 
     st.markdown("---")
 

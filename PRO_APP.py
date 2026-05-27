@@ -1899,21 +1899,64 @@ with t_backtest:
         _all_tks = hist["Ticker"].unique().tolist()
         @st.cache_data(ttl=900)
         def _get_current_prices(tks):
+            result = {}
             try:
-                raw = yf.download(list(tks), period="5d",
-                    auto_adjust=True, progress=False)["Close"]
-                return {tk: _safe_float(raw[tk].dropna().iloc[-1])
-                        for tk in tks if tk in raw.columns}
-            except Exception:
-                return {}
+                _tklist = list(tks)
+                raw = yf.download(_tklist, period="5d",
+                    auto_adjust=True, progress=False)
+
+                if "Close" not in raw.columns.get_level_values(0)                         if hasattr(raw.columns, 'get_level_values')                         else "Close" not in raw.columns:
+                    # 단일 종목인 경우
+                    if not raw.empty and "Close" in raw.columns:
+                        for tk in _tklist:
+                            v = _safe_float(raw["Close"].dropna().iloc[-1])
+                            if v > 0: result[tk] = v
+                    return result
+
+                _close = raw["Close"]
+
+                # MultiIndex 처리
+                if isinstance(_close.columns, pd.MultiIndex):
+                    for tk in _tklist:
+                        try:
+                            s = _close[tk].dropna()
+                            if len(s) > 0:
+                                v = _safe_float(s.iloc[-1])
+                                if v > 0: result[tk] = v
+                        except: pass
+                else:
+                    for tk in _tklist:
+                        if tk in _close.columns:
+                            s = _close[tk].dropna()
+                            if len(s) > 0:
+                                v = _safe_float(s.iloc[-1])
+                                if v > 0: result[tk] = v
+            except Exception as e:
+                # 개별 요청으로 재시도
+                for tk in list(tks)[:20]:  # 최대 20개
+                    try:
+                        _d = yf.download(tk, period="5d",
+                            auto_adjust=True, progress=False)
+                        if not _d.empty and "Close" in _d.columns:
+                            v = _safe_float(_d["Close"].dropna().iloc[-1])
+                            if v > 0: result[tk] = v
+                    except: pass
+            return result
 
         _cur_prices = _get_current_prices(tuple(_all_tks))
 
         # 수익률 계산
         hist["CurPrice"]  = hist["Ticker"].map(_cur_prices)
-        hist["Return%"]   = ((hist["CurPrice"] - hist["EntryPrice"])
-                              / hist["EntryPrice"] * 100).round(2)
-        hist["Days"]      = (datetime.now() - hist["Date"]).dt.days
+        # Return% 계산 (진입가 0이면 NaN 방지)
+        hist["Return%"] = hist.apply(
+            lambda row: round(
+                (row["CurPrice"] - row["EntryPrice"])
+                / row["EntryPrice"] * 100, 2
+            ) if (pd.notna(row["CurPrice"]) and
+                  row["EntryPrice"] > 0) else float("nan"),
+            axis=1
+        )
+        hist["Days"] = (datetime.now() - hist["Date"]).dt.days
 
         # QQQ 기준 수익률 (동기간)
         @st.cache_data(ttl=900)

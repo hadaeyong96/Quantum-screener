@@ -1059,18 +1059,17 @@ with t_market:
 
     # ══ 1. 유동성 5단계 범례 ════════════════════════════════
     st.markdown(
-        "<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px'>"
-        "<div style='font-size:9px;color:#6B7280;padding:3px 0;align-self:center'>유동성 5단계:</div>"
-        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:20px;padding:2px 8px'>🚀 5단계 80↑ 유동성 파티</div>"
-        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:20px;padding:2px 8px'>🟢 4단계 60↑ 분할매수 가능</div>"
-        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:20px;padding:2px 8px'>🟡 3단계 40↑ 현금 50%↑</div>"
-        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:20px;padding:2px 8px'>🔴 2단계 20↑ 매수 중단</div>"
-        "<div style='font-size:9px;background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:20px;padding:2px 8px'>🔴 1단계 0↑ 전액 현금</div>"
+        "<div style='display:flex;gap:4px;margin-bottom:8px;overflow-x:auto'>"
+        "<div style='font-size:9px;white-space:nowrap;background:#FFFFFF;"
+        "border:1px solid #E2E6ED;border-radius:20px;padding:2px 7px'>🚀 5단계 80↑ 파티</div>"
+        "<div style='font-size:9px;white-space:nowrap;background:#FFFFFF;"
+        "border:1px solid #E2E6ED;border-radius:20px;padding:2px 7px'>🟢 4단계 60↑ 분할매수</div>"
+        "<div style='font-size:9px;white-space:nowrap;background:#FFFFFF;"
+        "border:1px solid #E2E6ED;border-radius:20px;padding:2px 7px'>🟡 3단계 40↑ 현금50%</div>"
+        "<div style='font-size:9px;white-space:nowrap;background:#FFFFFF;"
+        "border:1px solid #E2E6ED;border-radius:20px;padding:2px 7px'>🔴 2단계 20↑ 매수중단</div>"
+        "<div style='font-size:9px;white-space:nowrap;background:#FFFFFF;"
+        "border:1px solid #E2E6ED;border-radius:20px;padding:2px 7px'>🔴 1단계 0↑ 전액현금</div>"
         "</div>",
         unsafe_allow_html=True)
 
@@ -1401,34 +1400,42 @@ with t_leaders:
 
 
     # ── 요약 카운터 ──────────────────────────────────────
-    _elite_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("ELITE")])
-    _strong_cnt = len(df_above[df_above["LeaderGrade"].str.contains("STRONG")])
-    _watch_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("WATCH")])
+    _elite_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("ELITE", na=False)])
+    _strong_cnt = len(df_above[df_above["LeaderGrade"].str.contains("STRONG", na=False)])
+    _watch_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("WATCH", na=False)])
+
+    def _top_sec(d, n=2):
+        if d.empty or "Sector" not in d.columns: return ""
+        top = d["Sector"].value_counts().head(n)
+        return " · ".join(f"{s}({v})" for s,v in top.items())
+
     _summary_df = pd.DataFrame([
-        {"항목": "전체 종목",       "수": len(df),        "비고": ""},
-        {"항목": "MA200 위",        "수": len(df_above),  "비고": "매수 가능"},
-        {"항목": "🚀 ELITE",        "수": _elite_cnt,     "비고": "즉시 진입 검토"},
-        {"항목": "🔥 STRONG",       "수": _strong_cnt,    "비고": "분할 매수"},
-        {"항목": "🔍 WATCH",        "수": _watch_cnt,     "비고": "관찰"},
-        {"항목": "⛔ MA200 아래",   "수": len(df_below),  "비고": "매수 금지"},
+        {"항목":"전체 종목",     "수":len(df),       "비고": _top_sec(df)},
+        {"항목":"MA200 위",      "수":len(df_above), "비고": _top_sec(df_above) + " — 매수 가능"},
+        {"항목":"🚀 ELITE",      "수":_elite_cnt,    "비고": _top_sec(df_above[df_above["LeaderGrade"].str.contains("ELITE",na=False)]) + " — 즉시 진입"},
+        {"항목":"🔥 STRONG",     "수":_strong_cnt,   "비고": _top_sec(df_above[df_above["LeaderGrade"].str.contains("STRONG",na=False)]) + " — 분할매수"},
+        {"항목":"🔍 WATCH",      "수":_watch_cnt,    "비고": "관찰 대기"},
+        {"항목":"⛔ MA200 아래", "수":len(df_below), "비고": "매수 금지"},
     ])
     st.dataframe(
-        _summary_df,
-        use_container_width=True,
-        hide_index=True,
+        _summary_df, use_container_width=True, hide_index=True,
         column_config={
-            "항목": st.column_config.TextColumn("항목",   width="medium"),
-            "수":   st.column_config.NumberColumn("종목 수", format="%d개", width="small"),
-            "비고": st.column_config.TextColumn("비고",   width="small"),
+            "항목": st.column_config.TextColumn("항목",   width="small"),
+            "수":   st.column_config.NumberColumn("종목수", format="%d개", width="small"),
+            "비고": st.column_config.TextColumn("비고",   width="medium"),
         })
+
 
     st.markdown("---")
 
     # ── 메인 테이블 ──────────────────────────────────────
     st.markdown(
-        "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:6px'>"
-        f"MA200 위 종목 ({len(_fdf)}개) — Leader Score 순위</div>",
+        f"<div style='font-size:11px;color:#374151;"
+        f"font-family:Space Mono,monospace;margin-bottom:2px'>"
+        f"MA200 위 종목 ({len(_fdf)}개) — Leader Score 순위</div>"
+        f"<div style='font-size:9px;color:#6B7280;margin-bottom:6px'>"
+        f"Leader Score 높은 순 · MA200(200일선) 위 종목만 표시 · "
+        f"🚀ELITE→즉시진입 🔥STRONG→분할매수 🔍WATCH→관찰</div>",
         unsafe_allow_html=True)
 
     _disp_cols = ["Ticker","Name","Sector","LeaderGrade","LeaderScore","AccScore",
@@ -1549,7 +1556,7 @@ with t_leaders:
                         else:
                             st.error(f"❌ {_msg}")
 
-    # ── 오늘 선별 종목 회사 프로필 ──────────────────────────
+    # ── TODAY'S LEADER — 회사 프로필 (dataframe 표 형식) ──
     _profiles = load_company_profiles()
     _show_df  = df_above[
         df_above["LeaderGrade"].str.contains("ELITE|STRONG", na=False)
@@ -1558,42 +1565,36 @@ with t_leaders:
     if not _show_df.empty:
         st.markdown("---")
         st.markdown(
-            "<div style='font-size:11px;color:#374151;"
-            "font-family:Space Mono,monospace;margin-bottom:8px'>"
-            "TODAY'S LEADER — 회사 프로필</div>",
+            f"<div style='font-size:11px;color:#374151;"
+            f"font-family:Space Mono,monospace;margin-bottom:2px'>"
+            f"TODAY'S LEADER — 회사 프로필 ({len(_show_df)}개)</div>"
+            f"<div style='font-size:9px;color:#6B7280;margin-bottom:6px'>"
+            f"ELITE·STRONG 등급 종목 · 💡설명 수정: GitHub → company_profiles.json</div>",
             unsafe_allow_html=True)
 
+        _prof_rows = []
         for _, row in _show_df.iterrows():
-            _tk    = row["Ticker"]
-            _nm    = row.get("Name", _tk)
-            _grade = row.get("LeaderGrade", "")
-            _score = row.get("LeaderScore", 0)
-            _rs    = row.get("RS", 0)
-            _desc  = _profiles.get(_tk, "—")
+            _tk   = row["Ticker"]
+            _prof_rows.append({
+                "등급":   row.get("LeaderGrade",""),
+                "Ticker": _tk,
+                "회사명": row.get("Name", _tk),
+                "점수":   int(row.get("LeaderScore", 0)),
+                "RS":     round(_safe_float(row.get("RS",0)),1),
+                "사업 요약": _profiles.get(_tk, "—"),
+            })
 
-            if "ELITE"  in _grade: _gc = "#B91C1C"
-            elif "STRONG" in _grade: _gc = "#92400E"
-            else: _gc = "#374151"
-
-            st.markdown(
-                f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-                f"border-left:3px solid {_gc};"
-                f"border-radius:3px;padding:8px 12px;margin-bottom:5px'>"
-                f"<div style='display:flex;align-items:center;gap:8px;margin-bottom:4px'>"
-                f"<span style='font-family:Space Mono,monospace;font-size:12px;"
-                f"font-weight:700;color:{_gc}'>{_tk}</span>"
-                f"<span style='font-size:11px;color:#374151'>{_nm}</span>"
-                f"<span style='font-size:10px;color:#6B7280;margin-left:auto'>"
-                f"{_grade} &nbsp;|&nbsp; {_score:.0f}점 &nbsp;|&nbsp; RS {_rs:.0f}</span>"
-                f"</div>"
-                f"<div style='font-size:11px;color:#374151;line-height:1.5'>{_desc}</div>"
-                f"</div>",
-                unsafe_allow_html=True)
-
-        st.markdown(
-            "<div style='font-size:9px;color:#9CA3AF;margin-top:4px'>"
-            "💡 설명 수정: GitHub → company_profiles.json 편집</div>",
-            unsafe_allow_html=True)
+        _prof_df = pd.DataFrame(_prof_rows)
+        st.dataframe(
+            _prof_df, use_container_width=True, hide_index=True,
+            column_config={
+                "등급":   st.column_config.TextColumn("등급",    width="small"),
+                "Ticker": st.column_config.TextColumn("Ticker",  width="small"),
+                "회사명": st.column_config.TextColumn("회사명",  width="small"),
+                "점수":   st.column_config.NumberColumn("점수",  format="%d", width="small"),
+                "RS":     st.column_config.NumberColumn("RS",    format="%.1f", width="small"),
+                "사업 요약": st.column_config.TextColumn("사업 요약"),
+            })
 
 # ════════════════════════════════════════════════════════════
 # TAB 2 — BACKTEST

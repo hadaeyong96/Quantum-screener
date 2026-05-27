@@ -917,9 +917,19 @@ with t_market:
 
     # ── 유동성 상세 ──────────────────────────────────────
     st.markdown(
+        "<div style='display:flex;align-items:center;gap:12px;"
+        "margin-bottom:8px;flex-wrap:wrap'>"
         "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:8px'>"
-        "LIQUIDITY BREAKDOWN</div>",
+        "font-family:Space Mono,monospace'>LIQUIDITY BREAKDOWN</div>"
+        "<div style='display:flex;align-items:center;gap:8px;"
+        "font-size:10px;color:#6B7280;"
+        "background:#FFFFFF;border:1px solid #E2E6ED;"
+        "border-radius:20px;padding:3px 10px'>"
+        "<span>범례:</span>"
+        "<span>🟢 우호적</span>"
+        "<span>🟡 중립</span>"
+        "<span>🔴 위험</span>"
+        "</div></div>",
         unsafe_allow_html=True)
 
     _liq_df = pd.DataFrame([

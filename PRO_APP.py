@@ -1077,37 +1077,6 @@ with t_market:
         + "</div>",
         unsafe_allow_html=True)
 
-    # ── FRED 실시간 주요 수치 ──────────────────────────
-    st.markdown("---")
-    st.markdown(
-        "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:8px'>"
-        "FRED LIVE DATA</div>",
-        unsafe_allow_html=True)
-
-    _fred_display = []
-    for name, sid in [
-        ("기준금리","FedFunds"),("실질금리","RealRate"),
-        ("크레딧스프레드","CreditSpread"),("장단기금리차","T10Y2Y"),
-        ("Sahm Rule","SAHM"),("실업률","UNRATE"),
-    ]:
-        s = fred.get(sid)
-        if s is not None and len(s) > 0:
-            v = _safe_float(s.iloc[-1])
-            d = str(s.index[-1])[:10]
-            _fred_display.append({"지표": name, "현재값": round(v,3),
-                                   "기준일": d})
-
-    if _fred_display:
-        st.dataframe(
-            pd.DataFrame(_fred_display),
-            use_container_width=True, hide_index=True,
-            column_config={
-                "지표":  st.column_config.TextColumn("지표",  width="medium"),
-                "현재값":st.column_config.NumberColumn("현재값",format="%.3f"),
-                "기준일":st.column_config.TextColumn("기준일",width="small"),
-            })
-
     # ── 섹터 자금 흐름 ─────────────────────────────────────
     st.markdown("---")
     st.markdown(

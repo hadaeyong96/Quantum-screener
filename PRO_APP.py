@@ -1398,17 +1398,23 @@ with t_backtest:
         _avg_ret= hist["Return%"].mean() if "Return%" in hist.columns else 0
         _days_range = f"{hist['Date'].min().strftime('%Y-%m-%d')} ~ {hist['Date'].max().strftime('%Y-%m-%d')}"
 
-        _b1,_b2 = st.columns(2)
-        _b1.metric("총 기록",   f"{_total}건")
-        _b2.metric("수익 종목", f"{_profitable}건",
-                   f"{_profitable/_total*100:.0f}%" if _total>0 else "0%")
-        _b3,_b4 = st.columns(2)
-        _b3.metric("평균 수익률", f"{_avg_ret:+.2f}%")
-        _b4.metric("기간", f"{hist['Days'].max():.0f}일")
-        st.markdown(
-            f"<div style='font-size:10px;color:#6B7280;margin-bottom:10px'>"
-            f"데이터 기간: {_days_range}</div>",
-            unsafe_allow_html=True)
+        _days_max = int(hist['Days'].max()) if len(hist) > 0 else 0
+        _win_rate = f"{_profitable/_total*100:.0f}%" if _total > 0 else "0%"
+        _bt_df = pd.DataFrame([
+            {"항목": "총 기록",    "값": f"{_total}건",           "비고": _days_range},
+            {"항목": "수익 종목",  "값": f"{_profitable}건",      "비고": f"승률 {_win_rate}"},
+            {"항목": "평균 수익률","값": f"{_avg_ret:+.2f}%",     "비고": "진입가 기준"},
+            {"항목": "데이터 기간","값": f"{_days_max}일",        "비고": "누적 일수"},
+        ])
+        st.dataframe(
+            _bt_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "항목": st.column_config.TextColumn("항목", width="small"),
+                "값":   st.column_config.TextColumn("값",   width="small"),
+                "비고": st.column_config.TextColumn("비고", width="medium"),
+            })
 
         st.markdown("---")
 

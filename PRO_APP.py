@@ -1058,6 +1058,16 @@ with t_market:
     })
 
     # ══ 1. 유동성 5단계 범례 ════════════════════════════════
+    # ══ 2. 핵심 시장 지표 제목 + 범례 ════════════════════════
+    st.markdown(
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:2px'>"
+        "핵심 시장 지표</div>"
+        "<div style='font-size:9px;color:#6B7280;margin-bottom:6px'>"
+        "유동성·침체·변동성·추세 종합 현황</div>",
+        unsafe_allow_html=True)
+
+    # 유동성 범례
     st.markdown(
         "<div style='display:flex;gap:4px;margin-bottom:8px;overflow-x:auto'>"
         "<div style='font-size:9px;white-space:nowrap;background:#FFFFFF;"
@@ -1073,7 +1083,6 @@ with t_market:
         "</div>",
         unsafe_allow_html=True)
 
-    # ══ 2. 핵심 지표 카드 (유동성·침체·VIX·QQQ) ════════════
     c1,c2 = st.columns(2)
     c3,c4 = st.columns(2)
     _lc = "#B91C1C" if liq_stage<=2 else ("#92400E" if liq_stage==3 else "#166534")
@@ -1414,7 +1423,7 @@ with t_leaders:
     def _top_sec(d, n=2):
         if d.empty or "Sector" not in d.columns: return ""
         top = d["Sector"].value_counts().head(n)
-        return " · ".join(f"{s}({v})" for s,v in top.items())
+        return " · ".join(f"{s} {v}" for s,v in top.items())
 
     _summary_df = pd.DataFrame([
         {"항목":"전체 종목",     "수":len(df),       "비고": _top_sec(df)},
@@ -1800,17 +1809,23 @@ with t_backtest:
 # ════════════════════════════════════════════════════════════
 with t_settings:
 
+    st.markdown(
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:2px'>"
+        "SCREENER CONFIGURATION</div>"
+        "<div style='font-size:9px;color:#6B7280;margin-bottom:8px'>"
+        "변경 즉시 LEADERS 탭에 반영 · 기본값 기준으로 조정</div>",
+        unsafe_allow_html=True)
+
     def _num_row(label, key, default, step=5, min_v=0, max_v=200, unit="점"):
-        """[ 값 ] [+][-] 형태의 설정 행"""
         cur = st.session_state.get(key, default)
-        _c0, _c1, _c2, _c3 = st.columns([3, 1, 0.4, 0.4])
+        _c0, _c1, _c2, _c3 = st.columns([3.5, 1, 0.45, 0.45])
         _c0.markdown(
-            f"<div style='font-size:11px;color:#374151;padding:6px 0'>"
-            f"{label} <span style='color:#9CA3AF;font-size:10px'>(기본: {default}{unit})</span></div>",
+            f"<div style='font-size:11px;color:#374151;padding:5px 0'>{label}</div>",
             unsafe_allow_html=True)
         _c1.markdown(
             f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-            f"border-radius:3px;padding:4px 0;text-align:center;"
+            f"border-radius:3px;padding:3px 0;text-align:center;"
             f"font-size:13px;font-weight:700;color:#0D1117'>{cur}{unit}</div>",
             unsafe_allow_html=True)
         if _c2.button("＋", key=f"plus_{key}"):
@@ -1821,92 +1836,75 @@ with t_settings:
             st.rerun()
         return st.session_state.get(key, default)
 
+    # ══ ① 시장 환경 임계값 ══════════════════════════════════
     st.markdown(
-        "<div style='font-size:10px;color:#6B7280;"
-        "font-family:Space Mono,monospace;margin-bottom:12px'>"
-        "SCREENER CONFIGURATION — 변경 즉시 LEADERS 탭에 반영됩니다</div>",
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:4px'>"
+        "① 시장 환경 임계값</div>",
         unsafe_allow_html=True)
 
-    # ── 섹션 1: 시장 환경 임계값 ──────────────────────────
-    st.markdown(
-        "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:3px;padding:10px 14px;margin-bottom:8px'>"
-        "<div style='font-size:10px;font-weight:700;color:#6B7280;"
-        "margin-bottom:8px'>① 시장 환경 임계값</div>",
-        unsafe_allow_html=True)
-
-    _num_row("유동성 최소 단계 (이하면 매수 금지)",
+    _num_row("유동성 최소 단계 — 이하면 매수 금지",
              "cfg_liq_min", 3, step=1, min_v=1, max_v=5, unit="단계")
-    _num_row("침체 위험 상한 (이상이면 경고)",
+    _num_row("침체 위험 상한 — 이상이면 경고",
              "cfg_rec_max", 70, step=5, min_v=30, max_v=100, unit="점")
-    _num_row("VIX 경고 기준 (이상이면 패널티)",
+    _num_row("VIX 경고 기준 — 이상이면 패널티",
              "cfg_vix_warn", 28, step=1, min_v=15, max_v=50, unit="")
+    st.markdown("---")
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ── 섹션 2: RS 가중치 ─────────────────────────────────
+    # ══ ② RS 가중치 ═════════════════════════════════════════
     st.markdown(
-        "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:3px;padding:10px 14px;margin-bottom:8px'>"
-        "<div style='font-size:10px;font-weight:700;color:#6B7280;"
-        "margin-bottom:8px'>② RS 상대강도 가중치</div>",
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:4px'>"
+        "② RS 상대강도 가중치</div>",
         unsafe_allow_html=True)
 
-    _num_row("RS 95↑ 가중치 (초강세)", "cfg_rs95_w", 35, step=5, min_v=0, max_v=60)
-    _num_row("RS 90↑ 가중치 (강세)",   "cfg_rs90_w", 25, step=5, min_v=0, max_v=50)
-    _num_row("RS 80↑ 가중치 (상승)",   "cfg_rs80_w", 15, step=5, min_v=0, max_v=40)
-    _num_row("최소 RS 표시 기준 (이하 숨김)",
+    _num_row("RS 95↑ 가중치 — 초강세", "cfg_rs95_w", 35, step=5, min_v=0, max_v=60)
+    _num_row("RS 90↑ 가중치 — 강세",   "cfg_rs90_w", 25, step=5, min_v=0, max_v=50)
+    _num_row("RS 80↑ 가중치 — 상승",   "cfg_rs80_w", 15, step=5, min_v=0, max_v=40)
+    _num_row("최소 RS 표시 기준 — 이하 숨김",
              "cfg_min_rs", 70, step=5, min_v=0, max_v=95)
+    st.markdown("---")
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ── 섹션 3: MA200 가중치 ──────────────────────────────
+    # ══ ③ MA200 가중치 ══════════════════════════════════════
     st.markdown(
-        "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:3px;padding:10px 14px;margin-bottom:8px'>"
-        "<div style='font-size:10px;font-weight:700;color:#6B7280;"
-        "margin-bottom:8px'>③ MA200 가중치</div>",
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:4px'>"
+        "③ MA200 가중치</div>",
         unsafe_allow_html=True)
 
-    _num_row("MA200 위 보너스",  "cfg_ma200_bon", 20, step=5, min_v=0,  max_v=50)
-    _num_row("MA200 아래 패널티","cfg_ma200_pen", 40, step=5, min_v=10, max_v=80)
+    _num_row("MA200 위 보너스",   "cfg_ma200_bon", 20, step=5, min_v=0,  max_v=50)
+    _num_row("MA200 아래 패널티", "cfg_ma200_pen", 40, step=5, min_v=10, max_v=80)
+    st.markdown("---")
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ── 섹션 4: 기타 가중치 ───────────────────────────────
+    # ══ ④ 기타 가중치 ═══════════════════════════════════════
     st.markdown(
-        "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:3px;padding:10px 14px;margin-bottom:8px'>"
-        "<div style='font-size:10px;font-weight:700;color:#6B7280;"
-        "margin-bottom:8px'>④ 기타 가중치</div>",
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:4px'>"
+        "④ 기타 가중치</div>",
         unsafe_allow_html=True)
 
-    _num_row("기관 거래량 가중치 (2배↑)", "cfg_vol_w",     25, step=5, min_v=0, max_v=50)
-    _num_row("신고가 근처 가중치 (-5%↑)", "cfg_hd_w",      25, step=5, min_v=0, max_v=50)
-    _num_row("하락장 생존 보너스 (-10%↓)", "cfg_survive_w", 35, step=5, min_v=0, max_v=60)
+    _num_row("기관 거래량 — 2배↑",  "cfg_vol_w",     25, step=5, min_v=0, max_v=50)
+    _num_row("신고가 근처 — -5%↑",  "cfg_hd_w",      25, step=5, min_v=0, max_v=50)
+    _num_row("하락장 생존 보너스",   "cfg_survive_w", 35, step=5, min_v=0, max_v=60)
+    st.markdown("---")
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ── 섹션 5: 등급 기준점수 ─────────────────────────────
+    # ══ ⑤ 등급 기준점수 ═════════════════════════════════════
     st.markdown(
-        "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:3px;padding:10px 14px;margin-bottom:8px'>"
-        "<div style='font-size:10px;font-weight:700;color:#6B7280;"
-        "margin-bottom:8px'>⑤ 등급 기준점수</div>",
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:4px'>"
+        "⑤ 등급 기준점수</div>",
         unsafe_allow_html=True)
 
-    _num_row("🚀 ELITE 기준",  "cfg_elite_min",  140, step=5, min_v=80, max_v=200)
-    _num_row("🔥 STRONG 기준", "cfg_strong_min", 110, step=5, min_v=60, max_v=180)
-    _num_row("✅ WATCH 기준",  "cfg_watch_min",   80, step=5, min_v=40, max_v=150)
+    _num_row("🚀 ELITE 기준",  "cfg_elite_min",  140, step=5, min_v=80,  max_v=200)
+    _num_row("🔥 STRONG 기준", "cfg_strong_min", 110, step=5, min_v=60,  max_v=180)
+    _num_row("🔍 WATCH 기준",  "cfg_watch_min",   80, step=5, min_v=40,  max_v=150)
+    st.markdown("---")
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ── 섹션 6: 자동 규칙 ────────────────────────────────
+    # ══ ⑥ 자동 규칙 ═════════════════════════════════════════
     st.markdown(
-        "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-        "border-radius:3px;padding:10px 14px;margin-bottom:8px'>"
-        "<div style='font-size:10px;font-weight:700;color:#6B7280;"
-        "margin-bottom:8px'>⑥ 자동 규칙</div>",
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:4px'>"
+        "⑥ 자동 규칙</div>",
         unsafe_allow_html=True)
 
     _r1, _r2 = st.columns(2)
@@ -1918,43 +1916,64 @@ with t_settings:
         st.session_state["cfg_liq_block"] = _liq_block
     with _r2:
         _rec_elite = st.toggle(
-            "침체 위험 상한↑ → ELITE만 표시",
+            "침체 위험↑ → ELITE만 표시",
             value=st.session_state.get("cfg_rec_elite", False),
             key="toggle_rec_elite")
         st.session_state["cfg_rec_elite"] = _rec_elite
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ── 현재 설정 요약 + 초기화 ───────────────────────────
     st.markdown("---")
-    _b1, _b2 = st.columns(2)
-    with _b1:
-        if st.button("🔄 기본값으로 초기화", use_container_width=True,
-                     key="cfg_reset"):
-            for _k, _v in _DEFAULTS.items():
-                st.session_state[_k] = _v
-            st.success("✅ 기본값으로 초기화됐습니다")
-            st.rerun()
-    with _b2:
-        # 현재 설정 요약
-        _cur_cfg = {k: st.session_state.get(k, v) for k, v in _DEFAULTS.items()}
-        _changed = [k for k, v in _DEFAULTS.items()
-                    if st.session_state.get(k, v) != v]
-        if _changed:
-            st.markdown(
-                f"<div style='background:#FFFBEB;border:1px solid #FDE68A;"
-                f"border-radius:3px;padding:6px 10px;font-size:10px;color:#92400E'>"
-                f"⚠️ {len(_changed)}개 항목이 기본값과 다름</div>",
-                unsafe_allow_html=True)
-        else:
-            st.markdown(
-                "<div style='background:#F0FDF4;border:1px solid #86EFAC;"
-                "border-radius:3px;padding:6px 10px;font-size:10px;color:#166534'>"
-                "✅ 모든 항목이 기본값입니다</div>",
-                unsafe_allow_html=True)
 
+    # ══ 현재 설정 상태 표 ════════════════════════════════════
+    st.markdown(
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:4px'>"
+        "현재 설정값</div>",
+        unsafe_allow_html=True)
 
-# ── 푸터 ─────────────────────────────────────────────────
+    _cfg_rows = []
+    _cfg_meta = [
+        ("유동성 최소 단계",  "cfg_liq_min",     3,   "단계"),
+        ("침체 위험 상한",    "cfg_rec_max",     70,  "점"),
+        ("VIX 경고 기준",     "cfg_vix_warn",    28,  ""),
+        ("RS 95↑ 가중치",     "cfg_rs95_w",      35,  "점"),
+        ("RS 90↑ 가중치",     "cfg_rs90_w",      25,  "점"),
+        ("RS 80↑ 가중치",     "cfg_rs80_w",      15,  "점"),
+        ("최소 RS 기준",      "cfg_min_rs",      70,  ""),
+        ("MA200 위 보너스",   "cfg_ma200_bon",   20,  "점"),
+        ("MA200 아래 패널티", "cfg_ma200_pen",   40,  "점"),
+        ("기관거래량 가중치", "cfg_vol_w",       25,  "점"),
+        ("신고가 가중치",     "cfg_hd_w",        25,  "점"),
+        ("하락장 생존 보너스","cfg_survive_w",   35,  "점"),
+        ("ELITE 기준",        "cfg_elite_min",  140,  "점"),
+        ("STRONG 기준",       "cfg_strong_min", 110,  "점"),
+        ("WATCH 기준",        "cfg_watch_min",   80,  "점"),
+    ]
+    for _lbl, _key, _def, _unit in _cfg_meta:
+        _cur = st.session_state.get(_key, _def)
+        _changed = "⚠️ 변경" if _cur != _def else "기본값"
+        _cfg_rows.append({
+            "항목":   _lbl,
+            "현재값": f"{_cur}{_unit}",
+            "기본값": f"{_def}{_unit}",
+            "상태":   _changed,
+        })
+
+    st.dataframe(
+        pd.DataFrame(_cfg_rows),
+        use_container_width=True, hide_index=True,
+        column_config={
+            "항목":   st.column_config.TextColumn("항목",   width="medium"),
+            "현재값": st.column_config.TextColumn("현재값", width="small"),
+            "기본값": st.column_config.TextColumn("기본값", width="small"),
+            "상태":   st.column_config.TextColumn("상태",   width="small"),
+        })
+
+    if st.button("🔄 기본값으로 초기화", key="cfg_reset"):
+        for _k, _v in _DEFAULTS.items():
+            st.session_state[_k] = _v
+        st.success("✅ 기본값으로 초기화됐습니다")
+        st.rerun()
+
 st.markdown(
     f"<div style='text-align:center;font-size:9px;color:#1E2D3D;"
     f"margin-top:20px;padding-top:8px;border-top:1px solid #0D1117'>"

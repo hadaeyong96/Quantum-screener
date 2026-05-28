@@ -1493,7 +1493,7 @@ with t_market:
         "MA200 아래 하락 중" if _qi == "BEAR" else
         "방향성 탐색 중"
     )
-    _lc = "#B91C1C" if liq_stage<=2 else ("#92400E" if liq_stage==3 else "#166534")
+    _lc = "#B91C1C" if liq_stage<=2 else ("#D97706" if liq_stage==3 else "#16A34A")
     _rc = "#B91C1C" if rec_score>=70 else ("#92400E" if rec_score>=30 else "#166534")
     _vc = "#B91C1C" if mkt_ctx["vix"]>=28 else ("#92400E" if mkt_ctx["vix"]>=20 else "#166534")
     _qc = "#166534" if _qi=="BULL" else ("#B91C1C" if _qi=="BEAR" else "#374151")
@@ -1509,10 +1509,13 @@ with t_market:
     _stage_html = ""
     for _sn, _si, _sc, _sl in _stage_defs:
         if _sn == liq_stage:
+            _badge_colors = {5:"#16A34A", 4:"#22C55E", 3:"#EAB308", 2:"#EF4444", 1:"#DC2626"}
+            _badge_bg = _badge_colors.get(_sn, _lc)
             _stage_html += (
                 f"<span style='font-size:12px;white-space:nowrap;"
                 f"padding:3px 9px;border-radius:20px;"
-                f"background:{_lc};color:#FFF;font-weight:700'>"
+                f"background:{_badge_bg};color:#FFF;font-weight:700;"
+                f"box-shadow:0 1px 4px rgba(0,0,0,0.15)'>"
                 f"{_si} {_sc} 현재</span>")
         else:
             _stage_html += (
@@ -2093,7 +2096,7 @@ with t_leaders:
 
     _disp_cols = ["Ticker","Name","Sector","LeaderGrade","LeaderScore","전략보너스","연속선택",
                   "AccScore","RS","HighDist","VolRatio","EPS","RSI",
-                  "Breakout","VolSurge","Consec","EntryPrice","CondCount"]
+                  "Breakout","VolSurge","Consec","EntryPrice","CondCount","FinvizLink"]
     # 모바일: 핵심 컬럼 우선 표시 (전체는 가로 스크롤)
     _disp = _fdf[[c for c in _disp_cols if c in _fdf.columns]].copy()
 
@@ -2102,11 +2105,18 @@ with t_leaders:
         if bc in _disp.columns:
             _disp[bc] = _disp[bc].map({True:"✅", False:"—"})
 
+    # Ticker에 Finviz 링크 추가
+    _disp["FinvizLink"] = _disp["Ticker"].apply(
+        lambda tk: f"https://finviz.com/quote.ashx?t={tk}")
+
     st.dataframe(
         _disp,
         use_container_width=True,
         column_config={
             "Ticker":      st.column_config.TextColumn("Ticker",   width="small"),
+            "FinvizLink":  st.column_config.LinkColumn("Finviz ↗",
+                            display_text=r"https://finviz\.com/quote\.ashx\?t=(.+)",
+                            width="small"),
             "Name":        st.column_config.TextColumn("회사명",   width="medium"),
             "Sector":      st.column_config.TextColumn("섹터",     width="small"),
             "LeaderGrade": st.column_config.TextColumn("🏆등급",   width="small"),

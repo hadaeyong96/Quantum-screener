@@ -1317,14 +1317,36 @@ with t_market:
         "LIQUIDITY BREAKDOWN</div>",
         unsafe_allow_html=True)
 
+    # FRED 링크 매핑
+    _FRED_LINKS = {
+        "기준금리":       ("FEDFUNDS",     "https://fred.stlouisfed.org/series/FEDFUNDS"),
+        "M2 통화량":      ("M2SL",         "https://fred.stlouisfed.org/series/M2SL"),
+        "RRP 역레포":     ("RRPONTSYD",    "https://fred.stlouisfed.org/series/RRPONTSYD"),
+        "TGA 재무부":     ("WDTGAL",       "https://fred.stlouisfed.org/series/WDTGAL"),
+        "은행 준비금":    ("WRESBAL",      "https://fred.stlouisfed.org/series/WRESBAL"),
+        "실질금리":       ("DFII10",       "https://fred.stlouisfed.org/series/DFII10"),
+        "크레딧 스프레드":("BAMLH0A0HYM2", "https://fred.stlouisfed.org/series/BAMLH0A0HYM2"),
+        "CPI 물가":       ("CPIAUCSL",     "https://fred.stlouisfed.org/series/CPIAUCSL"),
+        "장단기 금리차":  ("T10Y2Y",       "https://fred.stlouisfed.org/series/T10Y2Y"),
+    }
+
     _liq_rows = []
     for _k, _v in liq_detail.items():
-        if isinstance(_v, tuple) and len(_v) == 3:
-            _liq_rows.append({"지표":_k, "현재값":_v[0], "점수":_v[1], "신호":_v[2]})
-        else:
-            _liq_rows.append({"지표":_k, "현재값":str(_v), "점수":50, "신호":"🟡"})
+        _val   = _v[0] if isinstance(_v, tuple) else str(_v)
+        _score = _v[1] if isinstance(_v, tuple) else 50
+        _sig   = _v[2] if isinstance(_v, tuple) else "🟡"
+        _sid, _url = _FRED_LINKS.get(_k, ("", ""))
+        _fred_link = _url if _url else ""
+        _liq_rows.append({
+            "지표":   _k,
+            "현재값": _val,
+            "점수":   _score,
+            "신호":   _sig,
+            "FRED":   _fred_link,
+            "_sid":   _sid,
+        })
 
-    _liq_df = pd.DataFrame(_liq_rows)
+    _liq_df = pd.DataFrame(_liq_rows).drop(columns=["_sid"], errors="ignore")
     st.dataframe(
         _liq_df, use_container_width=True, hide_index=True,
         column_config={
@@ -1332,6 +1354,9 @@ with t_market:
             "현재값": st.column_config.TextColumn("현재값", width="small"),
             "점수":   st.column_config.NumberColumn("점수", format="%d점", width="small"),
             "신호":   st.column_config.TextColumn("신호",   width="small"),
+            "FRED":   st.column_config.LinkColumn("FRED",
+                        display_text=r"https://fred\.stlouisfed\.org/series/(.+)",
+                        width="small"),
         })
 
     # ── 섹터 자금 흐름 ─────────────────────────────────────

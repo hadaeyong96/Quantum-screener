@@ -1583,11 +1583,6 @@ with t_market:
         _sector_df = pd.DataFrame(_sector_rows).sort_values(
             "QQQ대비%", ascending=False).reset_index(drop=True)
 
-        # session_state 저장 → LEADERS 섹터순환 전략에 활용
-        st.session_state["hot_sectors"]  = _hot    # 자금 유입 섹터
-        st.session_state["cold_sectors"] = _cold   # 자금 유출 섹터
-        st.session_state["sector_df"]    = _sector_df  # 전체 섹터 순위
-
         st.dataframe(
             _sector_df,
             use_container_width=True,
@@ -1605,6 +1600,11 @@ with t_market:
         # 강세 섹터 요약
         _hot = [r["섹터"] for r in _sector_rows if "강세" in r["상태"] or "유입" in r["상태"]]
         _cold= [r["섹터"] for r in _sector_rows if "약세" in r["상태"] or "유출" in r["상태"]]
+
+        # session_state 저장 → LEADERS 섹터순환 전략에 활용
+        st.session_state["hot_sectors"]  = _hot
+        st.session_state["cold_sectors"] = _cold
+        st.session_state["sector_df"]    = _sector_df
         # 자금 흐름 원인 자동 분석
         def _sector_reason(hot_sectors, liq_det, rec_s, mkt_c):
             reasons = []

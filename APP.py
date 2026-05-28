@@ -2466,7 +2466,21 @@ with t_portfolio:
                 "* 진입가 기준 · 환율 수동 입력 · 실시간 주가 미반영</div>",
                 unsafe_allow_html=True)
 
-            # 표 형식 데이터 생성
+            # 표 형식 데이터 생성 (금액+주수 합쳐서 표시)
+            def _shares_str(amt_만, price, fx):
+                """주수 계산 · 1주 미만이면 — 표시"""
+                if price <= 0 or fx <= 0: return "—"
+                cost = price * fx
+                shares = amt_만 * 10000 / cost
+                if shares >= 1:
+                    return f"{int(shares)}주"
+                return "—"
+
+            def _cell(amt_만, price, fx):
+                """'35.4만 · 2주' 형태 · 1주 미만이면 '35.4만 · —'"""
+                s = _shares_str(amt_만, price, fx)
+                return f"{amt_만}만 × {s}"
+
             _tbl_rows = []
             for _pr in _pt_rows:
                 _t_alloc = _pr["투자금액(만원)"]
@@ -2475,39 +2489,44 @@ with t_portfolio:
                 _t1 = round(_t_alloc * 0.40, 1)
                 _t2 = round(_t_alloc * 0.35, 1)
                 _t3 = round(_t_alloc * 0.25, 1)
-                _s1 = int(_t1*10000/(_p*_fx)) if _p>0 and _fx>0 else 0
-                _s2 = int(_t2*10000/(_p*_fx)) if _p>0 and _fx>0 else 0
-                _s3 = int(_t3*10000/(_p*_fx)) if _p>0 and _fx>0 else 0
+                _cost1share = round(_p * _fx / 10000, 1)
                 _tbl_rows.append({
-                    "Ticker":   _pr["Ticker"],
-                    "등급":     _pr["등급"],
-                    "현재가($)":_p,
-                    "배분(만)": _t_alloc,
-                    "1차(만)":  _t1,
-                    "1차(주)":  _s1,
-                    "2차(만)":  _t2,
-                    "2차(주)":  _s2,
-                    "3차(만)":  _t3,
-                    "3차(주)":  _s3,
-                    "손절($)":  _pr["손절가"],
+                    "Ticker":  _pr["Ticker"],
+                    "등급":    _pr["등급"],
+                    "현재가":  f"${_p:.2f}",
+                    "1주비용": f"{_cost1share}만원",
+                    "1차 40%": _cell(_t1, _p, _fx),
+                    "2차 35%": _cell(_t2, _p, _fx),
+                    "3차 25%": _cell(_t3, _p, _fx),
+                    "손절가":  f"${_pr['손절가']:.2f}",
                 })
 
             st.dataframe(
                 pd.DataFrame(_tbl_rows),
                 use_container_width=True, hide_index=True,
                 column_config={
-                    "Ticker":    st.column_config.TextColumn("Ticker",   width="small"),
-                    "등급":      st.column_config.TextColumn("등급",     width="small"),
-                    "현재가($)": st.column_config.NumberColumn("현재가", format="$%.2f", width="small"),
-                    "배분(만)":  st.column_config.NumberColumn("총배분",  format="%.1f만", width="small"),
-                    "1차(만)":   st.column_config.NumberColumn("1차만원", format="%.1f만", width="small"),
-                    "1차(주)":   st.column_config.NumberColumn("1차주수", format="%d주",   width="small"),
-                    "2차(만)":   st.column_config.NumberColumn("2차만원", format="%.1f만", width="small"),
-                    "2차(주)":   st.column_config.NumberColumn("2차주수", format="%d주",   width="small"),
-                    "3차(만)":   st.column_config.NumberColumn("3차만원", format="%.1f만", width="small"),
-                    "3차(주)":   st.column_config.NumberColumn("3차주수", format="%d주",   width="small"),
-                    "손절($)":   st.column_config.NumberColumn("손절가",  format="$%.2f",  width="small"),
+                    "Ticker":  st.column_config.TextColumn("Ticker",  width="small"),
+                    "등급":    st.column_config.TextColumn("등급",    width="small"),
+                    "현재가":  st.column_config.TextColumn("현재가",  width="small"),
+                    "1주비용": st.column_config.TextColumn("1주비용", width="small"),
+                    "1차 40%": st.column_config.TextColumn("1차 40%", width="medium"),
+                    "2차 35%": st.column_config.TextColumn("2차 35%", width="medium"),
+                    "3차 25%": st.column_config.TextColumn("3차 25%", width="medium"),
+                    "손절가":  st.column_config.TextColumn("손절가",  width="small"),
                 })
+
+            # 각주: — 표시 종목이 있으면 안내
+            _dash_tickers = [
+                r["Ticker"] for r in _tbl_rows
+                if "—" in r.get("1차 40%","")
+            ]
+            if _dash_tickers:
+                st.markdown(
+                    f"<div style='font-size:9px;color:#9CA3AF;margin-top:4px'>"
+                    f"* — 표시: 배분금액으로 1주 매수 불가 "
+                    f"({', '.join(_dash_tickers)}) · "
+                    f"투자금액 증액 또는 해당 종목 제외 권장</div>",
+                    unsafe_allow_html=True)
 
             # ── 포트폴리오 요약 ──────────────────────────────
             _total_invested = sum(r["투자금액(만원)"] for r in _pt_rows)

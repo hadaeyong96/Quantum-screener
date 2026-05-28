@@ -2053,38 +2053,15 @@ with t_leaders:
         _fdf = _fdf[_fdf["RS"] >= _min_rs]
 
 
-    # ── 스크리닝 현황 요약 ───────────────────────────────
-    st.markdown(
-        "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:2px'>"
-        "스크리닝 현황</div>"
-        "<div style='font-size:9px;color:#6B7280;margin-bottom:6px'>"
-        "전체 종목 중 MA200 위 매수 가능 종목 분류</div>",
-        unsafe_allow_html=True)
-    _elite_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("ELITE", na=False)])
+    # ── 등급 카운트 (하위 코드에서 사용) ────────────────────
+    _elite_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("ELITE",  na=False)])
     _strong_cnt = len(df_above[df_above["LeaderGrade"].str.contains("STRONG", na=False)])
-    _watch_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("WATCH", na=False)])
+    _watch_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("WATCH",  na=False)])
 
     def _top_sec(d, n=2):
         if d.empty or "Sector" not in d.columns: return ""
         top = d["Sector"].value_counts().head(n)
         return " · ".join(f"{s} {v}" for s,v in top.items())
-
-    _summary_df = pd.DataFrame([
-        {"항목":"전체 종목",     "수":len(df),       "비고": _top_sec(df)},
-        {"항목":"MA200 위",      "수":len(df_above), "비고": _top_sec(df_above) + " — 매수 가능"},
-        {"항목":"🚀 ELITE",      "수":_elite_cnt,    "비고": _top_sec(df_above[df_above["LeaderGrade"].str.contains("ELITE",na=False)]) + " — 즉시 진입"},
-        {"항목":"🔥 STRONG",     "수":_strong_cnt,   "비고": _top_sec(df_above[df_above["LeaderGrade"].str.contains("STRONG",na=False)]) + " — 분할매수"},
-        {"항목":"🔍 WATCH",      "수":_watch_cnt,    "비고": "관찰 대기"},
-        {"항목":"⛔ MA200 아래", "수":len(df_below), "비고": "매수 금지"},
-    ])
-    st.dataframe(
-        _summary_df, use_container_width=True, hide_index=True,
-        column_config={
-            "항목": st.column_config.TextColumn("항목",   width="small"),
-            "수":   st.column_config.NumberColumn("종목수", format="%d개", width="small"),
-            "비고": st.column_config.TextColumn("비고",   width="medium"),
-        })
 
 
     st.markdown("---")

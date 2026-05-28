@@ -2462,73 +2462,52 @@ with t_portfolio:
                 "<div style='font-size:11px;color:#374151;"
                 "font-family:Space Mono,monospace;margin-bottom:2px'>"
                 "자동 배분 결과</div>"
-                "<div style='font-size:9px;color:#9CA3AF;margin-bottom:8px'>"
+                "<div style='font-size:9px;color:#9CA3AF;margin-bottom:6px'>"
                 "* 진입가 기준 · 환율 수동 입력 · 실시간 주가 미반영</div>",
                 unsafe_allow_html=True)
 
+            # 표 형식 데이터 생성
+            _tbl_rows = []
             for _pr in _pt_rows:
-                _t_alloc  = _pr["투자금액(만원)"]
+                _t_alloc = _pr["투자금액(만원)"]
+                _p  = _pr["현재가"]
+                _fx = _usd_krw
                 _t1 = round(_t_alloc * 0.40, 1)
                 _t2 = round(_t_alloc * 0.35, 1)
                 _t3 = round(_t_alloc * 0.25, 1)
-                _p  = _pr["현재가"]
-                _fx = _usd_krw
-                _s1 = int(_t1 * 10000 / (_p * _fx)) if (_p > 0 and _fx > 0) else 0
-                _s2 = int(_t2 * 10000 / (_p * _fx)) if (_p > 0 and _fx > 0) else 0
-                _s3 = int(_t3 * 10000 / (_p * _fx)) if (_p > 0 and _fx > 0) else 0
+                _s1 = int(_t1*10000/(_p*_fx)) if _p>0 and _fx>0 else 0
+                _s2 = int(_t2*10000/(_p*_fx)) if _p>0 and _fx>0 else 0
+                _s3 = int(_t3*10000/(_p*_fx)) if _p>0 and _fx>0 else 0
+                _tbl_rows.append({
+                    "Ticker":   _pr["Ticker"],
+                    "등급":     _pr["등급"],
+                    "현재가($)":_p,
+                    "배분(만)": _t_alloc,
+                    "1차(만)":  _t1,
+                    "1차(주)":  _s1,
+                    "2차(만)":  _t2,
+                    "2차(주)":  _s2,
+                    "3차(만)":  _t3,
+                    "3차(주)":  _s3,
+                    "손절($)":  _pr["손절가"],
+                })
 
-                st.markdown(
-                    f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
-                    f"border-radius:6px;padding:10px 12px;margin-bottom:8px'>"
-                    f"<div style='display:flex;justify-content:space-between;"
-                    f"align-items:center;margin-bottom:8px'>"
-                    f"<div>"
-                    f"<span style='font-size:13px;font-weight:700;color:#0D1117'>"
-                    f"{_pr['Ticker']}</span>"
-                    f"<span style='font-size:11px;color:#6B7280;margin-left:6px'>"
-                    f"{_pr['회사명']}</span>"
-                    f"<span style='font-size:9px;background:#FEF3C7;color:#92400E;"
-                    f"padding:1px 5px;border-radius:4px;margin-left:6px'>"
-                    f"{_pr['등급']}</span>"
-                    f"</div>"
-                    f"<div style='text-align:right'>"
-                    f"<span style='font-size:11px;color:#374151'>${_p:.2f}</span>"
-                    f"<span style='font-size:10px;color:#B91C1C;margin-left:8px'>"
-                    f"손절 ${_pr['손절가']:.2f}</span>"
-                    f"</div></div>"
-                    f"<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px'>"
-                    f"<div style='background:#F0FDF4;border:0.5px solid #86EFAC;"
-                    f"border-top:2px solid #166534;border-radius:4px;"
-                    f"padding:7px;text-align:center'>"
-                    f"<div style='font-size:10px;color:#166534;font-weight:700'>1차 40%</div>"
-                    f"<div style='font-size:14px;font-weight:700;color:#0D1117'>"
-                    f"{_t1}만</div>"
-                    f"<div style='font-size:11px;color:#374151'>{_s1}주</div>"
-                    f"<div style='font-size:9px;color:#6B7280;margin-top:2px'>"
-                    f"브레이크아웃</div>"
-                    f"</div>"
-                    f"<div style='background:#FFFBEB;border:0.5px solid #FDE68A;"
-                    f"border-top:2px solid #D97706;border-radius:4px;"
-                    f"padding:7px;text-align:center'>"
-                    f"<div style='font-size:10px;color:#D97706;font-weight:700'>2차 35%</div>"
-                    f"<div style='font-size:14px;font-weight:700;color:#0D1117'>"
-                    f"{_t2}만</div>"
-                    f"<div style='font-size:11px;color:#374151'>{_s2}주</div>"
-                    f"<div style='font-size:9px;color:#6B7280;margin-top:2px'>"
-                    f"추가 상승 확인</div>"
-                    f"</div>"
-                    f"<div style='background:#EFF6FF;border:0.5px solid #BFDBFE;"
-                    f"border-top:2px solid #6366F1;border-radius:4px;"
-                    f"padding:7px;text-align:center'>"
-                    f"<div style='font-size:10px;color:#6366F1;font-weight:700'>3차 25%</div>"
-                    f"<div style='font-size:14px;font-weight:700;color:#0D1117'>"
-                    f"{_t3}만</div>"
-                    f"<div style='font-size:11px;color:#374151'>{_s3}주</div>"
-                    f"<div style='font-size:9px;color:#6B7280;margin-top:2px'>"
-                    f"완전 확신</div>"
-                    f"</div>"
-                    f"</div></div>",
-                    unsafe_allow_html=True)
+            st.dataframe(
+                pd.DataFrame(_tbl_rows),
+                use_container_width=True, hide_index=True,
+                column_config={
+                    "Ticker":    st.column_config.TextColumn("Ticker",   width="small"),
+                    "등급":      st.column_config.TextColumn("등급",     width="small"),
+                    "현재가($)": st.column_config.NumberColumn("현재가", format="$%.2f", width="small"),
+                    "배분(만)":  st.column_config.NumberColumn("총배분",  format="%.1f만", width="small"),
+                    "1차(만)":   st.column_config.NumberColumn("1차만원", format="%.1f만", width="small"),
+                    "1차(주)":   st.column_config.NumberColumn("1차주수", format="%d주",   width="small"),
+                    "2차(만)":   st.column_config.NumberColumn("2차만원", format="%.1f만", width="small"),
+                    "2차(주)":   st.column_config.NumberColumn("2차주수", format="%d주",   width="small"),
+                    "3차(만)":   st.column_config.NumberColumn("3차만원", format="%.1f만", width="small"),
+                    "3차(주)":   st.column_config.NumberColumn("3차주수", format="%d주",   width="small"),
+                    "손절($)":   st.column_config.NumberColumn("손절가",  format="$%.2f",  width="small"),
+                })
 
             # ── 포트폴리오 요약 ──────────────────────────────
             _total_invested = sum(r["투자금액(만원)"] for r in _pt_rows)

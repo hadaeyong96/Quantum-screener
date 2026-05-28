@@ -988,6 +988,79 @@ def calc_rec_score(fred: dict) -> float:
     return round(sum(signals)/len(signals), 1) if signals else 50.0
 
 # =========================================================
+# MARKET INTERPRETATION ENGINE
+# 유동성 단계별 시장 해석 + 행동 지침 자동 생성
+# =========================================================
+
+MARKET_INTERPRETATION = {
+    5: {
+        "interpret": (
+            "유동성이 최고조에 달해 시장에 돈이 넘칩니다. "
+            "RRP 완전 해소 · 은행 준비금 충분 · 실질금리 우호적으로 "
+            "위험자산 선호 심리가 극대화된 구간입니다. "
+            "기관 매집이 가장 활발하며 강한 종목은 더 강해지는 환경입니다."
+        ),
+        "actions": [
+            "ELITE 종목 적극 매수 (투자금 80~100%)",
+            "52주 신고가 돌파 종목 즉시 진입",
+            "손절 -8% 표준 유지",
+        ],
+    },
+    4: {
+        "interpret": (
+            "유동성이 충분히 풀려 있고 침체 위험이 낮습니다. "
+            "VIX 안정 + QQQ 상승 추세로 위험자산 선호 환경이 지속되고 있습니다. "
+            "기관 매집이 활발한 구간으로 분할 매수 진입이 적합합니다."
+        ),
+        "actions": [
+            "ELITE·STRONG 우선 분할 매수 (투자금 40~60%)",
+            "눌림목 조정 시 추가 진입 검토",
+            "현금 20~30% 유지 · 손절 -8% 표준",
+        ],
+    },
+    3: {
+        "interpret": (
+            "유동성이 혼조 구간입니다. 시장에 돈이 있지만 "
+            "방향성이 불명확하며 변동성이 높아질 수 있습니다. "
+            "강한 종목과 약한 종목의 차별화가 심화되는 시기입니다. "
+            "섣부른 진입보다 관찰 후 선택적 접근이 유효합니다."
+        ),
+        "actions": [
+            "RS 90↑ 최강 종목만 소량 진입 (투자금 20~30%)",
+            "현금 50% 이상 유지",
+            "손절 -6% 강화 · 신규 진입 최소화",
+        ],
+    },
+    2: {
+        "interpret": (
+            "유동성이 수축 중입니다. 시장에서 돈이 빠져나가고 있으며 "
+            "기관이 매도 우위로 전환 중입니다. "
+            "아무리 강해 보이는 종목도 하락 압력을 받을 수 있습니다. "
+            "현금 보유가 최선의 전략입니다."
+        ),
+        "actions": [
+            "신규 매수 전면 중단",
+            "기존 포지션 50% 이상 현금화",
+            "손절 -5% 강화 · 회복 후보 관찰만",
+        ],
+    },
+    1: {
+        "interpret": (
+            "유동성 위기 단계입니다. 시장 전반에 매도 압력이 강하며 "
+            "기관이 전방위로 현금화에 나서고 있습니다. "
+            "반등 시도는 모두 매도 기회로 활용됩니다. "
+            "자산 보존이 최우선 목표입니다."
+        ),
+        "actions": [
+            "전액 현금화 (투자금 0%)",
+            "GLD·TLT 등 안전자산 헤지 검토",
+            "시장 회복 신호 확인 전 절대 매수 금지",
+        ],
+    },
+}
+
+
+# =========================================================
 # INVESTMENT STRATEGY ENGINE
 # 유동성 단계별 최적 투자 전략 자동 계산
 # =========================================================
@@ -1658,6 +1731,129 @@ with t_market:
                 unsafe_allow_html=True)
     else:
         st.info("섹터 데이터 로드 중...")
+
+    # ══ 경제 이벤트 일정 ═══════════════════════════════════
+    st.markdown("---")
+    st.markdown(
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:8px'>"
+        "📆 2026 주요 경제 이벤트 일정</div>",
+        unsafe_allow_html=True)
+
+    _today_dt = pd.Timestamp.now().normalize()
+
+    # 이벤트 데이터
+    _fomc_dates = [
+        ("1월", "1/28",  "2026-01-28"),
+        ("3월", "3/18",  "2026-03-18"),
+        ("5월", "5/6",   "2026-05-06"),
+        ("6월", "6/17",  "2026-06-17"),
+        ("7월", "7/29",  "2026-07-29"),
+        ("9월", "9/16",  "2026-09-16"),
+        ("10월","10/28", "2026-10-28"),
+        ("12월","12/9",  "2026-12-09"),
+    ]
+    _cpi_dates = [
+        ("1월", "1/14",  "2026-01-14"),
+        ("2월", "2/11",  "2026-02-11"),
+        ("3월", "3/11",  "2026-03-11"),
+        ("4월", "4/10",  "2026-04-10"),
+        ("5월", "5/12",  "2026-05-12"),
+        ("6월", "6/10",  "2026-06-10"),
+        ("7월", "7/14",  "2026-07-14"),
+        ("8월", "8/12",  "2026-08-12"),
+        ("9월", "9/9",   "2026-09-09"),
+        ("10월","10/14", "2026-10-14"),
+        ("11월","11/11", "2026-11-11"),
+        ("12월","12/9",  "2026-12-09"),
+    ]
+
+    def _event_card(month, date_str, date_iso, color_bg, color_text, color_border):
+        _dt  = pd.Timestamp(date_iso)
+        _d   = (_dt - _today_dt).days
+        if _d < 0:
+            _badge = ""
+        elif _d == 0:
+            _badge = (f"<div style='font-size:8px;background:#B91C1C;"
+                      f"color:#FFF;border-radius:3px;padding:1px 4px;"
+                      f"margin-top:2px'>오늘</div>")
+        elif _d <= 7:
+            _badge = (f"<div style='font-size:8px;background:#D97706;"
+                      f"color:#FFF;border-radius:3px;padding:1px 4px;"
+                      f"margin-top:2px'>D-{_d}</div>")
+        elif _d <= 30:
+            _badge = (f"<div style='font-size:8px;color:{color_text};"
+                      f"margin-top:2px'>D-{_d}</div>")
+        else:
+            _badge = ""
+        _opacity = "opacity:0.4;" if _d < 0 else ""
+        return (
+            f"<div style='background:{color_bg};border:0.5px solid {color_border};"
+            f"border-radius:4px;padding:6px;text-align:center;{_opacity}'>"
+            f"<div style='font-size:9px;color:#9CA3AF'>{month}</div>"
+            f"<div style='font-size:12px;font-weight:700;color:{color_text}'>"
+            f"{date_str}</div>{_badge}</div>"
+        )
+
+    _ec1, _ec2 = st.columns(2)
+
+    with _ec1:
+        _fomc_html = "".join(
+            _event_card(m, d, di, "#EFF6FF", "#1D4ED8", "#BFDBFE")
+            for m, d, di in _fomc_dates)
+        st.markdown(
+            f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
+            f"border-radius:6px;padding:10px'>"
+            f"<div style='font-size:12px;font-weight:700;color:#0D1117;"
+            f"margin-bottom:2px'>🏦 FOMC 금리 결정</div>"
+            f"<div style='font-size:9px;color:#9CA3AF;margin-bottom:8px'>"
+            f"한국시간 새벽 3~4시 발표</div>"
+            f"<div style='display:grid;grid-template-columns:repeat(2,1fr);gap:5px'>"
+            f"{_fomc_html}</div></div>",
+            unsafe_allow_html=True)
+
+    with _ec2:
+        _cpi_html = "".join(
+            _event_card(m, d, di, "#FFF7ED", "#D97706", "#FDE68A")
+            for m, d, di in _cpi_dates)
+        st.markdown(
+            f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
+            f"border-radius:6px;padding:10px'>"
+            f"<div style='font-size:12px;font-weight:700;color:#0D1117;"
+            f"margin-bottom:2px'>📊 CPI 물가 발표</div>"
+            f"<div style='font-size:9px;color:#9CA3AF;margin-bottom:8px'>"
+            f"⚠️ 발표 3일 전 신규 매수 자제</div>"
+            f"<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:5px'>"
+            f"{_cpi_html}</div></div>",
+            unsafe_allow_html=True)
+
+    # 다음 이벤트 안내
+    _all_events = (
+        [("FOMC", di, d) for _, d, di in _fomc_dates] +
+        [("CPI",  di, d) for _, d, di in _cpi_dates]
+    )
+    _upcoming = sorted(
+        [(t, pd.Timestamp(di), d) for t, di, d in _all_events
+         if (pd.Timestamp(di) - _today_dt).days >= 0],
+        key=lambda x: x[1]
+    )
+    if _upcoming:
+        _next_type, _next_dt, _next_d = _upcoming[0]
+        _next_days = (_next_dt - _today_dt).days
+        _warn_color = "#B91C1C" if _next_days <= 3 else (
+            "#D97706" if _next_days <= 7 else "#374151")
+        _warn_bg = "#FEF2F2" if _next_days <= 3 else (
+            "#FFFBEB" if _next_days <= 7 else "#F9FAFB")
+        st.markdown(
+            f"<div style='background:{_warn_bg};border:0.5px solid #E2E6ED;"
+            f"border-radius:4px;padding:7px 12px;margin-top:6px;"
+            f"font-size:11px;color:{_warn_color}'>"
+            f"{'⚠️ ' if _next_days<=3 else '📅 '}"
+            f"다음 이벤트: <b>{_next_type} {_next_d}</b> — "
+            f"{'오늘' if _next_days==0 else f'D-{_next_days}'}"
+            f"{'  · 신규 매수 자제 권장' if _next_days<=3 else ''}"
+            f"</div>",
+            unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════
 # TAB 1 — LEADERS

@@ -1450,95 +1450,134 @@ with t_market:
     })
 
     # ══ 1. 유동성 5단계 범례 ════════════════════════════════
-    # ══ 2. 핵심 시장 지표 제목 + 범례 ════════════════════════
-    st.markdown(
-        "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:2px'>"
-        "핵심 시장 지표</div>"
-        "<div style='font-size:9px;color:#6B7280;margin-bottom:6px'>"
-        "유동성·침체·변동성·추세 종합 현황</div>",
-        unsafe_allow_html=True)
+    # ══ 2. 통합 시장 분석 카드 ════════════════════════════════
+    _interp         = MARKET_INTERPRETATION.get(liq_stage, MARKET_INTERPRETATION[3])
+    _interpret_text = _interp["interpret"]
+    _action_list    = _interp["actions"]
 
-    # 유동성 범례
-    st.markdown(
-        "<div style='display:flex;gap:4px;margin-bottom:8px;overflow-x:auto'>"
-        "<div style='font-size:9px;white-space:nowrap;background:#FFFFFF;"
-        "border:1px solid #E2E6ED;border-radius:20px;padding:2px 7px'>🚀 5단계 80↑ 파티</div>"
-        "<div style='font-size:9px;white-space:nowrap;background:#FFFFFF;"
-        "border:1px solid #E2E6ED;border-radius:20px;padding:2px 7px'>🟢 4단계 60↑ 분할매수</div>"
-        "<div style='font-size:9px;white-space:nowrap;background:#FFFFFF;"
-        "border:1px solid #E2E6ED;border-radius:20px;padding:2px 7px'>🟡 3단계 40↑ 현금50%</div>"
-        "<div style='font-size:9px;white-space:nowrap;background:#FFFFFF;"
-        "border:1px solid #E2E6ED;border-radius:20px;padding:2px 7px'>🔴 2단계 20↑ 매수중단</div>"
-        "<div style='font-size:9px;white-space:nowrap;background:#FFFFFF;"
-        "border:1px solid #E2E6ED;border-radius:20px;padding:2px 7px'>🔴 1단계 0↑ 전액현금</div>"
-        "</div>",
-        unsafe_allow_html=True)
-
-    c1,c2 = st.columns(2)
-    c3,c4 = st.columns(2)
+    _liq_sub = (
+        "RRP 해소 · 준비금 충분" if liq_score >= 70 else
+        "M2 증가 · 금리 안정"    if liq_score >= 55 else
+        "혼조 · 방향성 불명확"   if liq_score >= 40 else
+        "유동성 부족 · 긴축 지속"
+    )
+    _rec_sub = (
+        "Sahm 안전 · 금리차 정상" if rec_score < 30 else
+        "일부 지표 경고"          if rec_score < 50 else
+        "침체 가능성 주시"        if rec_score < 70 else
+        "침체 위험 고조"
+    )
+    _vix_sub = (
+        "시장 안정 · 공포 없음" if mkt_ctx["vix"] < 20 else
+        "변동성 상승 주의"      if mkt_ctx["vix"] < 28 else
+        "공포 구간 · 리스크 관리"
+    )
+    _qi      = mkt_ctx.get("qqq_trend", "NEUTRAL")
+    _qqq_sub = (
+        "MA200 위 상승 중"   if _qi == "BULL" else
+        "MA200 아래 하락 중" if _qi == "BEAR" else
+        "방향성 탐색 중"
+    )
     _lc = "#B91C1C" if liq_stage<=2 else ("#92400E" if liq_stage==3 else "#166534")
-    _rc = "#B91C1C" if rec_score>=70 else ("#92400E" if rec_score>=50 else ("#92400E" if rec_score>=30 else "#166534"))
+    _rc = "#B91C1C" if rec_score>=70 else ("#92400E" if rec_score>=30 else "#166534")
     _vc = "#B91C1C" if mkt_ctx["vix"]>=28 else ("#92400E" if mkt_ctx["vix"]>=20 else "#166534")
-    _qc = "#166534" if mkt_ctx["qqq_trend"]=="BULL" else ("#B91C1C" if mkt_ctx["qqq_trend"]=="BEAR" else "#374151")
-    _qi = "BULL" if mkt_ctx["qqq_trend"]=="BULL" else ("BEAR" if mkt_ctx["qqq_trend"]=="BEAR" else "NEUTRAL")
+    _qc = "#166534" if _qi=="BULL" else ("#B91C1C" if _qi=="BEAR" else "#374151")
 
-    def _mini_card(col, label, val, sub, color):
-        col.markdown(
-            f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-            f"border-radius:3px;padding:5px 8px;margin:0'>"
-            f"<div style='font-size:9px;color:#9CA3AF;line-height:1.2'>{label}</div>"
-            f"<div style='font-size:18px;font-weight:700;color:{color};line-height:1.3'>{val}</div>"
-            f"<div style='font-size:9px;color:#6B7280;line-height:1.2'>{sub}</div>"
-            f"</div>", unsafe_allow_html=True)
+    # 5단계 범례 (현재 단계 강조)
+    _stage_defs = [
+        (5,"🚀","5단계","파티"),
+        (4,"🟢","4단계","분할매수"),
+        (3,"🟡","3단계","현금50%"),
+        (2,"🔴","2단계","매수중단"),
+        (1,"🔴","1단계","전액현금"),
+    ]
+    _stage_html = ""
+    for _sn, _si, _sc, _sl in _stage_defs:
+        if _sn == liq_stage:
+            _stage_html += (
+                f"<span style='font-size:10px;white-space:nowrap;"
+                f"padding:3px 9px;border-radius:20px;"
+                f"background:{_lc};color:#FFF;font-weight:700'>"
+                f"{_si} {_sc} 현재</span>")
+        else:
+            _stage_html += (
+                f"<span style='font-size:10px;white-space:nowrap;"
+                f"padding:3px 9px;border-radius:20px;"
+                f"background:#F3F4F6;color:#6B7280'>"
+                f"{_si} {_sc} {_sl}</span>")
 
-    _mini_card(c1, "유동성",   f"{liq_stage}단계",        f"{liq_score:.0f}점/100", _lc)
-    _mini_card(c2, "침체위험", f"{rec_score:.0f}점",       "/100",                   _rc)
-    _mini_card(c3, "VIX",      f"{mkt_ctx['vix']:.1f}",   "변동성지수",             _vc)
-    _mini_card(c4, "QQQ추세",  _qi, f"{mkt_ctx['mkt_drop']:+.1f}% (52W)",           _qc)
-
-    # ══ 3. 투자 행동 지침 (결론 먼저) ═══════════════════════
-    st.markdown("---")
-    def _liq_evidence(det):
-        evs = []
-        for k, v in det.items():
-            if isinstance(v, tuple) and v[2] == "🟢":
-                if k == "기준금리":        evs.append(f"금리 {v[0]} 우호")
-                elif k == "M2 통화량":     evs.append("M2 증가 중")
-                elif k == "RRP 역레포":    evs.append("RRP 해소")
-                elif k == "은행 준비금":   evs.append("준비금 충분")
-                elif k == "실질금리":      evs.append(f"실질금리 {v[0]}")
-                elif k == "크레딧 스프레드":evs.append("스프레드 안정")
-        return " · ".join(evs[:3]) if evs else ""
-
-    _evidence = _liq_evidence(liq_detail)
-
-    # ══ 자동 스탠스 표시 (Auto Stance Engine) ══════════════
-    _st = _auto_stance
-    _act_list = list(_st["actions"])
-    if _evidence:
-        _act_list.insert(0, f"근거: {_evidence}")
+    _act_html = "".join(
+        f"<div style='font-size:11px;color:#374151;padding:2px 0'>"
+        f"<span style='color:{_lc};margin-right:5px'>→</span>{a}</div>"
+        for a in _action_list)
 
     st.markdown(
-        f"<div style='background:{_st['bg']};"
-        f"border:1.5px solid {_st['border']};"
-        f"border-left:4px solid {_st['color']};"
-        f"border-radius:3px;padding:8px 12px'>"
-        f"<div style='display:flex;align-items:center;"
-        f"justify-content:space-between;margin-bottom:5px'>"
-        f"<span style='font-size:13px;font-weight:700;"
-        f"color:{_st['color']}'>{_st['label']}</span>"
-        f"<span style='font-size:10px;color:#6B7280'>"
-        f"{_st['reason']}</span></div>"
-        + "".join(
-            f"<div style='font-size:11px;color:#374151;padding:2px 0'>"
-            f"<span style='color:{_st['color']};margin-right:6px'>→</span>{a}</div>"
-            for a in _act_list)
-        + f"<div style='font-size:9px;color:#9CA3AF;margin-top:6px'>"
-        f"자동 판단 · 수동 변경: ⚙️ 설정 탭</div>"
-        + "</div>",
-        unsafe_allow_html=True)
+        f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
+        f"border-left:4px solid {_lc};"
+        f"border-radius:6px;padding:14px 16px'>"
 
+        f"<div style='display:flex;justify-content:space-between;"
+        f"align-items:center;margin-bottom:10px'>"
+        f"<div>"
+        f"<div style='font-size:14px;font-weight:700;color:{_lc}'>"
+        f"{_auto_stance.get('label', '—')}</div>"
+        f"<div style='font-size:10px;color:#6B7280;margin-top:1px;white-space:nowrap'>"
+        f"신규 {'매수 가능' if _auto_stance.get('buy_ok') else '매수 금지'} 구간</div>"
+        f"</div>"
+        f"<div style='text-align:right'>"
+        f"<div style='font-size:13px;font-weight:700;color:#0D1117'>"
+        f"{liq_stage}단계 / {liq_score:.0f}점</div>"
+        f"<div style='font-size:10px;color:#6B7280'>"
+        f"침체 {rec_score:.0f}점 · VIX {mkt_ctx['vix']:.1f}</div>"
+        f"</div></div>"
+
+        f"<div style='display:flex;align-items:center;gap:8px;margin-bottom:12px'>"
+        f"<div style='flex:1;height:5px;background:#F3F4F6;"
+        f"border-radius:3px;overflow:hidden'>"
+        f"<div style='width:{min(liq_score,100)}%;height:100%;"
+        f"background:{_lc};border-radius:3px'></div></div>"
+        f"<div style='font-size:10px;color:#6B7280;white-space:nowrap'>"
+        f"{liq_score:.0f}/100</div></div>"
+
+        f"<div style='display:grid;grid-template-columns:1fr 1fr;"
+        f"gap:6px;margin-bottom:12px'>"
+        f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 9px'>"
+        f"<div style='font-size:10px;color:#9CA3AF'>유동성</div>"
+        f"<div style='font-size:16px;font-weight:700;color:{_lc}'>{liq_stage}단계</div>"
+        f"<div style='font-size:10px;color:#6B7280'>{_liq_sub}</div></div>"
+        f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 9px'>"
+        f"<div style='font-size:10px;color:#9CA3AF'>침체 위험</div>"
+        f"<div style='font-size:16px;font-weight:700;color:{_rc}'>{rec_score:.0f}점</div>"
+        f"<div style='font-size:10px;color:#6B7280'>{_rec_sub}</div></div>"
+        f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 9px'>"
+        f"<div style='font-size:10px;color:#9CA3AF'>VIX</div>"
+        f"<div style='font-size:16px;font-weight:700;color:{_vc}'>"
+        f"{mkt_ctx['vix']:.1f}</div>"
+        f"<div style='font-size:10px;color:#6B7280'>{_vix_sub}</div></div>"
+        f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 9px'>"
+        f"<div style='font-size:10px;color:#9CA3AF'>QQQ 추세</div>"
+        f"<div style='font-size:16px;font-weight:700;color:{_qc}'>{_qi}</div>"
+        f"<div style='font-size:10px;color:#6B7280'>{_qqq_sub}</div></div>"
+        f"</div>"
+
+        f"<div style='border-top:0.5px solid #E2E6ED;padding-top:10px;margin-bottom:10px'>"
+        f"<div style='font-size:11px;font-weight:700;color:#374151;margin-bottom:5px'>"
+        f"시장 해석</div>"
+        f"<div style='font-size:11px;color:#374151;line-height:1.7'>"
+        f"{_interpret_text}</div></div>"
+
+        f"<div style='border-top:0.5px solid #E2E6ED;padding-top:8px;margin-bottom:10px'>"
+        f"<div style='font-size:11px;font-weight:700;color:#374151;margin-bottom:6px'>"
+        f"행동 지침</div>"
+        f"<div style='display:flex;flex-direction:column;gap:3px'>{_act_html}</div></div>"
+
+        f"<div style='display:flex;flex-wrap:wrap;gap:4px;"
+        f"padding-top:8px;border-top:0.5px solid #E2E6ED'>"
+        f"{_stage_html}</div>"
+        f"<div style='font-size:9px;color:#9CA3AF;margin-top:6px;text-align:right'>"
+        f"자동 판단 · 수동 변경: ⚙️ 설정 탭</div>"
+        f"</div>",
+        unsafe_allow_html=True)
 
     # ══ 4. LIQUIDITY BREAKDOWN 표 (점수만, 막대그래프 없음) ══
     st.markdown("---")

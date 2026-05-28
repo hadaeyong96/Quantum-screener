@@ -2183,14 +2183,17 @@ with t_portfolio:
         _grade_map = {"WATCH": 0, "STRONG": 1, "ELITE": 2}
         _min_rank  = _grade_map.get(_min_grade, 0)
 
+        def _grade_rank(grade_str):
+            g = str(grade_str)
+            if "ELITE"  in g: return 2
+            if "STRONG" in g: return 1
+            if "WATCH"  in g: return 0
+            return -1
+
         _eligible = [
             r for r in _pt_results
-            if _grade_map.get(
-                "ELITE"  if "ELITE"  in str(r.get("LeaderGrade","")) else
-                "STRONG" if "STRONG" in str(r.get("LeaderGrade","")) else
-                "WATCH"  if "WATCH"  in str(r.get("LeaderGrade","")) else
-                "WEAK", -1) >= _min_rank
-            and r.get("MA200", False)
+            if _grade_rank(r.get("LeaderGrade","")) >= _min_rank
+            and (r.get("MA200") == True or r.get("MA200") == "Y")
         ]
         _eligible = sorted(_eligible,
             key=lambda x: x.get("LeaderScore", 0), reverse=True

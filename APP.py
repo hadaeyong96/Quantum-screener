@@ -2271,45 +2271,7 @@ with t_leaders:
                         else:
                             st.error(f"❌ {_msg}")
 
-    # ── TODAY'S LEADER — 회사 프로필 (dataframe 표 형식) ──
-    _profiles = load_company_profiles()
-    _show_df  = df_above[
-        df_above["LeaderGrade"].str.contains("ELITE|STRONG", na=False)
-    ].head(10)
 
-    if not _show_df.empty:
-        st.markdown("---")
-        st.markdown(
-            f"<div style='font-size:11px;color:#374151;"
-            f"font-family:Space Mono,monospace;margin-bottom:2px'>"
-            f"TODAY'S LEADER — 회사 프로필 ({len(_show_df)}개)</div>"
-            f"<div style='font-size:9px;color:#6B7280;margin-bottom:6px'>"
-            f"ELITE·STRONG 등급 종목 · 💡설명 수정: GitHub → company_profiles.json</div>",
-            unsafe_allow_html=True)
-
-        _prof_rows = []
-        for _, row in _show_df.iterrows():
-            _tk   = row["Ticker"]
-            _prof_rows.append({
-                "등급":   row.get("LeaderGrade",""),
-                "Ticker": _tk,
-                "회사명": row.get("Name", _tk),
-                "점수":   int(row.get("LeaderScore", 0)),
-                "RS":     round(_safe_float(row.get("RS",0)),1),
-                "사업 요약": _profiles.get(_tk, "—"),
-            })
-
-        _prof_df = pd.DataFrame(_prof_rows)
-        st.dataframe(
-            _prof_df, use_container_width=True, hide_index=True,
-            column_config={
-                "등급":   st.column_config.TextColumn("등급",    width="small"),
-                "Ticker": st.column_config.TextColumn("Ticker",  width="small"),
-                "회사명": st.column_config.TextColumn("회사명",  width="small"),
-                "점수":   st.column_config.NumberColumn("점수",  format="%d", width="small"),
-                "RS":     st.column_config.NumberColumn("RS",    format="%.1f", width="small"),
-                "사업 요약": st.column_config.TextColumn("사업 요약"),
-            })
 
 # ════════════════════════════════════════════════════════════
 # TAB 2 — BACKTEST

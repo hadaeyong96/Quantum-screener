@@ -1506,7 +1506,7 @@ with t_market:
         "MA200 아래 하락 중" if _qi == "BEAR" else
         "방향성 탐색 중"
     )
-    _lc = "#B91C1C" if liq_stage<=2 else ("#D97706" if liq_stage==3 else "#16A34A")
+    _lc = "#B91C1C" if liq_stage<=2 else ("#F59E0B" if liq_stage==3 else "#16A34A")
     _rc = "#B91C1C" if rec_score>=70 else ("#92400E" if rec_score>=30 else "#166534")
     _vc = "#B91C1C" if mkt_ctx["vix"]>=28 else ("#92400E" if mkt_ctx["vix"]>=20 else "#166534")
     _qc = "#166534" if _qi=="BULL" else ("#B91C1C" if _qi=="BEAR" else "#374151")
@@ -2380,7 +2380,7 @@ with t_portfolio:
         with _pc1:
             _invest_krw = st.number_input(
                 "투자 가능 금액 (만원)", min_value=10, max_value=100000,
-                value=500, step=50, key="pt_invest_krw")
+                value=1000, step=50, key="pt_invest_krw")
         with _pc2:
             _max_stocks = st.number_input(
                 "최대 종목 수", min_value=1, max_value=20,

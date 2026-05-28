@@ -510,9 +510,13 @@ def calculate_leader_score(row: dict, mctx: dict, cfg: dict = None) -> dict:
     else:
         score += _ma200_bon; reasons.append("📊MA200위")
 
-    # 4. 신고가 근처
+    # 4. 신고가 근처 + 52주 신고가 돌파
     hd = _safe_float(row.get("HighDist", -100))
-    if hd >= -5:    score += _hd_w; reasons.append("🔥신고가근처")
+    b52 = row.get("Breakout52", False)
+
+    if b52:
+        score += 30; reasons.append("🔥52주신고가돌파")  # 최강 신호
+    elif hd >= -5:    score += _hd_w; reasons.append("🔥신고가근처")
     elif hd >= -10: score += int(_hd_w * 0.6)
     elif hd <= -25: score -= 20; reasons.append("신고가대비약세")
 
@@ -720,8 +724,16 @@ def load_stocks(_bust=0):
             avg_v   = _safe_float(volume.iloc[-21:-1].mean()) if len(volume)>=21 else 1
             vol_ratio = _safe_float(volume.iloc[-1]) / avg_v if avg_v > 0 else 1.0
 
-            # 브레이크아웃
+            # 20일 브레이크아웃
             breakout = (cur > _safe_float(close.iloc[-22:-1].max())) if len(close)>=22 else False
+
+            # 52주 신고가 돌파 (오늘 종가 > 52주 최고가 × 거래량 확인)
+            hi52_prev = _safe_float(close.rolling(min(251,len(close)-1)).max().iloc[-2]) if len(close)>=3 else hi52
+            breakout52 = (
+                cur >= hi52 * 0.999          # 52주 고점 돌파 (0.1% 오차 허용)
+                and hi52_prev < hi52          # 오늘 새로운 고점 경신
+                and vol_ratio >= 1.5          # 거래량 확인 (가짜 돌파 필터)
+            )
 
             # 거래량 급증
             vol_surge = vol_ratio >= 1.5
@@ -837,6 +849,7 @@ def load_stocks(_bust=0):
                 "HighDist":    high_dist,
                 "VolRatio":    round(vol_ratio, 2),
                 "Breakout":    breakout,
+                "Breakout52":  breakout52,
                 "VolSurge":    vol_surge,
                 "Consec":      consec,
                 "OBVTrend":    obv_trend,
@@ -2096,12 +2109,12 @@ with t_leaders:
 
     _disp_cols = ["Ticker","Name","Sector","LeaderGrade","LeaderScore","전략보너스","연속선택",
                   "AccScore","RS","HighDist","VolRatio","EPS","RSI",
-                  "Breakout","VolSurge","Consec","EntryPrice","CondCount","FinvizLink"]
+                  "Breakout52","Breakout","VolSurge","Consec","EntryPrice","CondCount","FinvizLink"]
     # 모바일: 핵심 컬럼 우선 표시 (전체는 가로 스크롤)
     _disp = _fdf[[c for c in _disp_cols if c in _fdf.columns]].copy()
 
     # bool → 기호 변환
-    for bc in ["Breakout","VolSurge","Consec"]:
+    for bc in ["Breakout52","Breakout","VolSurge","Consec"]:
         if bc in _disp.columns:
             _disp[bc] = _disp[bc].map({True:"✅", False:"—"})
 
@@ -2133,7 +2146,8 @@ with t_leaders:
             "VolRatio":    st.column_config.NumberColumn("거래량배율",format="%.2f",width="small"),
             "EPS":         st.column_config.NumberColumn("52주수익%*",format="%.1f",width="small",help="*EPS 미수집 — 52주 주가 수익률로 대체"),
             "RSI":         st.column_config.NumberColumn("RSI",     format="%.1f", width="small"),
-            "Breakout":    st.column_config.TextColumn("돌파",      width="small"),
+            "Breakout52":  st.column_config.TextColumn("52주돌파",  width="small"),
+            "Breakout":    st.column_config.TextColumn("20일돌파",  width="small"),
             "VolSurge":    st.column_config.TextColumn("거래량",    width="small"),
             "Consec":      st.column_config.TextColumn("3연상",     width="small"),
             "EntryPrice":  st.column_config.NumberColumn("현재가",  format="$%.2f"),

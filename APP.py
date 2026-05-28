@@ -2501,17 +2501,41 @@ with t_portfolio:
                     "손절가":  f"${_pr['손절가']:.2f}",
                 })
 
+            # 표 컬럼 재구성: 금액/주수 분리
+            _tbl_rows2 = []
+            for _pr in _pt_rows:
+                _t  = _pr["투자금액(만원)"]
+                _p  = _pr["현재가"]
+                _fx = _usd_krw
+                _t1 = round(_t * 0.40, 1)
+                _t2 = round(_t * 0.35, 1)
+                _t3 = round(_t * 0.25, 1)
+                _tbl_rows2.append({
+                    "Ticker":   _pr["Ticker"],
+                    "등급":     _pr["등급"],
+                    "현재가":   f"${_p:.2f}",
+                    "1차(만)":  f"{_t1}만",
+                    "1차(주)":  _shares_str(_t1, _p, _fx),
+                    "2차(만)":  f"{_t2}만",
+                    "2차(주)":  _shares_str(_t2, _p, _fx),
+                    "3차(만)":  f"{_t3}만",
+                    "3차(주)":  _shares_str(_t3, _p, _fx),
+                    "손절가":   f"${_pr['손절가']:.2f}",
+                })
+
             st.dataframe(
-                pd.DataFrame(_tbl_rows),
+                pd.DataFrame(_tbl_rows2),
                 use_container_width=True, hide_index=True,
                 column_config={
                     "Ticker":  st.column_config.TextColumn("Ticker",  width="small"),
                     "등급":    st.column_config.TextColumn("등급",    width="small"),
                     "현재가":  st.column_config.TextColumn("현재가",  width="small"),
-                    "1주비용": st.column_config.TextColumn("1주비용", width="small"),
-                    "1차 40%": st.column_config.TextColumn("1차 40%", width="medium"),
-                    "2차 35%": st.column_config.TextColumn("2차 35%", width="medium"),
-                    "3차 25%": st.column_config.TextColumn("3차 25%", width="medium"),
+                    "1차(만)": st.column_config.TextColumn("1차 40%", width="small"),
+                    "1차(주)": st.column_config.TextColumn("주수",    width="small"),
+                    "2차(만)": st.column_config.TextColumn("2차 35%", width="small"),
+                    "2차(주)": st.column_config.TextColumn("주수 ",   width="small"),
+                    "3차(만)": st.column_config.TextColumn("3차 25%", width="small"),
+                    "3차(주)": st.column_config.TextColumn("주수  ",  width="small"),
                     "손절가":  st.column_config.TextColumn("손절가",  width="small"),
                 })
 

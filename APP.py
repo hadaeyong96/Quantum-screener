@@ -1,5 +1,5 @@
-# VERSION : PRO_APP_V1
-# QUANTUM INSTITUTIONAL OS — PRO VERSION
+# VERSION : APP_V1
+# QUANTUM INSTITUTIONAL OS
 # 순수 데이터 기반 기관형 리더주 선별 엔진
 # 설명·그래프 없음 / 숫자·신호·등급만
 
@@ -47,7 +47,7 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════
 # 설정
 # ═══════════════════════════════════════════════════════════
-PRO_VERSION   = "PRO_V1"
+APP_VERSION   = "V1"
 SHEET_TAB     = "History_PRO"      # 교육용(History)과 분리
 SHEET_SCOPES  = [
     "https://spreadsheets.google.com/feeds",
@@ -140,7 +140,7 @@ COMPANY_NAME = {
 # Streamlit 설정
 # ═══════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="QUANTUM PRO",
+    page_title="QUANTUM",
     page_icon="⚡",
     layout="centered",
     initial_sidebar_state="collapsed",
@@ -1218,8 +1218,8 @@ st.markdown(
     f"align-items:center;padding:6px 0;border-bottom:1px solid #1E2D3D;"
     f"margin-bottom:12px'>"
     f"<span style='font-family:Space Mono,monospace;font-size:14px;"
-    f"font-weight:700;color:#0D1117'>⚡ QUANTUM PRO</span>"
-    f"<span style='font-size:10px;color:#6B7280'>{PRO_VERSION} &nbsp;|&nbsp; "
+    f"font-weight:700;color:#0D1117'>⚡ QUANTUM</span>"
+    f"<span style='font-size:10px;color:#6B7280'>{APP_VERSION} &nbsp;|&nbsp; "
     f"{datetime.now().strftime('%Y-%m-%d %H:%M')}</span>"
     f"</div>",
     unsafe_allow_html=True)
@@ -1262,7 +1262,7 @@ except Exception:
 
 # ── 사이드바 ─────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("**⚡ QUANTUM PRO**")
+    st.markdown("**⚡ QUANTUM**")
     st.markdown("---")
     if st.button("🔄 데이터 새로고침", use_container_width=True):
         st.session_state["cache_key"] += 1
@@ -1787,6 +1787,9 @@ with t_leaders:
 
     df = pd.DataFrame(_scored)
 
+    # 스코어링 완료 결과를 session_state에 저장 (포트폴리오 탭 활용)
+    st.session_state["scored_results"] = _scored
+
     # ── MA200 필터 표시 ──────────────────────────────────
     df_above = df[df["MA200"]].copy()
     df_below = df[~df["MA200"]].copy()
@@ -2108,7 +2111,9 @@ with t_portfolio:
     _pt_stance  = st.session_state.get("auto_stance", {})
     _pt_liq     = st.session_state.get("liq_stage",  3)
     _pt_rec     = st.session_state.get("rec_score",  50)
-    _pt_results = st.session_state.get("pro_results", [])
+    # scored_results 우선 사용 (LeaderGrade 있음)
+    # pro_results는 원본(LeaderGrade 없음)이므로 사용 불가
+    _pt_results = st.session_state.get("scored_results", [])
 
     # 스탠스 배너
     if _pt_stance:
@@ -2144,7 +2149,8 @@ with t_portfolio:
             "border-radius:3px;padding:12px;text-align:center;"
             "font-size:11px;color:#92400E'>"
             "⚡ LEADERS 탭에서 스크리닝을 먼저 실행해주세요<br>"
-            "<span style='font-size:9px'>종목 데이터가 로드된 후 배분이 가능합니다</span>"
+            "<span style='font-size:9px'>"
+            "LEADERS 탭 접속 → 자동 스크리닝 완료 후 이 탭으로 돌아오세요</span>"
             "</div>",
             unsafe_allow_html=True)
     else:
@@ -2157,15 +2163,26 @@ with t_portfolio:
             "Leader Score 순위 기반 자동 배분 · 스탠스에 따라 비중 자동 조정</div>",
             unsafe_allow_html=True)
 
-        _pc1, _pc2 = st.columns(2)
+        _pc1, _pc2, _pc3 = st.columns([2, 1, 1])
         with _pc1:
             _invest_krw = st.number_input(
                 "투자 가능 금액 (만원)", min_value=10, max_value=100000,
-                value=500, step=50, key="pt_invest_krw")
+                value=st.session_state.get("pt_invest_krw_v", 500),
+                step=50, key="pt_invest_krw")
         with _pc2:
             _max_stocks = st.number_input(
                 "최대 종목 수", min_value=1, max_value=20,
-                value=5, step=1, key="pt_max_stocks")
+                value=st.session_state.get("pt_max_stocks_v", 5),
+                step=1, key="pt_max_stocks")
+        with _pc3:
+            st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+            _run_calc = st.button("📊 배분 계산", key="pt_run",
+                use_container_width=True)
+
+        if _run_calc:
+            st.session_state["pt_invest_krw_v"] = _invest_krw
+            st.session_state["pt_max_stocks_v"] = _max_stocks
+            st.session_state["pt_run_done"] = True
 
         _invest_total = _invest_krw * 10000  # 원 단위
 
@@ -2804,7 +2821,7 @@ with t_settings:
 st.markdown(
     f"<div style='text-align:center;font-size:9px;color:#1E2D3D;"
     f"margin-top:20px;padding-top:8px;border-top:1px solid #0D1117'>"
-    f"QUANTUM PRO {PRO_VERSION} &nbsp;|&nbsp; "
+    f"QUANTUM {APP_VERSION} &nbsp;|&nbsp; "
     f"데이터: FRED·yfinance &nbsp;|&nbsp; "
     f"본 앱은 정보 제공 목적이며 투자 권유가 아닙니다</div>",
     unsafe_allow_html=True)

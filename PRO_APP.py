@@ -988,6 +988,98 @@ def calc_rec_score(fred: dict) -> float:
     return round(sum(signals)/len(signals), 1) if signals else 50.0
 
 # =========================================================
+# INVESTMENT STRATEGY ENGINE
+# 유동성 단계별 최적 투자 전략 자동 계산
+# =========================================================
+
+STRATEGY_DEFINITIONS = {
+    "momentum":    {"label": "모멘텀",      "desc": "RS 강세 + 신고가 근처 추격", "score_bonus": 10},
+    "breakout52":  {"label": "신고가 돌파", "desc": "52주 고점 당일 돌파",         "score_bonus": 20},
+    "breakout20":  {"label": "브레이크아웃","desc": "20일 고점 + 거래량 급증",      "score_bonus": 15},
+    "pullback":    {"label": "눌림목",       "desc": "강한 종목 단기 조정 매수",    "score_bonus": 20},
+    "recovery":    {"label": "회복 후보",    "desc": "MA200 돌파 20일 이내",        "score_bonus": 25},
+    "sector_rot":  {"label": "섹터 순환",   "desc": "자금 유입 1위 섹터 집중",     "score_bonus": 15},
+}
+
+def get_optimal_strategies(liq_stage: int, rec_score: float, vix: float) -> dict:
+    """
+    유동성·침체·VIX 기반 최적 전략 조합 자동 반환
+    반환: {전략키: bool, "label": str, "desc": str}
+    """
+    s = {k: False for k in STRATEGY_DEFINITIONS}
+
+    if liq_stage >= 5 and rec_score < 30 and vix < 20:
+        s["momentum"]   = True
+        s["breakout52"] = True
+        s["breakout20"] = True
+        label = "🚀 공격 최대 — 강한 것이 더 강해진다"
+        desc  = "유동성 최고 · 침체 안전 · VIX 안정 → 모멘텀 집중"
+
+    elif liq_stage >= 4 and rec_score < 50:
+        s["momentum"]   = True
+        s["breakout52"] = True
+        s["breakout20"] = True
+        s["pullback"]   = True
+        s["sector_rot"] = True
+        label = "🟢 균형 공격 — 모멘텀 + 눌림목 병행"
+        desc  = "유동성 우호 · 침체 낮음 → 모멘텀 추격 + 눌림 진입 병행"
+
+    elif liq_stage == 3 or (rec_score >= 50 and rec_score < 70):
+        s["pullback"]   = True
+        s["sector_rot"] = True
+        s["recovery"]   = True
+        label = "🟡 선택 방어 — 눌림목·회복 후보만"
+        desc  = "혼조 구간 → 강한 종목 단기 조정 시만 진입"
+
+    elif liq_stage <= 2 or rec_score >= 70:
+        s["recovery"]   = True
+        label = "🔴 현금 보존 — 관찰만"
+        desc  = "위험 구간 → 회복 후보 관찰, 신규 매수 금지"
+
+    else:
+        s["momentum"]   = True
+        s["pullback"]   = True
+        label = "🟢 표준 — 기본 전략"
+        desc  = "표준 환경 → 모멘텀 + 눌림목"
+
+    return {"strategies": s, "label": label, "desc": desc}
+
+
+def apply_strategy_bonus(row: dict, strategies: dict) -> int:
+    """활성화된 전략 조건 충족 시 보너스 점수 계산"""
+    bonus = 0
+    rs       = float(row.get("RS", 0) or 0)
+    hd       = float(row.get("HighDist", -100) or -100)
+    rsi      = float(row.get("RSI", 50) or 50)
+    breakout = row.get("Breakout", False)
+    vol_r    = float(row.get("VolRatio", 1) or 1)
+    ma200    = row.get("MA200", False)
+    ma50     = row.get("MA50", False)
+
+    # 모멘텀: RS 90↑ + 신고가 5%↑
+    if strategies.get("momentum") and rs >= 90 and hd >= -5:
+        bonus += STRATEGY_DEFINITIONS["momentum"]["score_bonus"]
+
+    # 신고가 돌파: 52주 고점 근접 + 브레이크아웃
+    if strategies.get("breakout52") and hd >= -2 and breakout:
+        bonus += STRATEGY_DEFINITIONS["breakout52"]["score_bonus"]
+
+    # 브레이크아웃: 20일 고점 돌파 + 거래량
+    if strategies.get("breakout20") and breakout and vol_r >= 1.5:
+        bonus += STRATEGY_DEFINITIONS["breakout20"]["score_bonus"]
+
+    # 눌림목: RS 80↑ + RSI 45~58 + MA200 위
+    if strategies.get("pullback") and rs >= 80 and 42 <= rsi <= 58 and ma200:
+        bonus += STRATEGY_DEFINITIONS["pullback"]["score_bonus"]
+
+    # 회복 후보: MA200 위 + MA50 위 (최근 돌파 추정)
+    if strategies.get("recovery") and ma200 and ma50 and rs >= 70 and hd >= -15:
+        bonus += STRATEGY_DEFINITIONS["recovery"]["score_bonus"]
+
+    return bonus
+
+
+# =========================================================
 # AUTO STANCE ENGINE
 # 유동성·침체 기반 자동 투자 스탠스 판단
 # 텔레그램 알림·자동 저장 규칙과 연동 가능하도록 설계
@@ -1270,13 +1362,18 @@ with t_market:
     _auto_stance = calc_auto_stance(
         liq_stage, liq_score, rec_score, mkt_ctx.get("vix", 20))
 
+    # 최적 전략 자동 계산
+    _opt_strategies = get_optimal_strategies(
+        liq_stage, rec_score, mkt_ctx.get("vix", 20))
+
     st.session_state.update({
-        "liq_score":   liq_score,
-        "liq_stage":   liq_stage,
-        "rec_score":   rec_score,
-        "mkt_ctx":     mkt_ctx,
-        "auto_stance": _auto_stance,
-        "fred_ready":  True,
+        "liq_score":      liq_score,
+        "liq_stage":      liq_stage,
+        "rec_score":      rec_score,
+        "mkt_ctx":        mkt_ctx,
+        "auto_stance":    _auto_stance,
+        "opt_strategies": _opt_strategies,
+        "fred_ready":     True,
     })
 
     # ══ 1. 유동성 5단계 범례 ════════════════════════════════
@@ -1644,11 +1741,33 @@ with t_leaders:
         _tk = r.get("Ticker","")
         _cd = _consec_map.get(_tk, (0, ""))
         _consec_str = f"{_cd[0]}일" if _cd[0] > 0 else "신규"
+
+        # 전략 보너스 점수 계산
+        _strat_bonus = 0
+        _active_strats = st.session_state.get(
+            "active_strategies",
+            st.session_state.get("opt_strategies", {}).get("strategies", {})
+        )
+        if _active_strats:
+            _strat_bonus = apply_strategy_bonus(r, _active_strats)
+
+        _final_score = _res["score"] + _strat_bonus
+
+        # 보너스 반영 후 등급 재계산
+        _elite_min  = _cfg.get("cfg_elite_min",  140)
+        _strong_min = _cfg.get("cfg_strong_min", 110)
+        _watch_min  = _cfg.get("cfg_watch_min",   80)
+        if   _final_score >= _elite_min:  _final_grade = "🚀 ELITE"
+        elif _final_score >= _strong_min: _final_grade = "🔥 STRONG"
+        elif _final_score >= _watch_min:  _final_grade = "🔍 WATCH"
+        else:                             _final_grade = "⚠️ WEAK"
+
         _scored.append({**r, **{
-            "LeaderScore": _res["score"],
-            "LeaderGrade": _res["grade"],
+            "LeaderScore": _final_score,
+            "LeaderGrade": _final_grade,
             "Signal":      _res["reasons"],
             "AccScore":    _res["acc"],
+            "전략보너스":  _strat_bonus if _strat_bonus > 0 else "",
             "연속선택":    _consec_str,
         }})
 
@@ -1728,7 +1847,7 @@ with t_leaders:
         f"🚀ELITE→즉시진입 🔥STRONG→분할매수 🔍WATCH→관찰</div>",
         unsafe_allow_html=True)
 
-    _disp_cols = ["Ticker","Name","Sector","LeaderGrade","LeaderScore","연속선택",
+    _disp_cols = ["Ticker","Name","Sector","LeaderGrade","LeaderScore","전략보너스","연속선택",
                   "AccScore","RS","HighDist","VolRatio","EPS","RSI",
                   "Breakout","VolSurge","Consec","EntryPrice","CondCount"]
     # 모바일: 핵심 컬럼 우선 표시 (전체는 가로 스크롤)
@@ -1748,6 +1867,9 @@ with t_leaders:
             "Sector":      st.column_config.TextColumn("섹터",     width="small"),
             "LeaderGrade": st.column_config.TextColumn("🏆등급",   width="small"),
             "LeaderScore": st.column_config.NumberColumn("리더점수", format="%.0f"),
+            "전략보너스":  st.column_config.TextColumn("전략+",
+                            width="small",
+                            help="활성화된 전략 조건 충족 시 가산점"),
             "연속선택":    st.column_config.TextColumn("연속",
                             width="small",
                             help="최근 7일간 연속 선택 횟수"),
@@ -2219,6 +2341,97 @@ with t_settings:
         "<div style='font-size:9px;color:#6B7280;margin-bottom:8px'>"
         "변경 즉시 LEADERS 탭에 반영 · 기본값 기준으로 조정</div>",
         unsafe_allow_html=True)
+
+    # ══ ⓪ 투자 전략 선택 ════════════════════════════════════
+    _opt = st.session_state.get("opt_strategies", {})
+    _opt_strats = _opt.get("strategies", {k: True for k in STRATEGY_DEFINITIONS})
+    _opt_label  = _opt.get("label",  "시장 데이터 로드 후 자동 설정")
+    _opt_desc   = _opt.get("desc",   "MARKET 탭 먼저 접속하세요")
+
+    st.markdown(
+        "<div style='font-size:11px;color:#374151;"
+        "font-family:Space Mono,monospace;margin-bottom:4px'>"
+        "⓪ 투자 전략</div>",
+        unsafe_allow_html=True)
+
+    # 현재 유동성 기반 자동 추천 표시
+    _liq_now = st.session_state.get("liq_stage", 3)
+    _rec_now = st.session_state.get("rec_score", 50)
+    st.markdown(
+        f"<div style='background:#F9FAFB;border:1px solid #E2E6ED;"
+        f"border-radius:3px;padding:6px 10px;margin-bottom:6px'>"
+        f"<div style='font-size:10px;font-weight:700;color:#374151;"
+        f"margin-bottom:2px'>{_opt_label}</div>"
+        f"<div style='font-size:9px;color:#6B7280'>{_opt_desc}</div>"
+        f"</div>",
+        unsafe_allow_html=True)
+
+    # 자동/수동 선택
+    _strat_mode = st.radio(
+        "전략 설정",
+        ["자동 (유동성 기반)", "수동 선택"],
+        horizontal=True,
+        key="strat_mode",
+        label_visibility="collapsed")
+
+    if _strat_mode == "자동 (유동성 기반)":
+        st.session_state["active_strategies"] = _opt_strats
+        # 현재 활성 전략 표시
+        _active_labels = [
+            STRATEGY_DEFINITIONS[k]["label"]
+            for k, v in _opt_strats.items() if v
+        ]
+        if _active_labels:
+            st.markdown(
+                "<div style='display:flex;flex-wrap:wrap;gap:4px;margin-top:4px'>",
+                unsafe_allow_html=True)
+            for _al in _active_labels:
+                st.markdown(
+                    f"<span style='background:#FFFFFF;border:1px solid #E2E6ED;"
+                    f"border-radius:20px;padding:2px 8px;font-size:9px;"
+                    f"color:#374151'>✅ {_al}</span>",
+                    unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+    else:
+        # 수동 선택 체크박스
+        st.markdown(
+            "<div style='font-size:9px;color:#9CA3AF;margin-bottom:4px'>"
+            "전략 조건 충족 시 Leader Score에 가산점 부여</div>",
+            unsafe_allow_html=True)
+
+        _manual_strats = {}
+        for _sk, _sdef in STRATEGY_DEFINITIONS.items():
+            _default_val = _opt_strats.get(_sk, False)
+            _checked = st.checkbox(
+                f"{_sdef['label']} (+{_sdef['score_bonus']}점)",
+                value=st.session_state.get(f"strat_{_sk}", _default_val),
+                key=f"cb_{_sk}",
+                help=_sdef['desc'])
+            st.session_state[f"strat_{_sk}"] = _checked
+            _manual_strats[_sk] = _checked
+        st.session_state["active_strategies"] = _manual_strats
+
+        # 전략 설명 표
+        _strat_rows = []
+        for _sk, _sdef in STRATEGY_DEFINITIONS.items():
+            _on = _manual_strats.get(_sk, False)
+            _strat_rows.append({
+                "전략":   _sdef["label"],
+                "조건":   _sdef["desc"],
+                "가산점": f"+{_sdef['score_bonus']}점",
+                "상태":   "ON" if _on else "OFF",
+            })
+        st.dataframe(
+            pd.DataFrame(_strat_rows),
+            use_container_width=True, hide_index=True,
+            column_config={
+                "전략":   st.column_config.TextColumn("전략",   width="small"),
+                "조건":   st.column_config.TextColumn("조건"),
+                "가산점": st.column_config.TextColumn("가산점", width="small"),
+                "상태":   st.column_config.TextColumn("상태",   width="small"),
+            })
+
+    st.markdown("---")
 
     def _num_row(label, key, default, step=5, min_v=0, max_v=200, unit="점", first=False, last=False):
         """표 행처럼 보이는 +/- 버튼 행"""

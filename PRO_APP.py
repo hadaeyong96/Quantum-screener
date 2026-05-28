@@ -1338,9 +1338,12 @@ with t_market:
     st.markdown("---")
     st.markdown(
         "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:8px'>"
-        "SECTOR FLOW — 자금 흐름 분석</div>",
+        "font-family:Space Mono,monospace;margin-bottom:2px'>"
+        "SECTOR FLOW — 자금 흐름 분석</div>"
+        "<div style='font-size:9px;color:#9CA3AF;margin-bottom:6px'>"
+        "* 섹터 ETF 가격 기준 · 거래량 미수집 · 방향성 참고용</div>",
         unsafe_allow_html=True)
+
 
     _SECTOR_META = {
         "XLK":  ("기술",      "반도체·소프트웨어·하드웨어"),
@@ -1666,7 +1669,7 @@ with t_leaders:
             "RS":          st.column_config.NumberColumn("RS",      format="%.1f", width="small"),
             "HighDist":    st.column_config.NumberColumn("신고가%", format="%.1f", width="small"),
             "VolRatio":    st.column_config.NumberColumn("거래량배율",format="%.2f",width="small"),
-            "EPS":         st.column_config.NumberColumn("52주수익%",format="%.1f",width="small"),
+            "EPS":         st.column_config.NumberColumn("52주수익%*",format="%.1f",width="small",help="*EPS 미수집 — 52주 주가 수익률로 대체"),
             "RSI":         st.column_config.NumberColumn("RSI",     format="%.1f", width="small"),
             "Breakout":    st.column_config.TextColumn("돌파",      width="small"),
             "VolSurge":    st.column_config.TextColumn("거래량",    width="small"),

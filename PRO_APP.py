@@ -1182,10 +1182,71 @@ with st.sidebar:
                 unsafe_allow_html=True)
     st.markdown("---")
     _ck = st.session_state["cache_key"]
-    st.markdown(f"<div style='font-size:9px;color:#6B7280'>"
-                f"FRED: {'✅' if FRED_API_KEY else '❌'}<br>"
-                f"Sheets: {'✅' if _GS_OK else '❌'}<br>"
-                f"Cache: #{_ck}</div>", unsafe_allow_html=True)
+
+    # ── 시스템 상태 체크리스트 ──────────────────────────
+    _fred_ok = bool(FRED_API_KEY)
+    _sh_ok   = False
+    try: _sh_ok = _GS_OK and bool(st.secrets.get("SHEETS_URL",""))
+    except: pass
+
+    # Sheets 마지막 저장일 확인
+    _last_save  = "—"
+    _data_count = 0
+    _days_since = 99
+    try:
+        _hist_chk = load_pro_history()
+        if not _hist_chk.empty:
+            _last_date  = _hist_chk["Date"].max()
+            _last_save  = _last_date.strftime("%m-%d")
+            _data_count = len(_hist_chk)
+            _days_since = (pd.Timestamp.now() - _last_date).days
+    except: pass
+
+    # 자동 스크리닝 상태
+    if   _days_since == 0: _action_icon="✅"; _action_txt="오늘 실행"
+    elif _days_since == 1: _action_icon="🟡"; _action_txt="어제 실행"
+    elif _days_since < 99: _action_icon="❌"; _action_txt=f"{_days_since}일 전"
+    else:                  _action_icon="❌"; _action_txt="기록 없음"
+
+    # 유동성 데이터
+    _liq_ok = len(st.session_state.get("liq_detail", {})) > 0               if "liq_detail" in st.session_state else bool(_fred_ok)
+
+    # 회사 프로필
+    _prof_ok = False
+    try:
+        _p = load_company_profiles()
+        _prof_ok = len(_p) > 0
+    except: pass
+
+    def _row(icon, label, val):
+        return (
+            f"<div style='display:flex;justify-content:space-between;"
+            f"padding:2px 0;border-bottom:1px solid #F3F4F6'>"
+            f"<span style='font-size:9px;color:#6B7280'>{icon} {label}</span>"
+            f"<span style='font-size:9px;font-weight:600;color:#374151'>{val}</span>"
+            f"</div>"
+        )
+
+    st.markdown(
+        "<div style='font-size:9px;font-weight:700;color:#374151;"
+        "margin-bottom:4px'>시스템 상태</div>"
+        "<div style='background:#F9FAFB;border:1px solid #E2E6ED;"
+        "border-radius:3px;padding:6px 8px'>"
+        + _row("✅" if _fred_ok else "❌", "FRED API",
+               "연결됨" if _fred_ok else "키 없음")
+        + _row("✅" if _sh_ok else "❌", "Sheets",
+               "연결됨" if _sh_ok else "미연결")
+        + _row(_action_icon, "자동 스크리닝", _action_txt)
+        + _row("✅" if _last_save != "—" else "❌", "마지막 저장", _last_save)
+        + _row("✅" if _data_count > 0 else "❌", "누적 데이터",
+               f"{_data_count}건" if _data_count > 0 else "없음")
+        + _row("✅" if _prof_ok else "❌", "회사 프로필",
+               "로드됨" if _prof_ok else "없음")
+        + f"<div style='font-size:8px;color:#9CA3AF;margin-top:3px;"
+        f"text-align:right'>Cache #{_ck}</div>"
+        + "</div>",
+        unsafe_allow_html=True)
+
 
 # ── 탭 ───────────────────────────────────────────────────
 t_market, t_leaders, t_backtest, t_settings = st.tabs([

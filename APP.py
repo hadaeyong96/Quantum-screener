@@ -209,6 +209,8 @@ hr { border-color:#E2E6ED !important; }
     /* 폰트 크기 조정 */
     body, p, span, div, label
         { font-size:13px !important; }
+    /* 최소 폰트 11px 보장 */
+    small { font-size:11px !important; }
     /* 탭 버튼 작게 */
     [data-testid="stTabs"] button
         { font-size:11px !important; padding:8px 10px !important; }
@@ -563,10 +565,10 @@ def calculate_leader_score(row: dict, mctx: dict, cfg: dict = None) -> dict:
     if rec >= 75 and rs < 95: score -= 15
 
     # 등급
-    if   score >= 140: grade = "🚀 ELITE"
-    elif score >= 110: grade = "🔥 STRONG"
-    elif score >= 80:  grade = "🔍 WATCH"
-    else:              grade = "⚠️ WEAK"
+    if   score >= 140: grade = "A"
+    elif score >= 110: grade = "B"
+    elif score >= 80:  grade = "C"
+    else:              grade = "D"
 
     return {"score": round(score,1), "grade": grade,
             "reasons": " | ".join(reasons), "acc": acc}
@@ -1001,7 +1003,7 @@ MARKET_INTERPRETATION = {
             "기관 매집이 가장 활발하며 강한 종목은 더 강해지는 환경입니다."
         ),
         "actions": [
-            "ELITE 종목 적극 매수 (투자금 80~100%)",
+            "A등급 종목 적극 매수 (투자금 80~100%)",
             "52주 신고가 돌파 종목 즉시 진입",
             "손절 -8% 표준 유지",
         ],
@@ -1013,7 +1015,7 @@ MARKET_INTERPRETATION = {
             "기관 매집이 활발한 구간으로 분할 매수 진입이 적합합니다."
         ),
         "actions": [
-            "ELITE·STRONG 우선 분할 매수 (투자금 40~60%)",
+            "A·B등급 우선 분할 매수 (투자금 40~60%)",
             "눌림목 조정 시 추가 진입 검토",
             "현금 20~30% 유지 · 손절 -8% 표준",
         ],
@@ -1026,7 +1028,7 @@ MARKET_INTERPRETATION = {
             "섣부른 진입보다 관찰 후 선택적 접근이 유효합니다."
         ),
         "actions": [
-            "RS 90↑ 최강 종목만 소량 진입 (투자금 20~30%)",
+            "RS 90↑ A·B등급만 소량 진입 (투자금 20~30%)",
             "현금 50% 이상 유지",
             "손절 -6% 강화 · 신규 진입 최소화",
         ],
@@ -1166,7 +1168,7 @@ def calc_auto_stance(liq_stage: int, liq_score: float,
         "stance":      "ATTACK" / "DEFENSE" / "DANGER",
         "label":       "🟢 공격" / "🟡 방어" / "🔴 위험",
         "color":       색상 코드,
-        "min_grade":   표시 최소 등급 ("WATCH" / "STRONG" / "ELITE"),
+        "min_grade":   표시 최소 등급 ("C" / "B" / "A"),
         "save_ok":     Sheets 저장 허용 여부,
         "buy_ok":      매수 허용 여부,
         "reason":      판단 근거 문자열 (텔레그램 알림에 재사용),
@@ -1209,7 +1211,7 @@ def calc_auto_stance(liq_stage: int, liq_score: float,
             "color":     "#B91C1C",
             "bg":        "#FEF2F2",
             "border":    "#FECACA",
-            "min_grade": "ELITE",
+            "min_grade": "A",
             "save_ok":   False,
             "buy_ok":    False,
             "reason":    reason_str,
@@ -1228,13 +1230,13 @@ def calc_auto_stance(liq_stage: int, liq_score: float,
             "color":     "#92400E",
             "bg":        "#FFFBEB",
             "border":    "#FDE68A",
-            "min_grade": "STRONG",
+            "min_grade": "B",
             "save_ok":   True,
             "buy_ok":    True,
             "reason":    reason_str,
             "alert":     False,
             "actions":   [
-                "STRONG↑ 등급만 매수",
+                "B↑ 등급만 매수",
                 "현금 40% 이상 유지",
                 "분할 매수 (투자금 30% 이하)",
                 "손절 -6% 강화",
@@ -1247,14 +1249,14 @@ def calc_auto_stance(liq_stage: int, liq_score: float,
             "color":     "#166534",
             "bg":        "#F0FDF4",
             "border":    "#86EFAC",
-            "min_grade": "WATCH",
+            "min_grade": "C",
             "save_ok":   True,
             "buy_ok":    True,
             "reason":    reason_str,
             "alert":     False,
             "actions":   [
                 f"유동성 {liq_stage}단계 — 적극 매수 가능",
-                "ELITE·STRONG 우선 진입",
+                "A·B등급 우선 진입",
                 "현금 20% 이하",
                 "손절 -8% 표준",
             ],
@@ -1292,7 +1294,7 @@ st.markdown(
     f"margin-bottom:12px'>"
     f"<span style='font-family:Space Mono,monospace;font-size:14px;"
     f"font-weight:700;color:#0D1117'>⚡ QUANTUM</span>"
-    f"<span style='font-size:10px;color:#6B7280'>{APP_VERSION} &nbsp;|&nbsp; "
+    f"<span style='font-size:12px;color:#6B7280'>{APP_VERSION} &nbsp;|&nbsp; "
     f"{datetime.now().strftime('%Y-%m-%d %H:%M')}</span>"
     f"</div>",
     unsafe_allow_html=True)
@@ -1342,7 +1344,7 @@ with st.sidebar:
         st.session_state["pro_results"] = []
         st.cache_data.clear()
         st.rerun()
-    st.markdown(f"<div style='font-size:9px;color:#6B7280;margin-top:4px'>"
+    st.markdown(f"<div style='font-size:11px;color:#6B7280;margin-top:4px'>"
                 f"🕐 {datetime.now().strftime('%H:%M:%S')}</div>",
                 unsafe_allow_html=True)
     st.markdown("---")
@@ -1387,13 +1389,13 @@ with st.sidebar:
         return (
             f"<div style='display:flex;justify-content:space-between;"
             f"padding:2px 0;border-bottom:1px solid #F3F4F6'>"
-            f"<span style='font-size:9px;color:#6B7280'>{icon} {label}</span>"
-            f"<span style='font-size:9px;font-weight:600;color:#374151'>{val}</span>"
+            f"<span style='font-size:11px;color:#6B7280'>{icon} {label}</span>"
+            f"<span style='font-size:11px;font-weight:600;color:#374151'>{val}</span>"
             f"</div>"
         )
 
     st.markdown(
-        "<div style='font-size:9px;font-weight:700;color:#374151;"
+        "<div style='font-size:11px;font-weight:700;color:#374151;"
         "margin-bottom:4px'>시스템 상태</div>"
         "<div style='background:#F9FAFB;border:1px solid #E2E6ED;"
         "border-radius:3px;padding:6px 8px'>"
@@ -1407,7 +1409,7 @@ with st.sidebar:
                f"{_data_count}건" if _data_count > 0 else "없음")
         + _row("✅" if _prof_ok else "❌", "회사 프로필",
                "로드됨" if _prof_ok else "없음")
-        + f"<div style='font-size:8px;color:#9CA3AF;margin-top:3px;"
+        + f"<div style='font-size:11px;color:#9CA3AF;margin-top:3px;"
         f"text-align:right'>Cache #{_ck}</div>"
         + "</div>",
         unsafe_allow_html=True)
@@ -1495,13 +1497,13 @@ with t_market:
     for _sn, _si, _sc, _sl in _stage_defs:
         if _sn == liq_stage:
             _stage_html += (
-                f"<span style='font-size:10px;white-space:nowrap;"
+                f"<span style='font-size:12px;white-space:nowrap;"
                 f"padding:3px 9px;border-radius:20px;"
                 f"background:{_lc};color:#FFF;font-weight:700'>"
                 f"{_si} {_sc} 현재</span>")
         else:
             _stage_html += (
-                f"<span style='font-size:10px;white-space:nowrap;"
+                f"<span style='font-size:12px;white-space:nowrap;"
                 f"padding:3px 9px;border-radius:20px;"
                 f"background:#F3F4F6;color:#6B7280'>"
                 f"{_si} {_sc} {_sl}</span>")
@@ -1521,13 +1523,13 @@ with t_market:
         f"<div>"
         f"<div style='font-size:14px;font-weight:700;color:{_lc}'>"
         f"{_auto_stance.get('label', '—')}</div>"
-        f"<div style='font-size:10px;color:#6B7280;margin-top:1px;white-space:nowrap'>"
+        f"<div style='font-size:12px;color:#6B7280;margin-top:1px;white-space:nowrap'>"
         f"신규 {'매수 가능' if _auto_stance.get('buy_ok') else '매수 금지'} 구간</div>"
         f"</div>"
         f"<div style='text-align:right'>"
         f"<div style='font-size:13px;font-weight:700;color:#0D1117'>"
         f"{liq_stage}단계 / {liq_score:.0f}점</div>"
-        f"<div style='font-size:10px;color:#6B7280'>"
+        f"<div style='font-size:12px;color:#6B7280'>"
         f"침체 {rec_score:.0f}점 · VIX {mkt_ctx['vix']:.1f}</div>"
         f"</div></div>"
 
@@ -1536,28 +1538,28 @@ with t_market:
         f"border-radius:3px;overflow:hidden'>"
         f"<div style='width:{min(liq_score,100)}%;height:100%;"
         f"background:{_lc};border-radius:3px'></div></div>"
-        f"<div style='font-size:10px;color:#6B7280;white-space:nowrap'>"
+        f"<div style='font-size:12px;color:#6B7280;white-space:nowrap'>"
         f"{liq_score:.0f}/100</div></div>"
 
         f"<div style='display:grid;grid-template-columns:1fr 1fr;"
         f"gap:6px;margin-bottom:12px'>"
         f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 9px'>"
-        f"<div style='font-size:10px;color:#9CA3AF'>유동성</div>"
+        f"<div style='font-size:12px;color:#9CA3AF'>유동성</div>"
         f"<div style='font-size:16px;font-weight:700;color:{_lc}'>{liq_stage}단계</div>"
-        f"<div style='font-size:10px;color:#6B7280'>{_liq_sub}</div></div>"
+        f"<div style='font-size:12px;color:#6B7280'>{_liq_sub}</div></div>"
         f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 9px'>"
-        f"<div style='font-size:10px;color:#9CA3AF'>침체 위험</div>"
+        f"<div style='font-size:12px;color:#9CA3AF'>침체 위험</div>"
         f"<div style='font-size:16px;font-weight:700;color:{_rc}'>{rec_score:.0f}점</div>"
-        f"<div style='font-size:10px;color:#6B7280'>{_rec_sub}</div></div>"
+        f"<div style='font-size:12px;color:#6B7280'>{_rec_sub}</div></div>"
         f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 9px'>"
-        f"<div style='font-size:10px;color:#9CA3AF'>VIX</div>"
+        f"<div style='font-size:12px;color:#9CA3AF'>VIX</div>"
         f"<div style='font-size:16px;font-weight:700;color:{_vc}'>"
         f"{mkt_ctx['vix']:.1f}</div>"
-        f"<div style='font-size:10px;color:#6B7280'>{_vix_sub}</div></div>"
+        f"<div style='font-size:12px;color:#6B7280'>{_vix_sub}</div></div>"
         f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 9px'>"
-        f"<div style='font-size:10px;color:#9CA3AF'>QQQ 추세</div>"
+        f"<div style='font-size:12px;color:#9CA3AF'>QQQ 추세</div>"
         f"<div style='font-size:16px;font-weight:700;color:{_qc}'>{_qi}</div>"
-        f"<div style='font-size:10px;color:#6B7280'>{_qqq_sub}</div></div>"
+        f"<div style='font-size:12px;color:#6B7280'>{_qqq_sub}</div></div>"
         f"</div>"
 
         f"<div style='border-top:0.5px solid #E2E6ED;padding-top:10px;margin-bottom:10px'>"
@@ -1574,7 +1576,7 @@ with t_market:
         f"<div style='display:flex;flex-wrap:wrap;gap:4px;"
         f"padding-top:8px;border-top:0.5px solid #E2E6ED'>"
         f"{_stage_html}</div>"
-        f"<div style='font-size:9px;color:#9CA3AF;margin-top:6px;text-align:right'>"
+        f"<div style='font-size:11px;color:#9CA3AF;margin-top:6px;text-align:right'>"
         f"자동 판단 · 수동 변경: ⚙️ 설정 탭</div>"
         f"</div>",
         unsafe_allow_html=True)
@@ -1635,7 +1637,7 @@ with t_market:
         "<div style='font-size:11px;color:#374151;"
         "font-family:Space Mono,monospace;margin-bottom:2px'>"
         "SECTOR FLOW — 자금 흐름 분석</div>"
-        "<div style='font-size:9px;color:#9CA3AF;margin-bottom:6px'>"
+        "<div style='font-size:11px;color:#9CA3AF;margin-bottom:6px'>"
         "* 섹터 ETF 가격 기준 · 거래량 미수집 · 방향성 참고용</div>",
         unsafe_allow_html=True)
 
@@ -1765,7 +1767,7 @@ with t_market:
                 f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
                 f"border-left:3px solid #374151;"
                 f"border-radius:3px;padding:6px 12px;margin-top:4px;"
-                f"font-size:10px;color:#374151'>"
+                f"font-size:12px;color:#374151'>"
                 f"💡 분석: {_r_html}</div>",
                 unsafe_allow_html=True)
     else:
@@ -1813,15 +1815,15 @@ with t_market:
         if _d < 0:
             _badge = ""
         elif _d == 0:
-            _badge = (f"<div style='font-size:8px;background:#B91C1C;"
+            _badge = (f"<div style='font-size:11px;background:#B91C1C;"
                       f"color:#FFF;border-radius:3px;padding:1px 4px;"
                       f"margin-top:2px'>오늘</div>")
         elif _d <= 7:
-            _badge = (f"<div style='font-size:8px;background:#D97706;"
+            _badge = (f"<div style='font-size:11px;background:#D97706;"
                       f"color:#FFF;border-radius:3px;padding:1px 4px;"
                       f"margin-top:2px'>D-{_d}</div>")
         elif _d <= 30:
-            _badge = (f"<div style='font-size:8px;color:{color_text};"
+            _badge = (f"<div style='font-size:11px;color:{color_text};"
                       f"margin-top:2px'>D-{_d}</div>")
         else:
             _badge = ""
@@ -1829,7 +1831,7 @@ with t_market:
         return (
             f"<div style='background:{color_bg};border:0.5px solid {color_border};"
             f"border-radius:4px;padding:6px;text-align:center;{_opacity}'>"
-            f"<div style='font-size:9px;color:#9CA3AF'>{month}</div>"
+            f"<div style='font-size:11px;color:#9CA3AF'>{month}</div>"
             f"<div style='font-size:12px;font-weight:700;color:{color_text}'>"
             f"{date_str}</div>{_badge}</div>"
         )
@@ -1845,7 +1847,7 @@ with t_market:
             f"border-radius:6px;padding:10px'>"
             f"<div style='font-size:12px;font-weight:700;color:#0D1117;"
             f"margin-bottom:2px'>🏦 FOMC 금리 결정</div>"
-            f"<div style='font-size:9px;color:#9CA3AF;margin-bottom:8px'>"
+            f"<div style='font-size:11px;color:#9CA3AF;margin-bottom:8px'>"
             f"한국시간 새벽 3~4시 발표</div>"
             f"<div style='display:grid;grid-template-columns:repeat(2,1fr);gap:5px'>"
             f"{_fomc_html}</div></div>",
@@ -1860,7 +1862,7 @@ with t_market:
             f"border-radius:6px;padding:10px'>"
             f"<div style='font-size:12px;font-weight:700;color:#0D1117;"
             f"margin-bottom:2px'>📊 CPI 물가 발표</div>"
-            f"<div style='font-size:9px;color:#9CA3AF;margin-bottom:8px'>"
+            f"<div style='font-size:11px;color:#9CA3AF;margin-bottom:8px'>"
             f"⚠️ 발표 3일 전 신규 매수 자제</div>"
             f"<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:5px'>"
             f"{_cpi_html}</div></div>",
@@ -1932,7 +1934,7 @@ with t_leaders:
         f"display:flex;justify-content:space-between;align-items:center'>"
         f"<span style='font-size:12px;font-weight:700;"
         f"color:{_auto_stance['color']}'>{_auto_stance['label']}</span>"
-        f"<span style='font-size:10px;color:#6B7280'>"
+        f"<span style='font-size:12px;color:#6B7280'>"
         f"근거: {_auto_stance['reason']} &nbsp;|&nbsp; "
         f"표시: {_auto_stance['min_grade']}↑</span></div>",
         unsafe_allow_html=True)
@@ -1979,7 +1981,7 @@ with t_leaders:
             "<div style='background:#FFF7ED;border:1px solid #FED7AA;"
             "border-radius:4px;padding:6px 14px;margin-bottom:8px;"
             "font-size:11px;color:#C2410C'>"
-            f"⚠️ 침체 위험 {_rec_score:.0f}점 — ELITE 등급만 표시 중</div>",
+            f"⚠️ 침체 위험 {_rec_score:.0f}점 — A등급만 표시 중</div>",
             unsafe_allow_html=True)
 
     # Leader Score 계산
@@ -2006,10 +2008,10 @@ with t_leaders:
         _elite_min  = _cfg.get("cfg_elite_min",  140)
         _strong_min = _cfg.get("cfg_strong_min", 110)
         _watch_min  = _cfg.get("cfg_watch_min",   80)
-        if   _final_score >= _elite_min:  _final_grade = "🚀 ELITE"
-        elif _final_score >= _strong_min: _final_grade = "🔥 STRONG"
-        elif _final_score >= _watch_min:  _final_grade = "🔍 WATCH"
-        else:                             _final_grade = "⚠️ WEAK"
+        if   _final_score >= _elite_min:  _final_grade = "A"
+        elif _final_score >= _strong_min: _final_grade = "B"
+        elif _final_score >= _watch_min:  _final_grade = "C"
+        else:                             _final_grade = "D"
 
         _scored.append({**r, **{
             "LeaderScore": _final_score,
@@ -2031,7 +2033,7 @@ with t_leaders:
 
     # 침체 위험 → ELITE만 표시
     if _rec_elite:
-        df_above = df_above[df_above["LeaderGrade"].str.contains("ELITE", na=False)]
+        df_above = df_above[df_above["LeaderGrade"].str.contains("A", na=False)]
 
     # RS 최소 기준 필터
     if _min_rs > 0:
@@ -2044,19 +2046,19 @@ with t_leaders:
 
     # 자동 스탠스 기반 필터 + 설정 탭 RS 기준
     _fdf = df_above.copy()
-    _stance_min = _auto_stance.get("min_grade", "WATCH")
-    if _stance_min == "ELITE":
-        _fdf = _fdf[_fdf["LeaderGrade"].str.contains("ELITE", na=False)]
-    elif _stance_min == "STRONG":
-        _fdf = _fdf[_fdf["LeaderGrade"].str.contains("ELITE|STRONG", na=False)]
+    _stance_min = _auto_stance.get("min_grade", "C")
+    if _stance_min == "A":
+        _fdf = _fdf[_fdf["LeaderGrade"].str.contains("A", na=False)]
+    elif _stance_min == "B":
+        _fdf = _fdf[_fdf["LeaderGrade"].str.contains("A|B", na=False)]
     if _min_rs > 0:
         _fdf = _fdf[_fdf["RS"] >= _min_rs]
 
 
     # ── 등급 카운트 (하위 코드에서 사용) ────────────────────
-    _elite_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("ELITE",  na=False)])
-    _strong_cnt = len(df_above[df_above["LeaderGrade"].str.contains("STRONG", na=False)])
-    _watch_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("WATCH",  na=False)])
+    _elite_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("A",  na=False)])
+    _strong_cnt = len(df_above[df_above["LeaderGrade"].str.contains("B", na=False)])
+    _watch_cnt  = len(df_above[df_above["LeaderGrade"].str.contains("C",  na=False)])
 
     def _top_sec(d, n=2):
         if d.empty or "Sector" not in d.columns: return ""
@@ -2071,9 +2073,9 @@ with t_leaders:
         f"<div style='font-size:11px;color:#374151;"
         f"font-family:Space Mono,monospace;margin-bottom:2px'>"
         f"MA200 위 종목 ({len(_fdf)}개) — Leader Score 순위</div>"
-        f"<div style='font-size:9px;color:#6B7280;margin-bottom:6px'>"
+        f"<div style='font-size:11px;color:#6B7280;margin-bottom:6px'>"
         f"Leader Score 높은 순 · MA200(200일선) 위 종목만 표시 · "
-        f"🚀ELITE→즉시진입 🔥STRONG→분할매수 🔍WATCH→관찰</div>",
+        f"A→즉시진입 B→분할매수 C→관찰</div>",
         unsafe_allow_html=True)
 
     _disp_cols = ["Ticker","Name","Sector","LeaderGrade","LeaderScore","전략보너스","연속선택",
@@ -2124,7 +2126,7 @@ with t_leaders:
         "<div style='font-size:11px;color:#374151;"
         "font-family:Space Mono,monospace;margin-bottom:2px'>"
         "섹터별 강도 분석</div>"
-        "<div style='font-size:9px;color:#6B7280;margin-bottom:6px'>"
+        "<div style='font-size:11px;color:#6B7280;margin-bottom:6px'>"
         "MA200 위 종목 기준 · Leader Score 평균 · 높을수록 강한 섹터</div>",
         unsafe_allow_html=True)
 
@@ -2149,7 +2151,7 @@ with t_leaders:
 
         # ELITE·STRONG 수 추가
         _elite_by_sec = (
-            df_above[df_above["LeaderGrade"].str.contains("ELITE|STRONG", na=False)]
+            df_above[df_above["LeaderGrade"].str.contains("A|B", na=False)]
             .groupby("Sector")["Ticker"].count()
             .rename("강세종목")
         )
@@ -2229,7 +2231,7 @@ with t_leaders:
     _save_c1, _save_c2 = st.columns([2,1])
     with _save_c1:
         st.markdown(
-            f"<div style='font-size:10px;color:#6B7280'>"
+            f"<div style='font-size:12px;color:#6B7280'>"
             f"저장 탭: <b style='color:#374151'>History_PRO</b> &nbsp;|&nbsp; "
             f"오늘 날짜 + 종목별 1행 + 진입가 포함</div>",
             unsafe_allow_html=True)
@@ -2300,7 +2302,7 @@ with t_portfolio:
             f"<span style='font-size:12px;font-weight:700;"
             f"color:{_pt_stance.get('color','#374151')}'>"
             f"{_pt_stance.get('label','—')}</span>"
-            f"<span style='font-size:10px;color:#6B7280'>"
+            f"<span style='font-size:12px;color:#6B7280'>"
             f"유동성 {_pt_liq}단계 · 침체 {_pt_rec:.0f}점</span></div>",
             unsafe_allow_html=True)
 
@@ -2311,7 +2313,7 @@ with t_portfolio:
             f"border-radius:3px;padding:10px;text-align:center;"
             f"font-size:12px;color:#B91C1C;font-weight:700'>"
             f"⛔ {_pt_stance.get('label','위험 스탠스')} — 신규 매수 금지 구간<br>"
-            f"<span style='font-size:10px;font-weight:400'>"
+            f"<span style='font-size:12px;font-weight:400'>"
             f"유동성 또는 침체 위험 기준 초과 · 현금 보유 권장</span></div>",
             unsafe_allow_html=True)
         st.stop()
@@ -2323,7 +2325,7 @@ with t_portfolio:
             "border-radius:3px;padding:12px;text-align:center;"
             "font-size:11px;color:#92400E'>"
             "⚡ LEADERS 탭에서 스크리닝을 먼저 실행해주세요<br>"
-            "<span style='font-size:9px'>"
+            "<span style='font-size:11px'>"
             "LEADERS 탭 접속 → 자동 스크리닝 완료 후 이 탭으로 돌아오세요</span>"
             "</div>",
             unsafe_allow_html=True)
@@ -2333,7 +2335,7 @@ with t_portfolio:
             "<div style='font-size:11px;color:#374151;"
             "font-family:Space Mono,monospace;margin-bottom:6px'>"
             "💰 포트폴리오 배분 계산기</div>"
-            "<div style='font-size:9px;color:#6B7280;margin-bottom:8px'>"
+            "<div style='font-size:11px;color:#6B7280;margin-bottom:8px'>"
             "Leader Score 순위 기반 자동 배분 · 스탠스에 따라 비중 자동 조정</div>",
             unsafe_allow_html=True)
 
@@ -2359,15 +2361,15 @@ with t_portfolio:
         _cash_amount  = _invest_total * _cash_pct
 
         # ── 종목 필터: 스탠스 최소 등급 ─────────────────────
-        _min_grade = _pt_stance.get("min_grade", "WATCH")
-        _grade_map = {"WATCH": 0, "STRONG": 1, "ELITE": 2}
+        _min_grade = _pt_stance.get("min_grade", "C")
+        _grade_map = {"C": 0, "B": 1, "A": 2}
         _min_rank  = _grade_map.get(_min_grade, 0)
 
         def _grade_rank(grade_str):
             g = str(grade_str)
-            if "ELITE"  in g: return 2
-            if "STRONG" in g: return 1
-            if "WATCH"  in g: return 0
+            if "A"  in g: return 2
+            if "B" in g: return 1
+            if "C"  in g: return 0
             return -1
 
         _eligible = [
@@ -2424,7 +2426,7 @@ with t_portfolio:
                 "<div style='font-size:11px;color:#374151;"
                 "font-family:Space Mono,monospace;margin-bottom:2px'>"
                 "자동 배분 결과</div>"
-                "<div style='font-size:9px;color:#9CA3AF;margin-bottom:6px'>"
+                "<div style='font-size:11px;color:#9CA3AF;margin-bottom:6px'>"
                 "* 진입가 기준 · 환율 수동 입력 · 실시간 주가 미반영</div>",
                 unsafe_allow_html=True)
 
@@ -2508,7 +2510,7 @@ with t_portfolio:
             ]
             if _dash_tickers:
                 st.markdown(
-                    f"<div style='font-size:9px;color:#9CA3AF;margin-top:4px'>"
+                    f"<div style='font-size:11px;color:#9CA3AF;margin-top:4px'>"
                     f"* — 표시: 배분금액으로 1주 매수 불가 "
                     f"({', '.join(_dash_tickers)}) · "
                     f"투자금액 증액 또는 해당 종목 제외 권장</div>",
@@ -2526,31 +2528,31 @@ with t_portfolio:
                 f"gap:5px;margin-top:8px'>"
                 f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
                 f"border-radius:3px;padding:6px 10px'>"
-                f"<div style='font-size:9px;color:#9CA3AF'>총 투자금</div>"
+                f"<div style='font-size:11px;color:#9CA3AF'>총 투자금</div>"
                 f"<div style='font-size:14px;font-weight:700;color:#0D1117'>"
                 f"{_total_invested:.1f}만원</div>"
-                f"<div style='font-size:9px;color:#6B7280'>{_invest_krw}만원 중</div>"
+                f"<div style='font-size:11px;color:#6B7280'>{_invest_krw}만원 중</div>"
                 f"</div>"
                 f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
                 f"border-radius:3px;padding:6px 10px'>"
-                f"<div style='font-size:9px;color:#9CA3AF'>현금 보유</div>"
+                f"<div style='font-size:11px;color:#9CA3AF'>현금 보유</div>"
                 f"<div style='font-size:14px;font-weight:700;color:#166534'>"
                 f"{_cash_amount/10000:.1f}만원</div>"
-                f"<div style='font-size:9px;color:#6B7280'>{_cash_pct*100:.0f}% 유지</div>"
+                f"<div style='font-size:11px;color:#6B7280'>{_cash_pct*100:.0f}% 유지</div>"
                 f"</div>"
                 f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
                 f"border-radius:3px;padding:6px 10px'>"
-                f"<div style='font-size:9px;color:#9CA3AF'>종목 수</div>"
+                f"<div style='font-size:11px;color:#9CA3AF'>종목 수</div>"
                 f"<div style='font-size:14px;font-weight:700;color:#0D1117'>"
                 f"{len(_pt_rows)}개</div>"
-                f"<div style='font-size:9px;color:#6B7280'>{_min_grade}↑ 등급</div>"
+                f"<div style='font-size:11px;color:#6B7280'>{_min_grade}↑ 등급</div>"
                 f"</div>"
                 f"<div style='background:#FEF2F2;border:1px solid #FECACA;"
                 f"border-radius:3px;padding:6px 10px'>"
-                f"<div style='font-size:9px;color:#9CA3AF'>최대 손실(-8%)</div>"
+                f"<div style='font-size:11px;color:#9CA3AF'>최대 손실(-8%)</div>"
                 f"<div style='font-size:14px;font-weight:700;color:#B91C1C'>"
                 f"-{_max_loss:.1f}만원</div>"
-                f"<div style='font-size:9px;color:#B91C1C'>손절 기준 동시 발동 시</div>"
+                f"<div style='font-size:11px;color:#B91C1C'>손절 기준 동시 발동 시</div>"
                 f"</div>"
                 f"</div>",
                 unsafe_allow_html=True)
@@ -2559,7 +2561,7 @@ with t_portfolio:
             st.markdown(
                 "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
                 "border-radius:3px;padding:8px 12px;margin-top:8px;"
-                "font-size:10px;color:#374151'>"
+                "font-size:12px;color:#374151'>"
                 "<b>분할 매수 원칙</b><br>"
                 "1차 40% → 브레이크아웃 확인 시 &nbsp;|&nbsp; "
                 "2차 35% → 추가 상승 확인 시 &nbsp;|&nbsp; "
@@ -2667,7 +2669,7 @@ with t_backtest:
             "<div style='font-size:11px;color:#374151;"
             "font-family:Space Mono,monospace;margin-bottom:2px'>"
             "누적 성과 요약</div>"
-            "<div style='font-size:9px;color:#6B7280;margin-bottom:6px'>"
+            "<div style='font-size:11px;color:#6B7280;margin-bottom:6px'>"
             "진입가 기준 수익률 · 30일 이상 축적 후 의미있는 분석 가능</div>",
             unsafe_allow_html=True)
         # 누적 기간 계산 (hist 기반)
@@ -2701,7 +2703,7 @@ with t_backtest:
 
         _grade_stats = []
         _bt_src = _bt if not _bt.empty else pd.DataFrame()
-        for grade in ["🚀 ELITE","🔥 STRONG","🔍 WATCH"]:
+        for grade in ["A","B","C"]:
             _g = _bt_src[_bt_src["LeaderGrade"].str.contains(
                 grade.split()[-1], na=False)] if not _bt_src.empty else pd.DataFrame()
             if len(_g) > 0:
@@ -2827,11 +2829,11 @@ with t_settings:
 
     # ── 공통 헬퍼 ──────────────────────────────────────────
     def _section_header(text, sub=""):
-        _sub_html = f"<div style='font-size:9px;color:#6B7280;margin-top:1px'>{sub}</div>" if sub else ""
+        _sub_html = f"<div style='font-size:11px;color:#6B7280;margin-top:1px'>{sub}</div>" if sub else ""
         st.markdown(
             f"<div style='background:#F3F4F6;border:1px solid #E2E6ED;"
             f"border-bottom:none;padding:5px 8px;margin-top:10px;"
-            f"font-size:10px;font-weight:700;color:#374151;"
+            f"font-size:12px;font-weight:700;color:#374151;"
             f"font-family:Space Mono,monospace'>{text}{_sub_html}</div>",
             unsafe_allow_html=True)
 
@@ -2862,7 +2864,7 @@ with t_settings:
         "font-family:Space Mono,monospace;margin-bottom:2px'>"
         "SCREENER CONFIGURATION</div>"
         "<div style='background:#F9FAFB;border:1px solid #E2E6ED;"
-        "border-radius:3px;padding:6px 10px;margin-bottom:4px;font-size:9px;color:#6B7280'>"
+        "border-radius:3px;padding:6px 10px;margin-bottom:4px;font-size:11px;color:#6B7280'>"
         "<b style='color:#374151'>사용법</b><br>"
         "⓪ 투자 전략: 유동성에 맞는 전략 자동 설정 · 전략 조건 충족 시 Leader Score에 가산점<br>"
         "①~⑤ 가중치: Leader Score 계산 세부 조정 · 백테스트 후 최적화<br>"
@@ -2878,9 +2880,9 @@ with t_settings:
         f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
         f"border-top:none;padding:6px 10px'>"
         f"<div style='display:flex;justify-content:space-between;align-items:center'>"
-        f"<span style='font-size:10px;font-weight:700;color:#374151'>{_opt_label}</span>"
-        f"<span style='font-size:9px;color:#9CA3AF'>유동성 {_liq_now}단계</span></div>"
-        f"<div style='font-size:9px;color:#6B7280;margin-top:2px'>{_opt_desc}</div>"
+        f"<span style='font-size:12px;font-weight:700;color:#374151'>{_opt_label}</span>"
+        f"<span style='font-size:11px;color:#9CA3AF'>유동성 {_liq_now}단계</span></div>"
+        f"<div style='font-size:11px;color:#6B7280;margin-top:2px'>{_opt_desc}</div>"
         f"</div>",
         unsafe_allow_html=True)
 
@@ -2985,9 +2987,9 @@ with t_settings:
     # ══ ⑤ 등급 기준점수 ═════════════════════════════════════
     _section_header("⑤ 등급 기준점수",
         "점수 기준 낮출수록 더 많은 종목 표시")
-    _num_row("🚀 ELITE 기준",  "cfg_elite_min",  140, step=5, min_v=80,  max_v=200, first=True)
-    _num_row("🔥 STRONG 기준", "cfg_strong_min", 110, step=5, min_v=60,  max_v=180)
-    _num_row("🔍 WATCH 기준",  "cfg_watch_min",   80, step=5, min_v=40,  max_v=150, last=True)
+    _num_row("A등급 기준",  "cfg_elite_min",  140, step=5, min_v=80,  max_v=200, first=True)
+    _num_row("B등급 기준", "cfg_strong_min", 110, step=5, min_v=60,  max_v=180)
+    _num_row("C등급 기준",  "cfg_watch_min",   80, step=5, min_v=40,  max_v=150, last=True)
 
     # ══ ⑥ 자동 스탠스 ═══════════════════════════════════════
     _section_header("⑥ 자동 스탠스",
@@ -2995,7 +2997,7 @@ with t_settings:
 
     st.markdown(
         f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-        f"border-top:none;padding:6px 10px;font-size:10px;color:#374151'>"
+        f"border-top:none;padding:6px 10px;font-size:12px;color:#374151'>"
         f"현재: <b>{_cur_st.get('label', '계산 중...')}</b>"
         f" — {_cur_st.get('reason', 'MARKET 탭 먼저 접속')}</div>",
         unsafe_allow_html=True)
@@ -3053,7 +3055,7 @@ with t_settings:
         st.rerun()
 
 st.markdown(
-    f"<div style='text-align:center;font-size:9px;color:#1E2D3D;"
+    f"<div style='text-align:center;font-size:11px;color:#1E2D3D;"
     f"margin-top:20px;padding-top:8px;border-top:1px solid #0D1117'>"
     f"QUANTUM {APP_VERSION} &nbsp;|&nbsp; "
     f"데이터: FRED·yfinance &nbsp;|&nbsp; "

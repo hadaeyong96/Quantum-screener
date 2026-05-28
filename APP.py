@@ -592,6 +592,7 @@ def load_fred(api_key, _bust=0):
         "SAHM":        "SAHMREALTIME",
         "UNRATE":      "UNRATE",
         "CPI":         "CPIAUCSL",
+        "USDKRW":      "DEXKOUS",
     }
     for k, sid in series.items():
         s = _fred_series(sid, api_key)
@@ -1441,6 +1442,17 @@ with t_market:
     _opt_strategies = get_optimal_strategies(
         liq_stage, rec_score, mkt_ctx.get("vix", 20))
 
+    # 환율 자동 수집 (FRED DEXKOUS)
+    _usd_krw_auto = 1380  # 기본값
+    try:
+        _krw_s = fred.get("USDKRW")
+        if isinstance(_krw_s, pd.Series) and len(_krw_s) > 0:
+            _v = _safe_float(_krw_s.iloc[-1])
+            if 900 < _v < 2000:
+                _usd_krw_auto = int(_v)
+    except Exception:
+        pass
+
     st.session_state.update({
         "liq_score":      liq_score,
         "liq_stage":      liq_stage,
@@ -1448,6 +1460,7 @@ with t_market:
         "mkt_ctx":        mkt_ctx,
         "auto_stance":    _auto_stance,
         "opt_strategies": _opt_strategies,
+        "usd_krw_auto":   _usd_krw_auto,
         "fred_ready":     True,
     })
 
@@ -2389,12 +2402,21 @@ with t_portfolio:
             _total_s = sum(_scores)
             _weights = [s / _total_s for s in _scores]
 
-            # 환율 (고정값 - 실시간 미수집)
-            _usd_krw = st.number_input(
-                "환율 (원/달러) *수동 입력",
-                min_value=1000, max_value=2000,
-                value=1380, step=10, key="pt_usd_krw",
-                help="실시간 환율 미수집 · 직접 입력하세요")
+            # 환율 자동 로드 (FRED DEXKOUS · 1영업일 지연)
+            _usd_krw_default = st.session_state.get("usd_krw_auto", 1380)
+            _ex_col1, _ex_col2 = st.columns([3, 1])
+            with _ex_col1:
+                _usd_krw = st.number_input(
+                    f"환율 (원/달러)",
+                    min_value=1000, max_value=2000,
+                    value=_usd_krw_default,
+                    step=10, key="pt_usd_krw",
+                    help="FRED DEXKOUS 자동 수집 · 1영업일 지연 · 직접 수정 가능")
+            with _ex_col2:
+                st.markdown(
+                    f"<div style='padding:8px 0;font-size:11px;"
+                    f"color:#6B7280'>자동: {_usd_krw_default}원</div>",
+                    unsafe_allow_html=True)
 
             _pt_rows = []
             for r, w in zip(_eligible, _weights):

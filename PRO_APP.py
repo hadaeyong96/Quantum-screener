@@ -2334,204 +2334,194 @@ with t_backtest:
 # ════════════════════════════════════════════════════════════
 with t_settings:
 
+    _opt       = st.session_state.get("opt_strategies", {})
+    _opt_strats= _opt.get("strategies", {k: False for k in STRATEGY_DEFINITIONS})
+    _opt_label = _opt.get("label", "MARKET 탭 접속 후 자동 설정")
+    _opt_desc  = _opt.get("desc",  "유동성 데이터 로드 필요")
+    _liq_now   = st.session_state.get("liq_stage", 3)
+    _rec_now   = st.session_state.get("rec_score", 50)
+    _cur_st    = st.session_state.get("auto_stance", {})
+
+    # ── 공통 헬퍼 ──────────────────────────────────────────
+    def _section_header(text, sub=""):
+        _sub_html = f"<div style='font-size:9px;color:#6B7280;margin-top:1px'>{sub}</div>" if sub else ""
+        st.markdown(
+            f"<div style='background:#F3F4F6;border:1px solid #E2E6ED;"
+            f"border-bottom:none;padding:5px 8px;margin-top:10px;"
+            f"font-size:10px;font-weight:700;color:#374151;"
+            f"font-family:Space Mono,monospace'>{text}{_sub_html}</div>",
+            unsafe_allow_html=True)
+
+    def _num_row(label, key, default, step=5, min_v=0, max_v=200, unit="점", first=False, last=False):
+        cur = st.session_state.get(key, default)
+        _changed = cur != default
+        _bt = "border-top:1px solid #E2E6ED;" if first else ""
+        _bb = "border-bottom:1px solid #E2E6ED;"
+        _bg = "#FFFBEB" if _changed else "#FFFFFF"
+        _c0,_c1,_c2,_c3 = st.columns([3.5,1.2,0.4,0.4])
+        _c0.markdown(
+            f"<div style='background:{_bg};{_bt}{_bb}padding:6px 8px;"
+            f"font-size:11px;color:#374151;border-left:1px solid #E2E6ED'>"
+            f"{'⚠️ ' if _changed else ''}{label}</div>", unsafe_allow_html=True)
+        _c1.markdown(
+            f"<div style='background:{_bg};{_bt}{_bb}padding:6px 0;"
+            f"text-align:center;font-size:12px;font-weight:700;color:#0D1117'>"
+            f"{cur}{unit}</div>", unsafe_allow_html=True)
+        if _c2.button("＋", key=f"plus_{key}"):
+            st.session_state[key] = min(max_v, cur+step); st.rerun()
+        if _c3.button("－", key=f"minus_{key}"):
+            st.session_state[key] = max(min_v, cur-step); st.rerun()
+        return st.session_state.get(key, default)
+
+    # ══ 탭 제목 + 사용법 ══════════════════════════════════════
     st.markdown(
         "<div style='font-size:11px;color:#374151;"
         "font-family:Space Mono,monospace;margin-bottom:2px'>"
         "SCREENER CONFIGURATION</div>"
-        "<div style='font-size:9px;color:#6B7280;margin-bottom:8px'>"
-        "변경 즉시 LEADERS 탭에 반영 · 기본값 기준으로 조정</div>",
+        "<div style='background:#F9FAFB;border:1px solid #E2E6ED;"
+        "border-radius:3px;padding:6px 10px;margin-bottom:4px;font-size:9px;color:#6B7280'>"
+        "<b style='color:#374151'>사용법</b><br>"
+        "⓪ 투자 전략: 유동성에 맞는 전략 자동 설정 · 전략 조건 충족 시 Leader Score에 가산점<br>"
+        "①~⑤ 가중치: Leader Score 계산 세부 조정 · 백테스트 후 최적화<br>"
+        "⑥ 자동 스탠스: 시장 위험 시 자동 방어 모드 전환 · 수동 오버라이드 가능"
+        "</div>",
         unsafe_allow_html=True)
 
-    # ══ ⓪ 투자 전략 선택 ════════════════════════════════════
-    _opt = st.session_state.get("opt_strategies", {})
-    _opt_strats = _opt.get("strategies", {k: True for k in STRATEGY_DEFINITIONS})
-    _opt_label  = _opt.get("label",  "시장 데이터 로드 후 자동 설정")
-    _opt_desc   = _opt.get("desc",   "MARKET 탭 먼저 접속하세요")
+    # ══ ⓪ 투자 전략 ═══════════════════════════════════════════
+    _section_header("⓪ 투자 전략", "유동성 단계에 따라 최적 전략 자동 적용")
 
+    # 현재 자동 추천 상태
     st.markdown(
-        "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:4px'>"
-        "⓪ 투자 전략</div>",
-        unsafe_allow_html=True)
-
-    # 현재 유동성 기반 자동 추천 표시
-    _liq_now = st.session_state.get("liq_stage", 3)
-    _rec_now = st.session_state.get("rec_score", 50)
-    st.markdown(
-        f"<div style='background:#F9FAFB;border:1px solid #E2E6ED;"
-        f"border-radius:3px;padding:6px 10px;margin-bottom:6px'>"
-        f"<div style='font-size:10px;font-weight:700;color:#374151;"
-        f"margin-bottom:2px'>{_opt_label}</div>"
-        f"<div style='font-size:9px;color:#6B7280'>{_opt_desc}</div>"
+        f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+        f"border-top:none;padding:6px 10px'>"
+        f"<div style='display:flex;justify-content:space-between;align-items:center'>"
+        f"<span style='font-size:10px;font-weight:700;color:#374151'>{_opt_label}</span>"
+        f"<span style='font-size:9px;color:#9CA3AF'>유동성 {_liq_now}단계</span></div>"
+        f"<div style='font-size:9px;color:#6B7280;margin-top:2px'>{_opt_desc}</div>"
         f"</div>",
         unsafe_allow_html=True)
 
-    # 자동/수동 선택
-    _strat_mode = st.radio(
-        "전략 설정",
-        ["자동 (유동성 기반)", "수동 선택"],
-        horizontal=True,
-        key="strat_mode",
-        label_visibility="collapsed")
+    # 자동/수동 모드
+    _strat_mode = st.radio("전략 모드", ["자동 (유동성 기반)", "수동 선택"],
+        horizontal=True, key="strat_mode", label_visibility="collapsed")
 
     if _strat_mode == "자동 (유동성 기반)":
         st.session_state["active_strategies"] = _opt_strats
-        # 현재 활성 전략 표시
-        _active_labels = [
-            STRATEGY_DEFINITIONS[k]["label"]
-            for k, v in _opt_strats.items() if v
-        ]
-        if _active_labels:
-            st.markdown(
-                "<div style='display:flex;flex-wrap:wrap;gap:4px;margin-top:4px'>",
-                unsafe_allow_html=True)
-            for _al in _active_labels:
-                st.markdown(
-                    f"<span style='background:#FFFFFF;border:1px solid #E2E6ED;"
-                    f"border-radius:20px;padding:2px 8px;font-size:9px;"
-                    f"color:#374151'>✅ {_al}</span>",
-                    unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+        # 전략 상태 표
+        _auto_rows = []
+        for _sk, _sdef in STRATEGY_DEFINITIONS.items():
+            _on = _opt_strats.get(_sk, False)
+            _auto_rows.append({
+                "전략":   _sdef["label"],
+                "상태":   "✅ ON" if _on else "— OFF",
+                "가산점": f"+{_sdef['score_bonus']}점" if _on else "—",
+                "조건":   _sdef["desc"],
+            })
+        st.dataframe(pd.DataFrame(_auto_rows),
+            use_container_width=True, hide_index=True,
+            column_config={
+                "전략":   st.column_config.TextColumn("전략",   width="small"),
+                "상태":   st.column_config.TextColumn("상태",   width="small"),
+                "가산점": st.column_config.TextColumn("가산점", width="small"),
+                "조건":   st.column_config.TextColumn("조건"),
+            })
     else:
-        # 수동 선택 체크박스
-        st.markdown(
-            "<div style='font-size:9px;color:#9CA3AF;margin-bottom:4px'>"
-            "전략 조건 충족 시 Leader Score에 가산점 부여</div>",
-            unsafe_allow_html=True)
-
         _manual_strats = {}
+        _manual_rows = []
         for _sk, _sdef in STRATEGY_DEFINITIONS.items():
             _default_val = _opt_strats.get(_sk, False)
             _checked = st.checkbox(
-                f"{_sdef['label']} (+{_sdef['score_bonus']}점)",
+                f"{_sdef['label']}  (+{_sdef['score_bonus']}점)  —  {_sdef['desc']}",
                 value=st.session_state.get(f"strat_{_sk}", _default_val),
-                key=f"cb_{_sk}",
-                help=_sdef['desc'])
+                key=f"cb_{_sk}")
             st.session_state[f"strat_{_sk}"] = _checked
             _manual_strats[_sk] = _checked
         st.session_state["active_strategies"] = _manual_strats
 
-        # 전략 설명 표
-        _strat_rows = []
-        for _sk, _sdef in STRATEGY_DEFINITIONS.items():
-            _on = _manual_strats.get(_sk, False)
-            _strat_rows.append({
-                "전략":   _sdef["label"],
-                "조건":   _sdef["desc"],
-                "가산점": f"+{_sdef['score_bonus']}점",
-                "상태":   "ON" if _on else "OFF",
-            })
-        st.dataframe(
-            pd.DataFrame(_strat_rows),
-            use_container_width=True, hide_index=True,
-            column_config={
-                "전략":   st.column_config.TextColumn("전략",   width="small"),
-                "조건":   st.column_config.TextColumn("조건"),
-                "가산점": st.column_config.TextColumn("가산점", width="small"),
-                "상태":   st.column_config.TextColumn("상태",   width="small"),
-            })
+    # ── 유동성 단계별 전략 가이드 ──────────────────────────
+    _section_header("유동성 단계별 전략 가이드",
+        "유동성 상황에 따른 최적 전략 참고표")
 
-    st.markdown("---")
+    _guide_rows = [
+        {"단계":"🚀 5단계 80↑", "적용 전략":"모멘텀 · 신고가돌파 · 브레이크아웃",
+         "매수 방식":"공격적 추격", "현금 비중":"20%↓"},
+        {"단계":"🟢 4단계 60↑", "적용 전략":"모멘텀 · 눌림목 · 섹터순환",
+         "매수 방식":"분할 + 눌림 병행", "현금 비중":"30%"},
+        {"단계":"🟡 3단계 40↑", "적용 전략":"눌림목 · 회복후보",
+         "매수 방식":"조정 시만 진입", "현금 비중":"50%↑"},
+        {"단계":"🔴 2단계↓",    "적용 전략":"회복후보 관찰만",
+         "매수 방식":"매수 금지", "현금 비중":"100%"},
+    ]
+    # 현재 단계 강조
+    for _gr in _guide_rows:
+        _stage_num = int(_gr["단계"][2]) if _gr["단계"][2].isdigit() else 0
+        _gr["현재"] = "◀ 현재" if _stage_num == _liq_now else ""
 
-    def _num_row(label, key, default, step=5, min_v=0, max_v=200, unit="점", first=False, last=False):
-        """표 행처럼 보이는 +/- 버튼 행"""
-        cur = st.session_state.get(key, default)
-        _changed = cur != default
-        _border_top    = "border-top:1px solid #E2E6ED;" if first else ""
-        _border_bottom = "border-bottom:1px solid #E2E6ED;"
-        _bg = "#FFFBEB" if _changed else "#FFFFFF"
-
-        _c0, _c1, _c2, _c3 = st.columns([3.5, 1.2, 0.4, 0.4])
-        _c0.markdown(
-            f"<div style='background:{_bg};{_border_top}{_border_bottom}"
-            f"padding:6px 8px;font-size:11px;color:#374151;"
-            f"border-left:1px solid #E2E6ED;'>"
-            f"{'⚠️ ' if _changed else ''}{label}</div>",
-            unsafe_allow_html=True)
-        _c1.markdown(
-            f"<div style='background:{_bg};{_border_top}{_border_bottom}"
-            f"padding:6px 0;text-align:center;"
-            f"font-size:12px;font-weight:700;color:#0D1117;'>"
-            f"{cur}{unit}</div>",
-            unsafe_allow_html=True)
-        if _c2.button("＋", key=f"plus_{key}"):
-            st.session_state[key] = min(max_v, cur + step)
-            st.rerun()
-        if _c3.button("－", key=f"minus_{key}"):
-            st.session_state[key] = max(min_v, cur - step)
-            st.rerun()
-        return st.session_state.get(key, default)
-
-    def _section_header(text):
-        st.markdown(
-            f"<div style='background:#F3F4F6;border:1px solid #E2E6ED;"
-            f"border-bottom:none;padding:5px 8px;"
-            f"font-size:10px;font-weight:700;color:#374151;"
-            f"font-family:Space Mono,monospace'>{text}</div>",
-            unsafe_allow_html=True)
+    st.dataframe(pd.DataFrame(_guide_rows),
+        use_container_width=True, hide_index=True,
+        column_config={
+            "단계":    st.column_config.TextColumn("유동성 단계", width="small"),
+            "적용 전략":st.column_config.TextColumn("적용 전략"),
+            "매수 방식":st.column_config.TextColumn("매수 방식",  width="small"),
+            "현금 비중":st.column_config.TextColumn("현금 비중",  width="small"),
+            "현재":    st.column_config.TextColumn("",            width="small"),
+        })
 
     # ══ ① 시장 환경 임계값 ══════════════════════════════════
-    _section_header("① 시장 환경 임계값")
+    _section_header("① 시장 환경 임계값",
+        "이 값을 기준으로 위험 판단 · 자동 스탠스 전환")
     _num_row("유동성 최소 단계 — 이하면 매수 금지",
              "cfg_liq_min", 3, step=1, min_v=1, max_v=5, unit="단계", first=True)
     _num_row("침체 위험 상한 — 이상이면 경고",
              "cfg_rec_max", 70, step=5, min_v=30, max_v=100, unit="점")
     _num_row("VIX 경고 기준 — 이상이면 패널티",
              "cfg_vix_warn", 28, step=1, min_v=15, max_v=50, unit="", last=True)
-    st.markdown("<div style='margin-bottom:10px'></div>", unsafe_allow_html=True)
 
     # ══ ② RS 가중치 ═════════════════════════════════════════
-    _section_header("② RS 상대강도 가중치")
-    _num_row("RS 95↑ 가중치 — 초강세", "cfg_rs95_w", 35, step=5, min_v=0, max_v=60, first=True)
-    _num_row("RS 90↑ 가중치 — 강세",   "cfg_rs90_w", 25, step=5, min_v=0, max_v=50)
-    _num_row("RS 80↑ 가중치 — 상승",   "cfg_rs80_w", 15, step=5, min_v=0, max_v=40)
+    _section_header("② RS 상대강도 가중치",
+        "RS 높을수록 가산점 · 백테스트 후 최적화 권장")
+    _num_row("RS 95↑ — 초강세", "cfg_rs95_w", 35, step=5, min_v=0, max_v=60, first=True)
+    _num_row("RS 90↑ — 강세",   "cfg_rs90_w", 25, step=5, min_v=0, max_v=50)
+    _num_row("RS 80↑ — 상승",   "cfg_rs80_w", 15, step=5, min_v=0, max_v=40)
     _num_row("최소 RS 표시 기준 — 이하 숨김",
              "cfg_min_rs", 70, step=5, min_v=0, max_v=95, last=True)
-    st.markdown("<div style='margin-bottom:10px'></div>", unsafe_allow_html=True)
 
     # ══ ③ MA200 가중치 ══════════════════════════════════════
-    _section_header("③ MA200 가중치")
+    _section_header("③ MA200 가중치",
+        "MA200 아래 패널티가 클수록 필터 강도 높아짐")
     _num_row("MA200 위 보너스",   "cfg_ma200_bon", 20, step=5, min_v=0,  max_v=50, first=True)
     _num_row("MA200 아래 패널티", "cfg_ma200_pen", 40, step=5, min_v=10, max_v=80, last=True)
-    st.markdown("<div style='margin-bottom:10px'></div>", unsafe_allow_html=True)
 
     # ══ ④ 기타 가중치 ═══════════════════════════════════════
-    _section_header("④ 기타 가중치")
+    _section_header("④ 기타 가중치",
+        "기관 행동 신호 반영 · 백테스트 후 검증 권장")
     _num_row("기관 거래량 — 2배↑", "cfg_vol_w",     25, step=5, min_v=0, max_v=50, first=True)
     _num_row("신고가 근처 — -5%↑", "cfg_hd_w",      25, step=5, min_v=0, max_v=50)
     _num_row("하락장 생존 보너스",  "cfg_survive_w", 35, step=5, min_v=0, max_v=60, last=True)
-    st.markdown("<div style='margin-bottom:10px'></div>", unsafe_allow_html=True)
 
     # ══ ⑤ 등급 기준점수 ═════════════════════════════════════
-    _section_header("⑤ 등급 기준점수")
+    _section_header("⑤ 등급 기준점수",
+        "점수 기준 낮출수록 더 많은 종목 표시")
     _num_row("🚀 ELITE 기준",  "cfg_elite_min",  140, step=5, min_v=80,  max_v=200, first=True)
     _num_row("🔥 STRONG 기준", "cfg_strong_min", 110, step=5, min_v=60,  max_v=180)
     _num_row("🔍 WATCH 기준",  "cfg_watch_min",   80, step=5, min_v=40,  max_v=150, last=True)
-    st.markdown("<div style='margin-bottom:10px'></div>", unsafe_allow_html=True)
 
-    # ══ ⑥ 자동 스탠스 설정 ══════════════════════════════════
+    # ══ ⑥ 자동 스탠스 ═══════════════════════════════════════
+    _section_header("⑥ 자동 스탠스",
+        "유동성·침체 기준 자동 전환 · 위험 시 매수 제한")
+
     st.markdown(
-        "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:4px'>"
-        "⑥ 자동 스탠스 설정</div>",
+        f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+        f"border-top:none;padding:6px 10px;font-size:10px;color:#374151'>"
+        f"현재: <b>{_cur_st.get('label', '계산 중...')}</b>"
+        f" — {_cur_st.get('reason', 'MARKET 탭 먼저 접속')}</div>",
         unsafe_allow_html=True)
 
-    # 현재 자동 스탠스 표시
-    _cur_st = st.session_state.get("auto_stance", {})
-    _cur_label = _cur_st.get("label", "계산 중...")
-    _cur_reason= _cur_st.get("reason", "MARKET 탭 먼저 접속")
-    st.markdown(
-        f"<div style='background:#F3F4F6;border:1px solid #E2E6ED;"
-        f"border-radius:3px;padding:6px 10px;margin-bottom:8px;"
-        f"font-size:10px;color:#374151'>"
-        f"현재 자동 판단: <b>{_cur_label}</b> — {_cur_reason}</div>",
-        unsafe_allow_html=True)
-
-    # 수동 오버라이드
     _manual_override = st.selectbox(
         "수동 오버라이드",
         ["자동 (권장)", "🟢 공격 강제", "🟡 방어 강제", "🔴 위험 강제"],
-        index=0, key="manual_stance_override")
+        index=0, key="manual_stance_override",
+        label_visibility="collapsed")
 
     if _manual_override != "자동 (권장)":
         _map = {
@@ -2542,45 +2532,29 @@ with t_settings:
         st.session_state["auto_stance"] = _map[_manual_override]
         st.info(f"수동 설정 적용됨: {_manual_override}")
 
-    st.markdown("---")
-
-    # ══ 현재 설정 상태 표 ════════════════════════════════════
-    st.markdown(
-        "<div style='font-size:11px;color:#374151;"
-        "font-family:Space Mono,monospace;margin-bottom:4px'>"
-        "현재 설정값</div>",
-        unsafe_allow_html=True)
+    # ══ 현재 설정값 요약 ════════════════════════════════════
+    _section_header("현재 설정값", "⚠️ 표시는 기본값과 다른 항목")
 
     _cfg_rows = []
     _cfg_meta = [
-        ("유동성 최소 단계",  "cfg_liq_min",     3,   "단계"),
-        ("침체 위험 상한",    "cfg_rec_max",     70,  "점"),
-        ("VIX 경고 기준",     "cfg_vix_warn",    28,  ""),
-        ("RS 95↑ 가중치",     "cfg_rs95_w",      35,  "점"),
-        ("RS 90↑ 가중치",     "cfg_rs90_w",      25,  "점"),
-        ("RS 80↑ 가중치",     "cfg_rs80_w",      15,  "점"),
-        ("최소 RS 기준",      "cfg_min_rs",      70,  ""),
-        ("MA200 위 보너스",   "cfg_ma200_bon",   20,  "점"),
-        ("MA200 아래 패널티", "cfg_ma200_pen",   40,  "점"),
-        ("기관거래량 가중치", "cfg_vol_w",       25,  "점"),
-        ("신고가 가중치",     "cfg_hd_w",        25,  "점"),
-        ("하락장 생존 보너스","cfg_survive_w",   35,  "점"),
-        ("ELITE 기준",        "cfg_elite_min",  140,  "점"),
-        ("STRONG 기준",       "cfg_strong_min", 110,  "점"),
-        ("WATCH 기준",        "cfg_watch_min",   80,  "점"),
+        ("유동성 최소 단계","cfg_liq_min",3,"단계"),("침체 위험 상한","cfg_rec_max",70,"점"),
+        ("VIX 경고 기준","cfg_vix_warn",28,""),("RS 95↑","cfg_rs95_w",35,"점"),
+        ("RS 90↑","cfg_rs90_w",25,"점"),("RS 80↑","cfg_rs80_w",15,"점"),
+        ("최소 RS","cfg_min_rs",70,""),("MA200 보너스","cfg_ma200_bon",20,"점"),
+        ("MA200 패널티","cfg_ma200_pen",40,"점"),("거래량","cfg_vol_w",25,"점"),
+        ("신고가","cfg_hd_w",25,"점"),("하락장 생존","cfg_survive_w",35,"점"),
+        ("ELITE 기준","cfg_elite_min",140,"점"),("STRONG 기준","cfg_strong_min",110,"점"),
+        ("WATCH 기준","cfg_watch_min",80,"점"),
     ]
-    for _lbl, _key, _def, _unit in _cfg_meta:
-        _cur = st.session_state.get(_key, _def)
-        _changed = "⚠️ 변경" if _cur != _def else "기본값"
+    for _lbl,_key,_def,_unit in _cfg_meta:
+        _cur = st.session_state.get(_key,_def)
         _cfg_rows.append({
-            "항목":   _lbl,
-            "현재값": f"{_cur}{_unit}",
-            "기본값": f"{_def}{_unit}",
-            "상태":   _changed,
+            "항목":_lbl, "현재값":f"{_cur}{_unit}",
+            "기본값":f"{_def}{_unit}",
+            "상태":"⚠️ 변경" if _cur!=_def else "기본값",
         })
 
-    st.dataframe(
-        pd.DataFrame(_cfg_rows),
+    st.dataframe(pd.DataFrame(_cfg_rows),
         use_container_width=True, hide_index=True,
         column_config={
             "항목":   st.column_config.TextColumn("항목",   width="medium"),
@@ -2590,7 +2564,7 @@ with t_settings:
         })
 
     if st.button("🔄 기본값으로 초기화", key="cfg_reset"):
-        for _k, _v in _DEFAULTS.items():
+        for _k,_v in _DEFAULTS.items():
             st.session_state[_k] = _v
         st.success("✅ 기본값으로 초기화됐습니다")
         st.rerun()

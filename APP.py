@@ -1341,8 +1341,8 @@ with st.sidebar:
 
 
 # ── 탭 ───────────────────────────────────────────────────
-t_market, t_leaders, t_backtest, t_settings = st.tabs([
-    "📊 MARKET", "🏆 LEADERS", "📈 BACKTEST", "⚙️ 설정"
+t_market, t_leaders, t_portfolio, t_backtest, t_settings = st.tabs([
+    "📊 MARKET", "🏆 LEADERS", "💰 포트폴리오", "📈 BACKTEST", "⚙️ 설정"
 ])
 
 # ════════════════════════════════════════════════════════════
@@ -1582,6 +1582,11 @@ with t_market:
         # QQQ 대비 수익률 기준 정렬
         _sector_df = pd.DataFrame(_sector_rows).sort_values(
             "QQQ대비%", ascending=False).reset_index(drop=True)
+
+        # session_state 저장 → LEADERS 섹터순환 전략에 활용
+        st.session_state["hot_sectors"]  = _hot    # 자금 유입 섹터
+        st.session_state["cold_sectors"] = _cold   # 자금 유출 섹터
+        st.session_state["sector_df"]    = _sector_df  # 전체 섹터 순위
 
         st.dataframe(
             _sector_df,
@@ -2094,6 +2099,221 @@ with t_leaders:
 # ════════════════════════════════════════════════════════════
 # TAB 2 — BACKTEST
 # ════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════
+# TAB 2 — PORTFOLIO
+# ════════════════════════════════════════════════════════════
+with t_portfolio:
+
+    # ── 투자 환경 요약 ──────────────────────────────────────
+    _pt_stance  = st.session_state.get("auto_stance", {})
+    _pt_liq     = st.session_state.get("liq_stage",  3)
+    _pt_rec     = st.session_state.get("rec_score",  50)
+    _pt_results = st.session_state.get("pro_results", [])
+
+    # 스탠스 배너
+    if _pt_stance:
+        st.markdown(
+            f"<div style='background:{_pt_stance.get('bg','#F9FAFB')};"
+            f"border:1px solid {_pt_stance.get('border','#E2E6ED')};"
+            f"border-left:4px solid {_pt_stance.get('color','#374151')};"
+            f"border-radius:3px;padding:6px 12px;margin-bottom:10px;"
+            f"display:flex;justify-content:space-between;align-items:center'>"
+            f"<span style='font-size:12px;font-weight:700;"
+            f"color:{_pt_stance.get('color','#374151')}'>"
+            f"{_pt_stance.get('label','—')}</span>"
+            f"<span style='font-size:10px;color:#6B7280'>"
+            f"유동성 {_pt_liq}단계 · 침체 {_pt_rec:.0f}점</span></div>",
+            unsafe_allow_html=True)
+
+    # 매수 금지 시 경고
+    if not _pt_stance.get("buy_ok", True):
+        st.markdown(
+            f"<div style='background:#FEF2F2;border:1px solid #FECACA;"
+            f"border-radius:3px;padding:10px;text-align:center;"
+            f"font-size:12px;color:#B91C1C;font-weight:700'>"
+            f"⛔ {_pt_stance.get('label','위험 스탠스')} — 신규 매수 금지 구간<br>"
+            f"<span style='font-size:10px;font-weight:400'>"
+            f"유동성 또는 침체 위험 기준 초과 · 현금 보유 권장</span></div>",
+            unsafe_allow_html=True)
+        st.stop()
+
+    # LEADERS 탭 미실행 시 안내
+    if not _pt_results:
+        st.markdown(
+            "<div style='background:#FFFBEB;border:1px solid #FDE68A;"
+            "border-radius:3px;padding:12px;text-align:center;"
+            "font-size:11px;color:#92400E'>"
+            "⚡ LEADERS 탭에서 스크리닝을 먼저 실행해주세요<br>"
+            "<span style='font-size:9px'>종목 데이터가 로드된 후 배분이 가능합니다</span>"
+            "</div>",
+            unsafe_allow_html=True)
+    else:
+        # ── 투자금 입력 ──────────────────────────────────────
+        st.markdown(
+            "<div style='font-size:11px;color:#374151;"
+            "font-family:Space Mono,monospace;margin-bottom:6px'>"
+            "💰 포트폴리오 배분 계산기</div>"
+            "<div style='font-size:9px;color:#6B7280;margin-bottom:8px'>"
+            "Leader Score 순위 기반 자동 배분 · 스탠스에 따라 비중 자동 조정</div>",
+            unsafe_allow_html=True)
+
+        _pc1, _pc2 = st.columns(2)
+        with _pc1:
+            _invest_krw = st.number_input(
+                "투자 가능 금액 (만원)", min_value=10, max_value=100000,
+                value=500, step=50, key="pt_invest_krw")
+        with _pc2:
+            _max_stocks = st.number_input(
+                "최대 종목 수", min_value=1, max_value=20,
+                value=5, step=1, key="pt_max_stocks")
+
+        _invest_total = _invest_krw * 10000  # 원 단위
+
+        # 스탠스별 현금 비중
+        _cash_pct = (
+            0.20 if _pt_stance.get("stance") == "ATTACK"  else
+            0.40 if _pt_stance.get("stance") == "DEFENSE" else
+            0.20
+        )
+        _invest_avail = _invest_total * (1 - _cash_pct)
+        _cash_amount  = _invest_total * _cash_pct
+
+        # ── 종목 필터: 스탠스 최소 등급 ─────────────────────
+        _min_grade = _pt_stance.get("min_grade", "WATCH")
+        _grade_map = {"WATCH": 0, "STRONG": 1, "ELITE": 2}
+        _min_rank  = _grade_map.get(_min_grade, 0)
+
+        _eligible = [
+            r for r in _pt_results
+            if _grade_map.get(
+                "ELITE"  if "ELITE"  in str(r.get("LeaderGrade","")) else
+                "STRONG" if "STRONG" in str(r.get("LeaderGrade","")) else
+                "WATCH"  if "WATCH"  in str(r.get("LeaderGrade","")) else
+                "WEAK", -1) >= _min_rank
+            and r.get("MA200", False)
+        ]
+        _eligible = sorted(_eligible,
+            key=lambda x: x.get("LeaderScore", 0), reverse=True
+        )[:int(_max_stocks)]
+
+        if not _eligible:
+            st.info(f"현재 스탠스({_min_grade}↑) 조건을 충족하는 종목이 없습니다.")
+        else:
+            # ── 비중 계산 (점수 비례) ─────────────────────────
+            _scores  = [r.get("LeaderScore", 1) for r in _eligible]
+            _total_s = sum(_scores)
+            _weights = [s / _total_s for s in _scores]
+
+            # 환율 (고정값 - 실시간 미수집)
+            _usd_krw = st.number_input(
+                "환율 (원/달러) *수동 입력",
+                min_value=1000, max_value=2000,
+                value=1380, step=10, key="pt_usd_krw",
+                help="실시간 환율 미수집 · 직접 입력하세요")
+
+            _pt_rows = []
+            for r, w in zip(_eligible, _weights):
+                _tk     = r.get("Ticker", "")
+                _nm     = r.get("Name", _tk)
+                _grade  = r.get("LeaderGrade", "")
+                _score  = int(r.get("LeaderScore", 0))
+                _price  = _safe_float(r.get("EntryPrice", 0))
+                _alloc  = _invest_avail * w
+                _shares = int(_alloc / (_price * _usd_krw)) if (_price > 0 and _usd_krw > 0) else 0
+                _actual = _shares * _price * _usd_krw
+                _stop   = _price * 0.92  # -8% 손절
+
+                _pt_rows.append({
+                    "Ticker":  _tk,
+                    "회사명":  _nm,
+                    "등급":    _grade,
+                    "점수":    _score,
+                    "현재가":  round(_price, 2),
+                    "비중%":   round(w * 100, 1),
+                    "투자금액(만원)": round(_actual / 10000, 1),
+                    "매수 주수": _shares,
+                    "손절가":  round(_stop, 2),
+                })
+
+            _pt_df = pd.DataFrame(_pt_rows)
+
+            st.markdown(
+                "<div style='font-size:11px;color:#374151;"
+                "font-family:Space Mono,monospace;margin-bottom:4px'>"
+                "자동 배분 결과</div>"
+                "<div style='font-size:9px;color:#9CA3AF;margin-bottom:6px'>"
+                "* 진입가 기준 · 환율 수동 입력 · 실시간 주가 미반영</div>",
+                unsafe_allow_html=True)
+
+            st.dataframe(
+                _pt_df, use_container_width=True, hide_index=True,
+                column_config={
+                    "Ticker":  st.column_config.TextColumn("Ticker",  width="small"),
+                    "회사명":  st.column_config.TextColumn("회사명",  width="small"),
+                    "등급":    st.column_config.TextColumn("등급",    width="small"),
+                    "점수":    st.column_config.NumberColumn("점수",  format="%d"),
+                    "현재가":  st.column_config.NumberColumn("현재가($)", format="$%.2f"),
+                    "비중%":   st.column_config.NumberColumn("비중",  format="%.1f%%"),
+                    "투자금액(만원)": st.column_config.NumberColumn(
+                        "투자금(만원)", format="%.1f"),
+                    "매수 주수": st.column_config.NumberColumn("주수", format="%d주"),
+                    "손절가":  st.column_config.NumberColumn("손절가($)", format="$%.2f"),
+                })
+
+            # ── 포트폴리오 요약 ──────────────────────────────
+            _total_invested = sum(r["투자금액(만원)"] for r in _pt_rows)
+            _total_stopline = sum(
+                r["매수 주수"] * r["손절가"] * _usd_krw / 10000
+                for r in _pt_rows)
+            _max_loss = _total_invested - _total_stopline
+
+            st.markdown(
+                f"<div style='display:grid;grid-template-columns:1fr 1fr;"
+                f"gap:5px;margin-top:8px'>"
+                f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+                f"border-radius:3px;padding:6px 10px'>"
+                f"<div style='font-size:9px;color:#9CA3AF'>총 투자금</div>"
+                f"<div style='font-size:14px;font-weight:700;color:#0D1117'>"
+                f"{_total_invested:.1f}만원</div>"
+                f"<div style='font-size:9px;color:#6B7280'>{_invest_krw}만원 중</div>"
+                f"</div>"
+                f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+                f"border-radius:3px;padding:6px 10px'>"
+                f"<div style='font-size:9px;color:#9CA3AF'>현금 보유</div>"
+                f"<div style='font-size:14px;font-weight:700;color:#166534'>"
+                f"{_cash_amount/10000:.1f}만원</div>"
+                f"<div style='font-size:9px;color:#6B7280'>{_cash_pct*100:.0f}% 유지</div>"
+                f"</div>"
+                f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+                f"border-radius:3px;padding:6px 10px'>"
+                f"<div style='font-size:9px;color:#9CA3AF'>종목 수</div>"
+                f"<div style='font-size:14px;font-weight:700;color:#0D1117'>"
+                f"{len(_pt_rows)}개</div>"
+                f"<div style='font-size:9px;color:#6B7280'>{_min_grade}↑ 등급</div>"
+                f"</div>"
+                f"<div style='background:#FEF2F2;border:1px solid #FECACA;"
+                f"border-radius:3px;padding:6px 10px'>"
+                f"<div style='font-size:9px;color:#9CA3AF'>최대 손실(-8%)</div>"
+                f"<div style='font-size:14px;font-weight:700;color:#B91C1C'>"
+                f"-{_max_loss:.1f}만원</div>"
+                f"<div style='font-size:9px;color:#B91C1C'>손절 기준 동시 발동 시</div>"
+                f"</div>"
+                f"</div>",
+                unsafe_allow_html=True)
+
+            # 분할 매수 안내
+            st.markdown(
+                "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+                "border-radius:3px;padding:8px 12px;margin-top:8px;"
+                "font-size:10px;color:#374151'>"
+                "<b>분할 매수 원칙</b><br>"
+                "1차 40% → 브레이크아웃 확인 시 &nbsp;|&nbsp; "
+                "2차 35% → 추가 상승 확인 시 &nbsp;|&nbsp; "
+                "3차 25% → 완전 확신 시<br>"
+                "<span style='color:#B91C1C'>손절: 매수가 × -8% 도달 시 이유 불문 즉시 청산</span>"
+                "</div>",
+                unsafe_allow_html=True)
+
 with t_backtest:
     st.markdown(
         "<div style='font-size:11px;color:#374151;"

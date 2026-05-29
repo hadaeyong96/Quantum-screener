@@ -10,7 +10,14 @@ class _SecretsMock:
     def get(self, key, default=""):
         return os.environ.get(key, default)
     def __getitem__(self, key):
-        val = os.environ.get(key)
+        # GCP_SERVICE_ACCOUNT_JSON 키 이름 대응
+        aliases = {
+            "gcp_service_account": "GCP_SERVICE_ACCOUNT_JSON",
+        }
+        env_key = aliases.get(key, key)
+        val = os.environ.get(env_key)
+        if val is None:
+            val = os.environ.get(key)
         if val is None: raise KeyError(key)
         import json
         try: return json.loads(val)

@@ -2555,19 +2555,41 @@ with t_portfolio:
                 "가격 버튼 클릭 → 매매 가이드 · ▼ 현재가 · │ 매수가 기준선</div>",
                 unsafe_allow_html=True)
 
-            _tip_css = """
+            # ── details/summary 방식 인터랙티브 표 ──────────────
+            _css = """
 <style>
-.qtip{display:none;margin-top:6px;padding:10px 12px;border-radius:6px;font-size:12px;line-height:1.7}
-.qtip.open{display:block}
-.qrow{display:flex;gap:6px;align-items:flex-start;padding:1px 0}
-.pbtn{cursor:pointer;font-weight:500;border-radius:4px;padding:1px 5px;
-      border:none;font-size:12px;transition:opacity .15s;background:transparent}
-.pbtn:hover{opacity:.7;text-decoration:underline}
+.ptbl{width:100%;border-collapse:collapse;font-size:12px}
+.ptbl th{background:#F9FAFB;padding:5px 8px;text-align:right;
+  font-weight:500;color:#0D1117;border-bottom:1px solid #E2E6ED;font-size:11px}
+.ptbl th:first-child{text-align:left}
+.ptbl td{padding:0;border-bottom:1px solid #F3F4F6}
+.ptbl tr:last-child td{border-bottom:none}
+.psum{display:grid;padding:7px 8px;align-items:center;cursor:pointer;
+  list-style:none;grid-template-columns:1.8fr 1fr 1fr 1fr 1fr 1fr 0.8fr}
+.psum::-webkit-details-marker{display:none}
+.psum:hover{background:#F9FAFB}
+.pguide{background:#F9FAFB;padding:8px 12px;font-size:11px;
+  line-height:1.7;border-top:1px solid #E2E6ED}
+.pbar{height:6px;border-radius:3px;display:flex;overflow:hidden;margin:3px 0 2px}
+.pgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px}
+.pgcol{border-left:2px solid;padding-left:6px}
 </style>"""
-            st.markdown(_tip_css, unsafe_allow_html=True)
+            st.markdown(_css, unsafe_allow_html=True)
 
             _rows_html = ""
-            _dash_tks  = []
+            _rows_html += """
+<table class="ptbl">
+<thead><tr>
+  <th style="text-align:left">종목</th>
+  <th>손절 -8%</th>
+  <th>매수가</th>
+  <th>1차 +20%</th>
+  <th>2차 +35%</th>
+  <th>3차 +50%</th>
+  <th>주수</th>
+</tr></thead><tbody>"""
+
+            _dash_tks = []
             for _idx, _pr in enumerate(_pt_rows):
                 _tk   = _pr["Ticker"]
                 _nm   = _pr.get("회사명", _tk)
@@ -2586,95 +2608,80 @@ with t_portfolio:
                 _s3   = _shares_str(_t3m, _p, _usd_krw)
                 if "—" in (_s1+_s2+_s3): _dash_tks.append(_tk)
 
+                # 진행 바 비율 계산
                 _rng     = _t3p - _stop
-                _cur_pct = int((_p - _stop) / _rng * 100) if _rng > 0 else 50
+                _cur_pct = int((_p - _stop) / _rng * 100) if _rng > 0 else 44
                 _cur_pct = max(10, min(82, _cur_pct))
-                _sp      = 8
-                _gp      = _cur_pct - _sp
-                _tp1     = max(1, int((_t1p - _stop) / _rng * 100) - _cur_pct)
-                _tp2     = max(1, int((_t2p - _stop) / _rng * 100) - _cur_pct - _tp1)
-                _tp3     = max(1, 100 - _cur_pct - _tp1 - _tp2 - 2)
+                _bp1 = 8
+                _bp2 = _cur_pct - _bp1
+                _bp3 = max(1, int((_t1p - _stop) / _rng * 100) - _cur_pct)
+                _bp4 = max(1, int((_t2p - _stop) / _rng * 100) - _cur_pct - _bp3)
+                _bp5 = max(1, 100 - _cur_pct - _bp3 - _bp4 - 2)
 
                 _grd_bg  = "#FEF3C7" if _grd=="A" else ("#FFF7ED" if _grd=="B" else "#EFF6FF")
                 _grd_col = "#92400E" if _grd=="A" else ("#C2410C" if _grd=="B" else "#1D4ED8")
-                _uid     = f"{_tk}_{_idx}"
 
-                # HTML 조각 구성 (단따옴표 충돌 방지)
-                _q = "'"  # 단따옴표
-                _dv = f"<div style={_q}"
-                _sp = f"<span style={_q}"
-                _bt = f"<button class={_q}pbtn{_q} style={_q}"
+                _rows_html += (
+                    f"<tr><td colspan='7' style='padding:0'>"
+                    f"<details><summary class='psum'>"
+                    f"<span><b>{_tk}</b> "
+                    f"<span style='font-size:11px;color:#6B7280'>{_nm}</span> "
+                    f"<span style='font-size:10px;background:{_grd_bg};color:{_grd_col};"
+                    f"padding:1px 4px;border-radius:3px'>{_grd}</span></span>"
+                    f"<span style='text-align:right;color:#EF4444'>${_stop:.2f}</span>"
+                    f"<span style='text-align:right;color:#374151;font-weight:500'>${_p:.2f}</span>"
+                    f"<span style='text-align:right;color:#16A34A'>${_t1p:.2f}</span>"
+                    f"<span style='text-align:right;color:#15803D'>${_t2p:.2f}</span>"
+                    f"<span style='text-align:right;color:#166534'>${_t3p:.2f}</span>"
+                    f"<span style='text-align:right;font-size:11px;color:#6B7280'>"
+                    f"{_s1}/{_s2}/{_s3}</span>"
+                    f"</summary>"
+                    f"<div class='pguide'>"
+                    f"<div class='pbar'>"
+                    f"<div style='width:{_bp1}%;background:#FCA5A5'></div>"
+                    f"<div style='width:{_bp2}%;background:#FEE2E2'></div>"
+                    f"<div style='width:{_bp3}%;background:#BBF7D0'></div>"
+                    f"<div style='width:{_bp4}%;background:#86EFAC'></div>"
+                    f"<div style='width:{_bp5}%;background:#4ADE80'></div>"
+                    f"</div>"
+                    f"<div style='display:flex;justify-content:space-between;"
+                    f"font-size:11px;color:#9CA3AF;margin-bottom:8px'>"
+                    f"<span style='color:#EF4444'>손절</span>"
+                    f"<span style='color:#EF4444'>&#9660;현재</span>"
+                    f"<span style='color:#86EFAC'>1차</span>"
+                    f"<span style='color:#4ADE80'>2차</span>"
+                    f"<span style='color:#166534'>3차</span></div>"
+                    f"<div class='pgrid'>"
+                    f"<div class='pgcol' style='border-color:#EF4444'>"
+                    f"<b style='color:#EF4444'>손절 ${_stop:.2f} (-8%)</b><br>"
+                    f"즉시 전량 청산 (이유 불문)<br>"
+                    f"MA10 이탈 시 청산 검토<br>"
+                    f"VIX 35↑ → 50% 즉시 축소<br>"
+                    f"auto_stance 위험 → 전량 청산<br>"
+                    f"<span style='color:#9CA3AF;font-size:11px'>리스크:리워드 = 1:2.5</span>"
+                    f"</div>"
+                    f"<div class='pgcol' style='border-color:#16A34A'>"
+                    f"<b style='color:#16A34A'>1차 ${_t1p:.2f} (+20%)</b>"
+                    f" {_t1m}만·{_s1}<br>"
+                    f"1/3 매도 — 원금 회수<br>"
+                    f"손절선 → 매수가로 상향<br>"
+                    f"실적 3일전 → 50% 매도<br>"
+                    f"RS 하락 시 추가 매도 검토"
+                    f"</div>"
+                    f"<div class='pgcol' style='border-color:#166534'>"
+                    f"<b style='color:#166534'>2차 ${_t2p:.2f} (+35%)</b>"
+                    f" {_t2m}만·{_s2}<br>"
+                    f"1/3 추가 매도 — 이익 확정<br>"
+                    f"손절선 → 1차 목표가로 상향<br><br>"
+                    f"<b style='color:#15803D'>3차 ${_t3p:.2f} (+50%)</b>"
+                    f" {_t3m}만·{_s3}<br>"
+                    f"잔여 보유 · MA10 이탈 시 매도"
+                    f"</div>"
+                    f"</div></div></details></td></tr>"
+                )
 
-                _H = []
-                _H.append(f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;border-radius:6px;padding:16px 12px 10px;margin-bottom:8px'>")
-                _H.append(f"<div style='display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1fr 1fr 1.2fr;font-size:12px;gap:4px;align-items:center;margin-bottom:16px'>")
-                _H.append(f"<span style='font-weight:500'>{_tk} <span style='font-size:11px;color:#6B7280'>{_nm}</span><span style='font-size:11px;background:{_grd_bg};color:{_grd_col};padding:1px 5px;border-radius:3px;margin-left:4px'>{_grd}</span></span>")
-                _H.append(f'<button class="pbtn" style="color:#EF4444;text-align:right;width:100%" data-tip="{_uid}_stop">${_stop:.2f}</button>')
-                _H.append(f"<span style='text-align:right;color:#374151;font-weight:500'>${_p:.2f}</span>")
-                _H.append(f'<button class="pbtn" style="color:#16A34A;text-align:right;width:100%" data-tip="{_uid}_t1">${_t1p:.2f}</button>')
-                _H.append(f'<button class="pbtn" style="color:#15803D;text-align:right;width:100%" data-tip="{_uid}_t2">${_t2p:.2f}</button>')
-                _H.append(f'<button class="pbtn" style="color:#166534;text-align:right;width:100%" data-tip="{_uid}_t3">${_t3p:.2f}</button>')
-                _H.append(f"<span style='text-align:right;font-size:11px;color:#6B7280'>{_s1}/{_s2}/{_s3}</span>")
-                _H.append("</div>")
-                _H.append(f"<div style='position:relative;height:10px;border-radius:5px;overflow:hidden;background:#F3F4F6;display:flex;margin-bottom:4px'>")
-                _H.append(f"<div style='width:{_sp}%;background:#FCA5A5'></div>")
-                _H.append(f"<div style='width:{_gp}%;background:#FEE2E2'></div>")
-                _H.append(f"<div style='width:{_tp1}%;background:#BBF7D0'></div>")
-                _H.append(f"<div style='width:{_tp2}%;background:#86EFAC'></div>")
-                _H.append(f"<div style='width:{_tp3}%;background:#4ADE80'></div>")
-                _H.append("</div>")
-                _H.append(f"<div style='position:relative;height:16px;margin-bottom:2px'>")
-                _H.append(f"<div style='position:absolute;left:{_cur_pct}%;transform:translateX(-50%);font-size:13px;color:#EF4444;line-height:1'>&#9660;</div>")
-                _H.append(f"<div style='position:absolute;left:23%;width:1.5px;height:16px;top:0;background:#9CA3AF;opacity:0.5'></div>")
-                _H.append("</div>")
-                _H.append("<div style='display:flex;justify-content:space-between;font-size:11px;color:#9CA3AF'>")
-                _H.append("<span style='color:#EF4444'>손절</span><span>매수가</span>")
-                _H.append(f"<span style='color:#EF4444'>&#9660;현재</span>")
-                _H.append("<span style='color:#86EFAC'>1차</span><span style='color:#4ADE80'>2차</span><span style='color:#166534'>3차</span></div>")
-                _H.append(f"<div id='{_uid}_stop' class='qtip' style='background:#FEF2F2;border:0.5px solid #FECACA'>")
-                _H.append(f"<div style='font-weight:500;color:#B91C1C;margin-bottom:6px'>&#9888; 손절 — ${_stop:.2f} (-8%)</div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>매수가 &#215; -8% 도달 즉시 <b>이유 불문 전량 청산</b></span></div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>MA10(10일선) 이탈 시 청산 검토</span></div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>유동성 2단계↓ → 전량 청산</span></div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>VIX 35↑ → 포지션 50% 즉시 축소</span></div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>auto_stance 위험 전환 → 전량 청산</span></div>")
-                _H.append("<div style='margin-top:5px;font-size:11px;color:#9CA3AF'>리스크:리워드 = 8% : 20% = 1 : 2.5</div></div>")
-                _H.append(f"<div id='{_uid}_t1' class='qtip' style='background:#F0FDF4;border:0.5px solid #BBF7D0'>")
-                _H.append(f"<div style='font-weight:500;color:#166534;margin-bottom:6px'>1차 목표 ${_t1p:.2f} (+20%) — {_t1m}만 · {_s1}</div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>보유량 <b>1/3 매도</b> — 투자 원금 회수</span></div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>나머지 2/3 보유 · 손절선을 매수가로 상향</span></div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>실적 발표 3일 전 도달 시 50% 매도 후 재확인</span></div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>RS 순위 하락 or 섹터 약세 → 추가 매도 검토</span></div></div>")
-                _H.append(f"<div id='{_uid}_t2' class='qtip' style='background:#DCFCE7;border:0.5px solid #86EFAC'>")
-                _H.append(f"<div style='font-weight:500;color:#166534;margin-bottom:6px'>2차 목표 ${_t2p:.2f} (+35%) — {_t2m}만 · {_s2}</div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>추가 <b>1/3 매도</b> — 이익 확정</span></div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>잔여 1/3 보유 · 손절선을 1차 목표가로 상향</span></div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>섹터 자금 유출 전환 시 잔여 전량 매도 검토</span></div></div>")
-                _H.append(f"<div id='{_uid}_t3' class='qtip' style='background:#BBF7D0;border:0.5px solid #4ADE80'>")
-                _H.append(f"<div style='font-weight:500;color:#15803D;margin-bottom:6px'>3차 목표 ${_t3p:.2f} (+50%) — {_t3m}만 · {_s3}</div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>잔여 전량 보유 — <b>대형 수익 구간</b></span></div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>손절선 → 2차 목표가로 상향 (수익 보호)</span></div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>MA10 이탈 시 분할 매도 시작</span></div>")
-                _H.append("<div class='qrow'><span>&#8594;</span><span>+50% 초과 후 MA10 이탈 → 전량 매도</span></div></div>")
-                _H.append("</div>")
-                _rows_html += "".join(_H)
-
-
-            _toggle_js = """
-<script>
-document.addEventListener('click',function(e){
-  var b=e.target.closest('.pbtn');
-  if(!b) return;
-  var id=b.getAttribute('data-tip');
-  if(!id) return;
-  document.querySelectorAll('.qtip').forEach(function(el){
-    if(el.id!==id) el.classList.remove('open');
-  });
-  var el=document.getElementById(id);
-  if(el) el.classList.toggle('open');
-});
-</script>"""
-            st.markdown(_rows_html + _toggle_js, unsafe_allow_html=True)
+            _rows_html += "</tbody></table>"
+            st.markdown(_rows_html, unsafe_allow_html=True)
 
             if _dash_tks:
                 st.markdown(

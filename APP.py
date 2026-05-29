@@ -2937,6 +2937,41 @@ with t_backtest:
 # ════════════════════════════════════════════════════════════
 # TAB 3 — ⚙️ 설정
 # ════════════════════════════════════════════════════════════
+# ── 설정 탭 헬퍼 함수 (전역) ───────────────────────────
+def _section_header(text, sub=""):
+    _sub_html = f"<div style='font-size:11px;color:#6B7280;margin-top:1px'>{sub}</div>" if sub else ""
+    st.markdown(
+        f"<div style='background:#F3F4F6;border:1px solid #E2E6ED;"
+        f"border-bottom:none;padding:5px 8px;margin-top:10px;"
+        f"font-size:12px;font-weight:700;color:#374151;"
+        f"font-family:Space Mono,monospace'>{text}{_sub_html}</div>",
+        unsafe_allow_html=True)
+
+
+def _num_row(label, key, default, step=5, min_v=0, max_v=200, unit="점", first=False, last=False):
+    cur = st.session_state.get(key, default)
+    _changed = cur != default
+    _bt = "border-top:1px solid #E2E6ED;" if first else ""
+    _bb = "border-bottom:1px solid #E2E6ED;"
+    _bg = "#FFFBEB" if _changed else "#FFFFFF"
+    _c0,_c1,_c2,_c3 = st.columns([3.5,1.2,0.4,0.4])
+    _c0.markdown(
+        f"<div style='background:{_bg};{_bt}{_bb}padding:6px 8px;"
+        f"font-size:11px;color:#374151;border-left:1px solid #E2E6ED'>"
+        f"{'⚠️ ' if _changed else ''}{label}</div>", unsafe_allow_html=True)
+    _c1.markdown(
+        f"<div style='background:{_bg};{_bt}{_bb}padding:6px 0;"
+        f"text-align:center;font-size:12px;font-weight:700;color:#0D1117'>"
+        f"{cur}{unit}</div>", unsafe_allow_html=True)
+    if _c2.button("＋", key=f"plus_{key}"):
+        st.session_state[key] = min(max_v, cur+step); st.rerun()
+    if _c3.button("－", key=f"minus_{key}"):
+        st.session_state[key] = max(min_v, cur-step); st.rerun()
+    return st.session_state.get(key, default)
+
+# ══ 탭 제목 + 사용법 ══════════════════════════════════════
+
+
 with t_settings:
 
     _opt       = st.session_state.get("opt_strategies", {})
@@ -3108,4 +3143,76 @@ with t_settings:
     _section_header("⑤ 등급 기준점수",
         "점수 기준 낮출수록 더 많은 종목 표시")
     _num_row("A등급 기준",  "cfg_elite_min",  140, step=5, min_v=80,  max_v=200, first=True)
-    _num_
+    _num_row("B등급 기준", "cfg_strong_min", 110, step=5, min_v=60,  max_v=180)
+    _num_row("C등급 기준",  "cfg_watch_min",   80, step=5, min_v=40,  max_v=150, last=True)
+
+    # ══ ⑥ 자동 스탠스 ═══════════════════════════════════════
+    _section_header("⑥ 자동 스탠스",
+        "유동성·침체 기준 자동 전환 · 위험 시 매수 제한")
+
+    st.markdown(
+        f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
+        f"border-top:none;padding:6px 10px;font-size:12px;color:#374151'>"
+        f"현재: <b>{_cur_st.get('label', '계산 중...')}</b>"
+        f" — {_cur_st.get('reason', 'MARKET 탭 먼저 접속')}</div>",
+        unsafe_allow_html=True)
+
+    _manual_override = st.selectbox(
+        "수동 오버라이드",
+        ["자동 (권장)", "🟢 공격 강제", "🟡 방어 강제", "🔴 위험 강제"],
+        index=0, key="manual_stance_override",
+        label_visibility="collapsed")
+
+    if _manual_override != "자동 (권장)":
+        _map = {
+            "🟢 공격 강제": calc_auto_stance(4, 80, 20, 15),
+            "🟡 방어 강제": calc_auto_stance(3, 55, 25, 20),
+            "🔴 위험 강제": calc_auto_stance(2, 80, 75, 35),
+        }
+        st.session_state["auto_stance"] = _map[_manual_override]
+        st.info(f"수동 설정 적용됨: {_manual_override}")
+
+    # ══ 현재 설정값 요약 ════════════════════════════════════
+    _section_header("현재 설정값", "⚠️ 표시는 기본값과 다른 항목")
+
+    _cfg_rows = []
+    _cfg_meta = [
+        ("유동성 최소 단계","cfg_liq_min",3,"단계"),("침체 위험 상한","cfg_rec_max",70,"점"),
+        ("VIX 경고 기준","cfg_vix_warn",28,""),("RS 95↑","cfg_rs95_w",35,"점"),
+        ("RS 90↑","cfg_rs90_w",25,"점"),("RS 80↑","cfg_rs80_w",15,"점"),
+        ("최소 RS","cfg_min_rs",70,""),("MA200 보너스","cfg_ma200_bon",20,"점"),
+        ("MA200 패널티","cfg_ma200_pen",40,"점"),("거래량","cfg_vol_w",25,"점"),
+        ("신고가","cfg_hd_w",25,"점"),("하락장 생존","cfg_survive_w",35,"점"),
+        ("ELITE 기준","cfg_elite_min",140,"점"),("STRONG 기준","cfg_strong_min",110,"점"),
+        ("WATCH 기준","cfg_watch_min",80,"점"),
+    ]
+    for _lbl,_key,_def,_unit in _cfg_meta:
+        _cur = st.session_state.get(_key,_def)
+        _cfg_rows.append({
+            "항목":_lbl, "현재값":f"{_cur}{_unit}",
+            "기본값":f"{_def}{_unit}",
+            "상태":"⚠️ 변경" if _cur!=_def else "기본값",
+        })
+
+    st.dataframe(pd.DataFrame(_cfg_rows),
+        use_container_width=True, hide_index=True,
+        column_config={
+            "항목":   st.column_config.TextColumn("항목",   width="medium"),
+            "현재값": st.column_config.TextColumn("현재값", width="small"),
+            "기본값": st.column_config.TextColumn("기본값", width="small"),
+            "상태":   st.column_config.TextColumn("상태",   width="small"),
+        })
+
+    if st.button("🔄 기본값으로 초기화", key="cfg_reset"):
+        for _k,_v in _DEFAULTS.items():
+            st.session_state[_k] = _v
+        st.success("✅ 기본값으로 초기화됐습니다")
+        st.rerun()
+
+st.markdown(
+    f"<div style='text-align:center;font-size:11px;color:#1E2D3D;"
+    f"margin-top:20px;padding-top:8px;border-top:1px solid #0D1117'>"
+    f"QUANTUM {APP_VERSION} &nbsp;|&nbsp; "
+    f"데이터: FRED·yfinance &nbsp;|&nbsp; "
+    f"본 앱은 정보 제공 목적이며 투자 권유가 아닙니다</div>",
+    unsafe_allow_html=True)

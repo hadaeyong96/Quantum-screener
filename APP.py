@@ -2570,11 +2570,13 @@ with t_portfolio:
 .ptbl th:first-child{text-align:left}
 .ptbl td{padding:0;border-bottom:1px solid #F3F4F6}
 .ptbl tr:last-child td{border-bottom:none}
-.psum{display:grid;padding:7px 8px;align-items:center;cursor:pointer;
-  list-style:none;grid-template-columns:1.8fr 1fr 1fr 1fr 1fr 1fr 0.8fr}
-.psum::-webkit-details-marker{display:none}
+details summary{cursor:pointer;list-style:none}
+details summary::-webkit-details-marker{display:none}
+.psum{display:grid;padding:7px 8px;align-items:center;
+  grid-template-columns:1.8fr 1fr 1fr 1fr 1fr 1fr 0.8fr}
 .psum:hover{background:#F9FAFB}
-.psum div:not(:first-child){text-align:center}
+.psum>div{text-align:center}
+.psum>div:first-child{text-align:left}
 .pguide{background:#F9FAFB;padding:8px 12px;font-size:11px;
   line-height:1.7;border-top:1px solid #E2E6ED}
 .pbar{height:6px;border-radius:3px;display:flex;overflow:hidden;margin:3px 0 2px}
@@ -2629,19 +2631,19 @@ with t_portfolio:
                 _grd_col = "#92400E" if _grd=="A" else ("#C2410C" if _grd=="B" else "#1D4ED8")
 
                 _rows_html += (
-                    f"<tr><td colspan='7' style='padding:0'>"
-                    f"<details>"
-                    f"<summary class='psum'>"
+                    f"<summary style='list-style:none'>"
+                    f"<div class='psum'>"
                     f"<div style='text-align:left'><b>{_tk}</b> "
                     f"<span style='font-size:11px;color:#6B7280'>{_nm}</span> "
                     f"<span style='font-size:10px;background:{_grd_bg};color:{_grd_col};"
                     f"padding:1px 4px;border-radius:3px'>{_grd}</span></div>"
-                    f"<div style='text-align:center;color:#EF4444'>${_stop:.2f}</div>"
-                    f"<div style='text-align:center;color:#374151;font-weight:500'>${_p:.2f}</div>"
-                    f"<div style='text-align:center;color:#16A34A'>${_t1p:.2f}</div>"
-                    f"<div style='text-align:center;color:#15803D'>${_t2p:.2f}</div>"
-                    f"<div style='text-align:center;color:#166534'>${_t3p:.2f}</div>"
-                    f"<div style='text-align:center;font-size:11px;color:#6B7280'>"
+                    f"<div style='color:#EF4444'>${_stop:.2f}</div>"
+                    f"<div style='color:#374151;font-weight:500'>${_p:.2f}</div>"
+                    f"<div style='color:#16A34A'>${_t1p:.2f}</div>"
+                    f"<div style='color:#15803D'>${_t2p:.2f}</div>"
+                    f"<div style='color:#166534'>${_t3p:.2f}</div>"
+                    f"<div style='font-size:11px;color:#6B7280'>{_s1}/{_s2}/{_s3}</div>"
+                    f"</div></summary>"
                     f"{_s1}/{_s2}/{_s3}</div>"
                     f"</summary>"
                     f"<div class='pguide'>"

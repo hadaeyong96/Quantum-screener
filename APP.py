@@ -1521,20 +1521,22 @@ with t_market:
     ]
     _stage_html = ""
     for _sn, _si, _sc, _sl in _stage_defs:
+        # D형: 현재 단계만 채움(BBF7D0), 나머진 테두리만, 글자 모두 검은색
+        _border_colors = {5:"#16A34A", 4:"#16A34A", 3:"#CA8A04", 2:"#EA580C", 1:"#B91C1C"}
+        _bc = _border_colors.get(_sn, "#9CA3AF")
         if _sn == liq_stage:
-            _badge_colors = {5:"#16A34A", 4:"#22C55E", 3:"#EAB308", 2:"#EF4444", 1:"#DC2626"}
-            _badge_bg = _badge_colors.get(_sn, _lc)
             _stage_html += (
                 f"<span style='font-size:12px;white-space:nowrap;"
                 f"padding:3px 9px;border-radius:20px;"
-                f"background:{_badge_bg};color:#FFF;font-weight:700;"
-                f"box-shadow:0 1px 4px rgba(0,0,0,0.15)'>"
+                f"background:#BBF7D0;border:1.5px solid {_bc};"
+                f"color:#0D1117;font-weight:700'>"
                 f"{_si} {_sc} 현재</span>")
         else:
             _stage_html += (
                 f"<span style='font-size:12px;white-space:nowrap;"
                 f"padding:3px 9px;border-radius:20px;"
-                f"background:#F3F4F6;color:#6B7280'>"
+                f"background:transparent;border:1.5px solid {_bc};"
+                f"color:#0D1117'>"
                 f"{_si} {_sc} {_sl}</span>")
 
     _act_html = "".join(

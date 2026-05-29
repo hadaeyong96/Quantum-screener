@@ -1,6 +1,7 @@
-# core.py — QUANTUM 공유 모듈
-# APP.py + screener_daily.py 공통 함수
-# 이 파일만 수정하면 두 앱 모두 반영됩니다
+# VERSION : APP_V1
+# QUANTUM INSTITUTIONAL OS
+# 순수 데이터 기반 기관형 리더주 선별 엔진
+# 설명·그래프 없음 / 숫자·신호·등급만
 
 import warnings; warnings.filterwarnings("ignore")
 import io, sys, json, requests
@@ -138,125 +139,6 @@ COMPANY_NAME = {
 # ═══════════════════════════════════════════════════════════
 # Streamlit 설정
 # ═══════════════════════════════════════════════════════════
-st.set_page_config(
-    page_title="QUANTUM",
-    page_icon="⚡",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
-
-st.markdown("""
-<style>
-/* BASE — 라이트 테마 */
-.stApp,[data-testid="stAppViewContainer"],[data-testid="stMain"],section.main
-    { background-color:#F7F8FA !important; }
-[data-testid="stHeader"]
-    { background-color:#FFFFFF !important; border-bottom:1px solid #E2E6ED !important; }
-body,p,span,div,label
-    { color:#0D1117 !important; font-family:'Inter',sans-serif !important; }
-h1,h2,h3
-    { font-family:'Space Mono',monospace !important; color:#0D1117 !important; }
-
-/* SIDEBAR */
-[data-testid="stSidebar"]
-    { background-color:#FFFFFF !important; border-right:1px solid #E2E6ED !important; }
-[data-testid="stSidebar"] *
-    { color:#374151 !important; }
-
-/* TABS */
-[data-testid="stTabs"] [role="tablist"]
-    { background:#FFFFFF !important; border-bottom:2px solid #E2E6ED !important; }
-[data-testid="stTabs"] button
-    { color:#6B7280 !important; font-family:'Inter',sans-serif !important;
-      font-size:13px !important; font-weight:500 !important;
-      padding:10px 20px !important; background:transparent !important;
-      border:none !important; border-bottom:2px solid transparent !important; }
-[data-testid="stTabs"] button:hover
-    { color:#0D1117 !important; background:#F3F4F6 !important; }
-[data-testid="stTabs"] button[aria-selected="true"]
-    { color:#0D1117 !important; border-bottom:2px solid #374151 !important;
-      font-weight:700 !important; background:#F9FAFB !important; }
-
-/* BUTTON */
-.stButton button
-    { background:#FFFFFF !important; border:1px solid #D1D5DB !important;
-      color:#374151 !important; font-family:'Inter',sans-serif !important;
-      font-size:11px !important; font-weight:500 !important;
-      border-radius:3px !important; padding:4px 10px !important; }
-.stButton button:hover
-    { background:#F3F4F6 !important; border-color:#9CA3AF !important;
-      color:#0D1117 !important; }
-
-/* DATAFRAME */
-[data-testid="stDataFrame"]
-    { background:#FFFFFF !important; border:1px solid #E2E6ED !important;
-      border-radius:3px !important; }
-
-/* METRIC */
-div[data-testid="metric-container"]
-    { background:#FFFFFF !important; border:1px solid #E2E6ED !important;
-      border-radius:3px !important; padding:8px !important; }
-
-/* HR */
-hr { border-color:#E2E6ED !important; }
-
-/* SPINNER */
-.stSpinner > div { border-top-color:#9CA3AF !important; }
-
-/* MOBILE 최적화 */
-@media (max-width: 768px) {
-    /* 폰트 크기 조정 */
-    body, p, span, div, label
-        { font-size:13px !important; }
-    /* 최소 폰트 11px 보장 */
-    small { font-size:11px !important; }
-    /* 탭 버튼 작게 */
-    [data-testid="stTabs"] button
-        { font-size:11px !important; padding:8px 10px !important; }
-    /* 메트릭 카드 */
-    div[data-testid="metric-container"]
-        { padding:6px !important; }
-    /* 버튼 */
-    .stButton button
-        { font-size:11px !important; padding:6px 8px !important; }
-    /* 데이터프레임 스크롤 */
-    [data-testid="stDataFrame"]
-        { overflow-x: auto !important; }
-}
-
-/* SELECTBOX 모바일 대비 스타일 고정 */
-[data-testid="stSelectbox"] > div > div
-    { background-color:#FFFFFF !important;
-      color:#0D1117 !important; }
-[data-testid="stSelectbox"] > div > div > div
-    { color:#0D1117 !important; }
-[data-testid="stSelectbox"] span
-    { color:#0D1117 !important; }
-[data-testid="stSelectbox"] svg
-    { fill:#6B7280 !important; }
-[data-testid="stSelectbox"] > label
-    { color:#374151 !important; }
-
-/* 드롭다운 펼쳐진 목록 */
-[role="listbox"]
-    { background-color:#FFFFFF !important; }
-[role="option"]
-    { background-color:#FFFFFF !important;
-      color:#0D1117 !important; }
-[role="option"]:hover
-    { background-color:#F3F4F6 !important; }
-[role="option"][aria-selected="true"]
-    { background-color:#F3F4F6 !important;
-      color:#0D1117 !important; }
-
-/* NUMBER INPUT 모바일 */
-[data-testid="stNumberInput"] input
-    { background-color:#FFFFFF !important;
-      color:#0D1117 !important;
-      border-color:#D1D5DB !important; }
-</style>
-""", unsafe_allow_html=True)
-
 # ═══════════════════════════════════════════════════════════
 # 유틸리티
 # ═══════════════════════════════════════════════════════════
@@ -1297,23 +1179,16 @@ def build_market_ctx(liq_stage, rec_score, mkt_data):
     return ctx
 
 # ═══════════════════════════════════════════════════════════
-# ── 설정 기본값 (screener_daily.py에서도 사용) ──────────────
+
+# ── 설정 기본값 ──────────────────────────────────────────
 _DEFAULTS = {
-    "cfg_liq_min":      3,
-    "cfg_rec_max":      70,
-    "cfg_vix_warn":     28,
-    "cfg_rs95_w":       35,
-    "cfg_rs90_w":       25,
-    "cfg_rs80_w":       15,
-    "cfg_ma200_pen":    40,
-    "cfg_ma200_bon":    20,
-    "cfg_vol_w":        25,
-    "cfg_hd_w":         25,
-    "cfg_survive_w":    35,
-    "cfg_elite_min":    140,
-    "cfg_strong_min":   110,
-    "cfg_watch_min":    80,
-    "cfg_min_rs":       70,
-    "cfg_liq_block":    True,
+    "cfg_liq_min":      3,    "cfg_rec_max":      70,
+    "cfg_vix_warn":     28,   "cfg_rs95_w":       35,
+    "cfg_rs90_w":       25,   "cfg_rs80_w":       15,
+    "cfg_ma200_pen":    40,   "cfg_ma200_bon":    20,
+    "cfg_vol_w":        25,   "cfg_hd_w":         25,
+    "cfg_survive_w":    35,   "cfg_elite_min":    140,
+    "cfg_strong_min":   110,  "cfg_watch_min":    80,
+    "cfg_min_rs":       70,   "cfg_liq_block":    True,
     "cfg_rec_elite":    False,
 }

@@ -192,6 +192,12 @@ h1,h2,h3
 [data-testid="stDataFrame"]
     { background:#FFFFFF !important; border:1px solid #E2E6ED !important;
       border-radius:3px !important; }
+[data-testid="stDataFrame"] td,
+[data-testid="stDataFrame"] th
+    { text-align:center !important; }
+[data-testid="stDataFrame"] td:first-child,
+[data-testid="stDataFrame"] th:first-child
+    { text-align:left !important; }
 
 /* METRIC */
 div[data-testid="metric-container"]
@@ -1718,7 +1724,7 @@ with t_market:
             "지표":   st.column_config.TextColumn("지표",   width="small"),
             "현재값": st.column_config.TextColumn("현재값", width="small"),
             "방향":   st.column_config.TextColumn("방향성", width="small"),
-            "점수":   st.column_config.NumberColumn("점수", format="%d점", width="small"),
+            "점수":   st.column_config.NumberColumn("점수", format="%.0f점", width="small"),
             "신호":   st.column_config.TextColumn("신호",   width="small"),
             "FRED":   st.column_config.LinkColumn("FRED",
                         display_text=r"https://fred\.stlouisfed\.org/series/(.+)",
@@ -1807,9 +1813,9 @@ with t_market:
                 "섹터":     st.column_config.TextColumn("섹터",    width="small"),
                 "ETF":      st.column_config.TextColumn("ETF",     width="small"),
                 "방향":     st.column_config.TextColumn("방향성",  width="small"),
-                "1주수익%": st.column_config.NumberColumn("1주%",  format="%+.1f%%", width="small"),
+                "1주수익%": st.column_config.NumberColumn("1주%",  format="%+.2f%%", width="small"),
                 "4주수익%": st.column_config.NumberColumn("4주%",  format="%+.1f%%", width="small"),
-                "QQQ대비%": st.column_config.NumberColumn("QQQ대비",format="%+.1f%%",width="small"),
+                "QQQ대비%": st.column_config.NumberColumn("QQQ대비",format="%+.2f%%",width="small"),
                 "상태":     st.column_config.TextColumn("자금흐름", width="small"),
                 "대표종목": st.column_config.TextColumn("대표종목", width="medium"),
             })
@@ -2215,8 +2221,8 @@ with t_leaders:
                             width="small",
                             help="최근 7일간 연속 선택 횟수"),
             "AccScore":    st.column_config.NumberColumn("매집",    format="%.0f", width="small"),
-            "RS":          st.column_config.NumberColumn("RS",      format="%.1f", width="small"),
-            "HighDist":    st.column_config.NumberColumn("신고가%", format="%.1f", width="small"),
+            "RS":          st.column_config.NumberColumn("RS",      format="%.2f", width="small"),
+            "HighDist":    st.column_config.NumberColumn("신고가%", format="%.2f", width="small"),
             "VolRatio":    st.column_config.NumberColumn("거래량배율",format="%.2f",width="small"),
             "EPS":         st.column_config.NumberColumn("52주수익%*",format="%.1f",width="small",help="*EPS 미수집 — 52주 주가 수익률로 대체"),
             "RSI":         st.column_config.NumberColumn("RSI",     format="%.1f", width="small"),
@@ -2281,7 +2287,7 @@ with t_leaders:
                 "평균점수":st.column_config.NumberColumn("평균점수", format="%.1f점"),
                 "종목수": st.column_config.NumberColumn("종목수", format="%d개",  width="small"),
                 "최고점수":st.column_config.NumberColumn("최고점수",format="%.0f점",width="small"),
-                "평균RS": st.column_config.NumberColumn("평균RS", format="%.1f",  width="small"),
+                "평균RS": st.column_config.NumberColumn("평균RS", format="%.2f",  width="small"),
                 "강세종목":st.column_config.NumberColumn("ELITE·STRONG", format="%d개", width="small"),
             })
 
@@ -2559,7 +2565,7 @@ with t_portfolio:
             _css = """
 <style>
 .ptbl{width:100%;border-collapse:collapse;font-size:12px}
-.ptbl th{background:#F9FAFB;padding:5px 8px;text-align:right;
+.ptbl th{background:#F9FAFB;padding:5px 8px;text-align:center;
   font-weight:500;color:#0D1117;border-bottom:1px solid #E2E6ED;font-size:11px}
 .ptbl th:first-child{text-align:left}
 .ptbl td{padding:0;border-bottom:1px solid #F3F4F6}
@@ -2568,6 +2574,7 @@ with t_portfolio:
   list-style:none;grid-template-columns:1.8fr 1fr 1fr 1fr 1fr 1fr 0.8fr}
 .psum::-webkit-details-marker{display:none}
 .psum:hover{background:#F9FAFB}
+.psum span:not(:first-child){text-align:center}
 .pguide{background:#F9FAFB;padding:8px 12px;font-size:11px;
   line-height:1.7;border-top:1px solid #E2E6ED}
 .pbar{height:6px;border-radius:3px;display:flex;overflow:hidden;margin:3px 0 2px}
@@ -2628,12 +2635,12 @@ with t_portfolio:
                     f"<span style='font-size:11px;color:#6B7280'>{_nm}</span> "
                     f"<span style='font-size:10px;background:{_grd_bg};color:{_grd_col};"
                     f"padding:1px 4px;border-radius:3px'>{_grd}</span></span>"
-                    f"<span style='text-align:right;color:#EF4444'>${_stop:.2f}</span>"
-                    f"<span style='text-align:right;color:#374151;font-weight:500'>${_p:.2f}</span>"
-                    f"<span style='text-align:right;color:#16A34A'>${_t1p:.2f}</span>"
-                    f"<span style='text-align:right;color:#15803D'>${_t2p:.2f}</span>"
-                    f"<span style='text-align:right;color:#166534'>${_t3p:.2f}</span>"
-                    f"<span style='text-align:right;font-size:11px;color:#6B7280'>"
+                    f"<span style='text-align:center;color:#EF4444'>${_stop:.2f}</span>"
+                    f"<span style='text-align:center;color:#374151;font-weight:500'>${_p:.2f}</span>"
+                    f"<span style='text-align:center;color:#16A34A'>${_t1p:.2f}</span>"
+                    f"<span style='text-align:center;color:#15803D'>${_t2p:.2f}</span>"
+                    f"<span style='text-align:center;color:#166534'>${_t3p:.2f}</span>"
+                    f"<span style='text-align:center;font-size:11px;color:#6B7280'>"
                     f"{_s1}/{_s2}/{_s3}</span>"
                     f"</summary>"
                     f"<div class='pguide'>"

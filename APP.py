@@ -2574,7 +2574,7 @@ with t_portfolio:
   list-style:none;grid-template-columns:1.8fr 1fr 1fr 1fr 1fr 1fr 0.8fr}
 .psum::-webkit-details-marker{display:none}
 .psum:hover{background:#F9FAFB}
-.psum span:not(:first-child){text-align:center}
+.psum div:not(:first-child){text-align:center}
 .pguide{background:#F9FAFB;padding:8px 12px;font-size:11px;
   line-height:1.7;border-top:1px solid #E2E6ED}
 .pbar{height:6px;border-radius:3px;display:flex;overflow:hidden;margin:3px 0 2px}
@@ -2630,18 +2630,19 @@ with t_portfolio:
 
                 _rows_html += (
                     f"<tr><td colspan='7' style='padding:0'>"
-                    f"<details><summary class='psum'>"
-                    f"<span><b>{_tk}</b> "
+                    f"<details>"
+                    f"<summary class='psum'>"
+                    f"<div style='text-align:left'><b>{_tk}</b> "
                     f"<span style='font-size:11px;color:#6B7280'>{_nm}</span> "
                     f"<span style='font-size:10px;background:{_grd_bg};color:{_grd_col};"
-                    f"padding:1px 4px;border-radius:3px'>{_grd}</span></span>"
-                    f"<span style='text-align:center;color:#EF4444'>${_stop:.2f}</span>"
-                    f"<span style='text-align:center;color:#374151;font-weight:500'>${_p:.2f}</span>"
-                    f"<span style='text-align:center;color:#16A34A'>${_t1p:.2f}</span>"
-                    f"<span style='text-align:center;color:#15803D'>${_t2p:.2f}</span>"
-                    f"<span style='text-align:center;color:#166534'>${_t3p:.2f}</span>"
-                    f"<span style='text-align:center;font-size:11px;color:#6B7280'>"
-                    f"{_s1}/{_s2}/{_s3}</span>"
+                    f"padding:1px 4px;border-radius:3px'>{_grd}</span></div>"
+                    f"<div style='text-align:center;color:#EF4444'>${_stop:.2f}</div>"
+                    f"<div style='text-align:center;color:#374151;font-weight:500'>${_p:.2f}</div>"
+                    f"<div style='text-align:center;color:#16A34A'>${_t1p:.2f}</div>"
+                    f"<div style='text-align:center;color:#15803D'>${_t2p:.2f}</div>"
+                    f"<div style='text-align:center;color:#166534'>${_t3p:.2f}</div>"
+                    f"<div style='text-align:center;font-size:11px;color:#6B7280'>"
+                    f"{_s1}/{_s2}/{_s3}</div>"
                     f"</summary>"
                     f"<div class='pguide'>"
                     f"<div class='pbar'>"

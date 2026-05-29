@@ -878,6 +878,54 @@ def _fred_last(fred, key, default):
         return _safe_float(s.iloc[-1])
     return default
 
+def _calc_direction(series, periods=None):
+    """
+    FRED 시계열에서 방향성 계산
+    periods: [(기간명, 주수), ...]
+    반환: "↑↑ 3개월 상승" 형태 문자열
+    """
+    if not isinstance(series, pd.Series) or len(series) < 4:
+        return "—"
+    if periods is None:
+        periods = [("2주", 2), ("1개월", 4), ("3개월", 13)]
+
+    cur = _safe_float(series.iloc[-1])
+    if cur == 0:
+        return "—"
+
+    # 가장 긴 기간부터 확인
+    result = "→"
+    for label, weeks in sorted(periods, key=lambda x: x[1], reverse=True):
+        idx = min(weeks, len(series)-1)
+        prev = _safe_float(series.iloc[-idx-1])
+        if prev == 0:
+            continue
+        chg = (cur - prev) / abs(prev) * 100
+        if   chg >  3: result = f"↑↑ {label}"; break
+        elif chg >  0.5: result = f"↑ {label}"; break
+        elif chg < -3: result = f"↓↓ {label}"; break
+        elif chg < -0.5: result = f"↓ {label}"; break
+        else: result = "→ 보합"
+
+    return result
+
+
+def _direction_color(direction, invert=False):
+    """
+    방향성 → 색상 반환
+    invert=True: 하락이 좋은 지표 (금리, RRP, TGA 등)
+    """
+    up   = "↑" in direction
+    down = "↓" in direction
+    if invert:
+        if down: return "#16A34A"   # 하락 = 좋음 (초록)
+        if up:   return "#B91C1C"   # 상승 = 나쁨 (빨강)
+    else:
+        if up:   return "#16A34A"
+        if down: return "#B91C1C"
+    return "#6B7280"  # 보합
+
+
 def calc_liq_score(fred: dict) -> tuple:
     """유동성 점수 (0~100) + 단계 (1~5) + 9개 지표 상세"""
     score = 50
@@ -890,7 +938,8 @@ def calc_liq_score(fred: dict) -> tuple:
     elif ff < 2.0: _fs=10;  _fg="🟢"; _fsc=85
     else:          _fs=5;   _fg="🟢"; _fsc=70
     score += _fs
-    detail["기준금리"] = (f"{ff:.2f}%", _fsc, _fg)
+    _ff_dir = _calc_direction(fred.get("FedFunds"), [("2주",2),("1개월",4),("3개월",13)])
+    detail["기준금리"] = (f"{ff:.2f}%", _ff_dir, _fsc, _fg, True)
 
     # ② M2 통화량
     m2s = fred.get("M2")
@@ -905,7 +954,8 @@ def calc_liq_score(fred: dict) -> tuple:
             elif _yoy > 0:  score+=3;  _m2_g="🟢"; _m2_sc=65
             elif _yoy > -2: pass;      _m2_g="🟡"; _m2_sc=45
             else:           score-=8;  _m2_g="🔴"; _m2_sc=20
-    detail["M2 통화량"] = (_m2_v, _m2_sc, _m2_g)
+    _m2_dir = _calc_direction(fred.get("M2"), [("2주",2),("1개월",4),("3개월",13),("6개월",26)])
+    detail["M2 통화량"] = (_m2_v, _m2_dir, _m2_sc, _m2_g, False)
 
     # ③ RRP 역레포
     rrp = _fred_last(fred, "RRP", 500)
@@ -913,14 +963,16 @@ def calc_liq_score(fred: dict) -> tuple:
     elif rrp > 500:  score-=3;  _rg="🟡"; _rsc=45
     elif rrp > 100:  score+=5;  _rg="🟢"; _rsc=70
     else:            score+=8;  _rg="🟢"; _rsc=85
-    detail["RRP 역레포"] = (f"{rrp/1e3:.2f}T$", _rsc, _rg)
+    _rrp_dir = _calc_direction(fred.get("RRP"), [("2주",2),("1개월",4),("3개월",13),("6개월",26)])
+    detail["RRP 역레포"] = (f"{rrp/1e3:.2f}T$", _rrp_dir, _rsc, _rg, True)
 
     # ④ TGA 재무부
     tga = _fred_last(fred, "TGA", 700)
     if   tga > 1000: score-=5;  _tg="🔴"; _tsc=30
     elif tga > 500:  pass;      _tg="🟡"; _tsc=50
     else:            score+=5;  _tg="🟢"; _tsc=72
-    detail["TGA 재무부"] = (f"{tga/1e3:.2f}T$", _tsc, _tg)
+    _tga_dir = _calc_direction(fred.get("TGA"), [("2주",2),("1개월",4),("3개월",13)])
+    detail["TGA 재무부"] = (f"{tga/1e3:.2f}T$", _tga_dir, _tsc, _tg, True)
 
     # ⑤ 은행 준비금
     res = _fred_last(fred, "Reserves", 3000)
@@ -928,7 +980,8 @@ def calc_liq_score(fred: dict) -> tuple:
     elif res < 2500: score-=3;  _sg="🟡"; _ssc=45
     elif res > 3000: score+=5;  _sg="🟢"; _ssc=80
     else:            pass;      _sg="🟢"; _ssc=65
-    detail["은행 준비금"] = (f"{res/1e3:.2f}T$", _ssc, _sg)
+    _res_dir = _calc_direction(fred.get("Reserves"), [("2주",2),("1개월",4),("3개월",13)])
+    detail["은행 준비금"] = (f"{res/1e3:.2f}T$", _res_dir, _ssc, _sg, False)
 
     # ⑥ 실질금리
     rr = _fred_last(fred, "RealRate", 1.0)
@@ -937,7 +990,8 @@ def calc_liq_score(fred: dict) -> tuple:
     elif rr > 0:    pass;      _rg2="🟡"; _rsc2=55
     elif rr > -1:   score+=8;  _rg2="🟢"; _rsc2=75
     else:           score+=12; _rg2="🟢"; _rsc2=90
-    detail["실질금리"] = (f"{rr:.2f}%", _rsc2, _rg2)
+    _rr_dir = _calc_direction(fred.get("RealRate"), [("2주",2),("1개월",4),("3개월",13)])
+    detail["실질금리"] = (f"{rr:.2f}%", _rr_dir, _rsc2, _rg2, True)
 
     # ⑦ 크레딧 스프레드
     cs = _fred_last(fred, "CreditSpread", 3.5)
@@ -946,7 +1000,8 @@ def calc_liq_score(fred: dict) -> tuple:
     elif cs > 4.0:  score-=5;  _csg="🟡"; _cssc=40
     elif cs > 3.5:  pass;      _csg="🟡"; _cssc=55
     else:           score+=10; _csg="🟢"; _cssc=80
-    detail["크레딧 스프레드"] = (f"{cs:.2f}%", _cssc, _csg)
+    _cs_dir = _calc_direction(fred.get("CreditSpread"), [("2주",2),("1개월",4),("3개월",13)])
+    detail["크레딧 스프레드"] = (f"{cs:.2f}%", _cs_dir, _cssc, _csg, True)
 
     # ⑧ CPI 물가
     cpis = fred.get("CPI")
@@ -958,7 +1013,8 @@ def calc_liq_score(fred: dict) -> tuple:
         elif _cpi > 3.0: score-=3;  _cpi_g="🟡"; _cpi_sc=45
         elif _cpi > 2.0: score+=2;  _cpi_g="🟢"; _cpi_sc=65
         else:            score+=5;  _cpi_g="🟢"; _cpi_sc=82
-    detail["CPI 물가"] = (_cpi_v, _cpi_sc, _cpi_g)
+    _cpi_dir = _calc_direction(fred.get("CPI"), [("1개월",4),("3개월",13),("6개월",26)])
+    detail["CPI 물가"] = (_cpi_v, _cpi_dir, _cpi_sc, _cpi_g, True)
 
     # ⑨ 장단기 금리차 (T10Y2Y)
     t10s = fred.get("T10Y2Y")
@@ -970,7 +1026,8 @@ def calc_liq_score(fred: dict) -> tuple:
         elif _ty < 0:    score-=3;  _ty_g="🟡"; _ty_sc=40
         elif _ty < 0.5:  score+=2;  _ty_g="🟢"; _ty_sc=62
         else:            score+=5;  _ty_g="🟢"; _ty_sc=80
-    detail["장단기 금리차"] = (_ty_v, _ty_sc, _ty_g)
+    _ty_dir = _calc_direction(fred.get("T10Y2Y"), [("2주",2),("1개월",4),("3개월",13)])
+    detail["장단기 금리차"] = (_ty_v, _ty_dir, _ty_sc, _ty_g, False)
 
     score = max(0, min(100, score))
     if   score >= 80: stage = 5
@@ -1635,26 +1692,32 @@ with t_market:
 
     _liq_rows = []
     for _k, _v in liq_detail.items():
-        _val   = _v[0] if isinstance(_v, tuple) else str(_v)
-        _score = _v[1] if isinstance(_v, tuple) else 50
-        _sig   = _v[2] if isinstance(_v, tuple) else "🟡"
+        if isinstance(_v, tuple) and len(_v) == 5:
+            _val, _dir, _score, _sig, _inv = _v
+        elif isinstance(_v, tuple) and len(_v) == 3:
+            _val, _score, _sig = _v; _dir = "—"; _inv = False
+        else:
+            _val = str(_v); _score = 50; _sig = "🟡"; _dir = "—"; _inv = False
         _sid, _url = _FRED_LINKS.get(_k, ("", ""))
-        _fred_link = _url if _url else ""
+        _dir_color = _direction_color(_dir, invert=_inv)
         _liq_rows.append({
             "지표":   _k,
             "현재값": _val,
+            "방향":   _dir,
+            "_dir_color": _dir_color,
             "점수":   _score,
             "신호":   _sig,
-            "FRED":   _fred_link,
+            "FRED":   _url if _url else "",
             "_sid":   _sid,
         })
 
-    _liq_df = pd.DataFrame(_liq_rows).drop(columns=["_sid"], errors="ignore")
+    _liq_df = pd.DataFrame(_liq_rows).drop(columns=["_sid","_dir_color"], errors="ignore")
     st.dataframe(
         _liq_df, use_container_width=True, hide_index=True,
         column_config={
             "지표":   st.column_config.TextColumn("지표",   width="small"),
             "현재값": st.column_config.TextColumn("현재값", width="small"),
+            "방향":   st.column_config.TextColumn("방향성", width="small"),
             "점수":   st.column_config.NumberColumn("점수", format="%d점", width="small"),
             "신호":   st.column_config.TextColumn("신호",   width="small"),
             "FRED":   st.column_config.LinkColumn("FRED",
@@ -1711,9 +1774,17 @@ with t_market:
             elif _excess >= -2:   _status = "📉 유출"
             else:                 _status = "❄️ 약세유출"
 
+            # 방향성: 1주 vs 4주 비교
+            if   _r1w > _r4w/4 + 1: _trend = "↑↑ 가속"
+            elif _r1w > 0:           _trend = "↑ 상승"
+            elif _r1w > -1:          _trend = "→ 보합"
+            elif _r1w > _r4w/4 - 1: _trend = "↓ 하락"
+            else:                    _trend = "↓↓ 가속"
+
             _sector_rows.append({
                 "섹터":      _sname,
                 "ETF":       _etf,
+                "방향":      _trend,
                 "1주수익%":  round(_r1w, 1),
                 "4주수익%":  round(_r4w, 1),
                 "QQQ대비%":  round(_excess, 1),
@@ -1735,6 +1806,7 @@ with t_market:
             column_config={
                 "섹터":     st.column_config.TextColumn("섹터",    width="small"),
                 "ETF":      st.column_config.TextColumn("ETF",     width="small"),
+                "방향":     st.column_config.TextColumn("방향성",  width="small"),
                 "1주수익%": st.column_config.NumberColumn("1주%",  format="%+.1f%%", width="small"),
                 "4주수익%": st.column_config.NumberColumn("4주%",  format="%+.1f%%", width="small"),
                 "QQQ대비%": st.column_config.NumberColumn("QQQ대비",format="%+.1f%%",width="small"),
@@ -3036,76 +3108,4 @@ with t_settings:
     _section_header("⑤ 등급 기준점수",
         "점수 기준 낮출수록 더 많은 종목 표시")
     _num_row("A등급 기준",  "cfg_elite_min",  140, step=5, min_v=80,  max_v=200, first=True)
-    _num_row("B등급 기준", "cfg_strong_min", 110, step=5, min_v=60,  max_v=180)
-    _num_row("C등급 기준",  "cfg_watch_min",   80, step=5, min_v=40,  max_v=150, last=True)
-
-    # ══ ⑥ 자동 스탠스 ═══════════════════════════════════════
-    _section_header("⑥ 자동 스탠스",
-        "유동성·침체 기준 자동 전환 · 위험 시 매수 제한")
-
-    st.markdown(
-        f"<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-        f"border-top:none;padding:6px 10px;font-size:12px;color:#374151'>"
-        f"현재: <b>{_cur_st.get('label', '계산 중...')}</b>"
-        f" — {_cur_st.get('reason', 'MARKET 탭 먼저 접속')}</div>",
-        unsafe_allow_html=True)
-
-    _manual_override = st.selectbox(
-        "수동 오버라이드",
-        ["자동 (권장)", "🟢 공격 강제", "🟡 방어 강제", "🔴 위험 강제"],
-        index=0, key="manual_stance_override",
-        label_visibility="collapsed")
-
-    if _manual_override != "자동 (권장)":
-        _map = {
-            "🟢 공격 강제": calc_auto_stance(4, 80, 20, 15),
-            "🟡 방어 강제": calc_auto_stance(3, 55, 25, 20),
-            "🔴 위험 강제": calc_auto_stance(2, 80, 75, 35),
-        }
-        st.session_state["auto_stance"] = _map[_manual_override]
-        st.info(f"수동 설정 적용됨: {_manual_override}")
-
-    # ══ 현재 설정값 요약 ════════════════════════════════════
-    _section_header("현재 설정값", "⚠️ 표시는 기본값과 다른 항목")
-
-    _cfg_rows = []
-    _cfg_meta = [
-        ("유동성 최소 단계","cfg_liq_min",3,"단계"),("침체 위험 상한","cfg_rec_max",70,"점"),
-        ("VIX 경고 기준","cfg_vix_warn",28,""),("RS 95↑","cfg_rs95_w",35,"점"),
-        ("RS 90↑","cfg_rs90_w",25,"점"),("RS 80↑","cfg_rs80_w",15,"점"),
-        ("최소 RS","cfg_min_rs",70,""),("MA200 보너스","cfg_ma200_bon",20,"점"),
-        ("MA200 패널티","cfg_ma200_pen",40,"점"),("거래량","cfg_vol_w",25,"점"),
-        ("신고가","cfg_hd_w",25,"점"),("하락장 생존","cfg_survive_w",35,"점"),
-        ("ELITE 기준","cfg_elite_min",140,"점"),("STRONG 기준","cfg_strong_min",110,"점"),
-        ("WATCH 기준","cfg_watch_min",80,"점"),
-    ]
-    for _lbl,_key,_def,_unit in _cfg_meta:
-        _cur = st.session_state.get(_key,_def)
-        _cfg_rows.append({
-            "항목":_lbl, "현재값":f"{_cur}{_unit}",
-            "기본값":f"{_def}{_unit}",
-            "상태":"⚠️ 변경" if _cur!=_def else "기본값",
-        })
-
-    st.dataframe(pd.DataFrame(_cfg_rows),
-        use_container_width=True, hide_index=True,
-        column_config={
-            "항목":   st.column_config.TextColumn("항목",   width="medium"),
-            "현재값": st.column_config.TextColumn("현재값", width="small"),
-            "기본값": st.column_config.TextColumn("기본값", width="small"),
-            "상태":   st.column_config.TextColumn("상태",   width="small"),
-        })
-
-    if st.button("🔄 기본값으로 초기화", key="cfg_reset"):
-        for _k,_v in _DEFAULTS.items():
-            st.session_state[_k] = _v
-        st.success("✅ 기본값으로 초기화됐습니다")
-        st.rerun()
-
-st.markdown(
-    f"<div style='text-align:center;font-size:11px;color:#1E2D3D;"
-    f"margin-top:20px;padding-top:8px;border-top:1px solid #0D1117'>"
-    f"QUANTUM {APP_VERSION} &nbsp;|&nbsp; "
-    f"데이터: FRED·yfinance &nbsp;|&nbsp; "
-    f"본 앱은 정보 제공 목적이며 투자 권유가 아닙니다</div>",
-    unsafe_allow_html=True)
+    _num_

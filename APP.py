@@ -2542,99 +2542,146 @@ with t_portfolio:
 
             _pt_df = pd.DataFrame(_pt_rows)
 
+            def _shares_str(amt_만, price, fx):
+                if price <= 0 or fx <= 0: return "—"
+                shares = amt_만 * 10000 / (price * fx)
+                return f"{int(shares)}주" if shares >= 1 else "—"
+
             st.markdown(
                 "<div style='font-size:11px;color:#374151;"
                 "font-family:Space Mono,monospace;margin-bottom:2px'>"
                 "자동 배분 결과</div>"
-                "<div style='font-size:11px;color:#9CA3AF;margin-bottom:6px'>"
-                "* 진입가 기준 · 환율 수동 입력 · 실시간 주가 미반영</div>",
+                "<div style='font-size:11px;color:#9CA3AF;margin-bottom:8px'>"
+                "가격 버튼 클릭 → 매매 가이드 · ▼ 현재가 · │ 매수가 기준선</div>",
                 unsafe_allow_html=True)
 
-            # 표 형식 데이터 생성 (금액+주수 합쳐서 표시)
-            def _shares_str(amt_만, price, fx):
-                """주수 계산 · 1주 미만이면 — 표시"""
-                if price <= 0 or fx <= 0: return "—"
-                cost = price * fx
-                shares = amt_만 * 10000 / cost
-                if shares >= 1:
-                    return f"{int(shares)}주"
-                return "—"
+            _tip_css = """
+<style>
+.qtip{display:none;margin-top:6px;padding:10px 12px;border-radius:6px;font-size:12px;line-height:1.7}
+.qtip.open{display:block}
+.qrow{display:flex;gap:6px;align-items:flex-start;padding:1px 0}
+.pbtn{cursor:pointer;font-weight:500;border-radius:4px;padding:1px 5px;
+      border:none;font-size:12px;transition:opacity .15s;background:transparent}
+.pbtn:hover{opacity:.7;text-decoration:underline}
+</style>"""
+            st.markdown(_tip_css, unsafe_allow_html=True)
 
-            def _cell(amt_만, price, fx):
-                """'35.4만 · 2주' 형태 · 1주 미만이면 '35.4만 · —'"""
-                s = _shares_str(amt_만, price, fx)
-                return f"{amt_만}만 × {s}"
+            _rows_html = ""
+            _dash_tks  = []
+            for _idx, _pr in enumerate(_pt_rows):
+                _tk   = _pr["Ticker"]
+                _nm   = _pr.get("회사명", _tk)
+                _grd  = _pr["등급"]
+                _p    = _pr["현재가"]
+                _stop = round(_p * 0.92, 2)
+                _t1p  = round(_p * 1.20, 2)
+                _t2p  = round(_p * 1.35, 2)
+                _t3p  = round(_p * 1.50, 2)
+                _alloc= _pr["투자금액(만원)"]
+                _t1m  = round(_alloc * 0.40, 1)
+                _t2m  = round(_alloc * 0.35, 1)
+                _t3m  = round(_alloc * 0.25, 1)
+                _s1   = _shares_str(_t1m, _p, _usd_krw)
+                _s2   = _shares_str(_t2m, _p, _usd_krw)
+                _s3   = _shares_str(_t3m, _p, _usd_krw)
+                if "—" in (_s1+_s2+_s3): _dash_tks.append(_tk)
 
-            _tbl_rows = []
-            for _pr in _pt_rows:
-                _t_alloc = _pr["투자금액(만원)"]
-                _p  = _pr["현재가"]
-                _fx = _usd_krw
-                _t1 = round(_t_alloc * 0.40, 1)
-                _t2 = round(_t_alloc * 0.35, 1)
-                _t3 = round(_t_alloc * 0.25, 1)
-                _cost1share = round(_p * _fx / 10000, 1)
-                _tbl_rows.append({
-                    "Ticker":  _pr["Ticker"],
-                    "등급":    _pr["등급"],
-                    "현재가":  f"${_p:.2f}",
-                    "1주비용": f"{_cost1share}만원",
-                    "1차 40%": _cell(_t1, _p, _fx),
-                    "2차 35%": _cell(_t2, _p, _fx),
-                    "3차 25%": _cell(_t3, _p, _fx),
-                    "손절가":  f"${_pr['손절가']:.2f}",
-                })
+                _rng     = _t3p - _stop
+                _cur_pct = int((_p - _stop) / _rng * 100) if _rng > 0 else 50
+                _cur_pct = max(10, min(82, _cur_pct))
+                _sp      = 8
+                _gp      = _cur_pct - _sp
+                _tp1     = max(1, int((_t1p - _stop) / _rng * 100) - _cur_pct)
+                _tp2     = max(1, int((_t2p - _stop) / _rng * 100) - _cur_pct - _tp1)
+                _tp3     = max(1, 100 - _cur_pct - _tp1 - _tp2 - 2)
 
-            # 표 컬럼 재구성: 금액/주수 분리
-            _tbl_rows2 = []
-            for _pr in _pt_rows:
-                _t  = _pr["투자금액(만원)"]
-                _p  = _pr["현재가"]
-                _fx = _usd_krw
-                _t1 = round(_t * 0.40, 1)
-                _t2 = round(_t * 0.35, 1)
-                _t3 = round(_t * 0.25, 1)
-                _tbl_rows2.append({
-                    "Ticker":   _pr["Ticker"],
-                    "등급":     _pr["등급"],
-                    "현재가":   f"${_p:.2f}",
-                    "1차(만)":  f"{_t1}만",
-                    "1차(주)":  _shares_str(_t1, _p, _fx),
-                    "2차(만)":  f"{_t2}만",
-                    "2차(주)":  _shares_str(_t2, _p, _fx),
-                    "3차(만)":  f"{_t3}만",
-                    "3차(주)":  _shares_str(_t3, _p, _fx),
-                    "손절가":   f"${_pr['손절가']:.2f}",
-                })
+                _grd_bg  = "#FEF3C7" if _grd=="A" else ("#FFF7ED" if _grd=="B" else "#EFF6FF")
+                _grd_col = "#92400E" if _grd=="A" else ("#C2410C" if _grd=="B" else "#1D4ED8")
+                _uid     = f"{_tk}_{_idx}"
 
-            st.dataframe(
-                pd.DataFrame(_tbl_rows2),
-                use_container_width=True, hide_index=True,
-                column_config={
-                    "Ticker":  st.column_config.TextColumn("Ticker",  width="small"),
-                    "등급":    st.column_config.TextColumn("등급",    width="small"),
-                    "현재가":  st.column_config.TextColumn("현재가",  width="small"),
-                    "1차(만)": st.column_config.TextColumn("1차 40%", width="small"),
-                    "1차(주)": st.column_config.TextColumn("주수",    width="small"),
-                    "2차(만)": st.column_config.TextColumn("2차 35%", width="small"),
-                    "2차(주)": st.column_config.TextColumn("주수 ",   width="small"),
-                    "3차(만)": st.column_config.TextColumn("3차 25%", width="small"),
-                    "3차(주)": st.column_config.TextColumn("주수  ",  width="small"),
-                    "손절가":  st.column_config.TextColumn("손절가",  width="small"),
-                })
+                # HTML 조각 구성 (단따옴표 충돌 방지)
+                _q = "'"  # 단따옴표
+                _dv = f"<div style={_q}"
+                _sp = f"<span style={_q}"
+                _bt = f"<button class={_q}pbtn{_q} style={_q}"
 
-            # 각주: — 표시 종목이 있으면 안내
-            _dash_tickers = [
-                r["Ticker"] for r in _tbl_rows
-                if "—" in r.get("1차 40%","")
-            ]
-            if _dash_tickers:
+                _H = []
+                _H.append(f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;border-radius:6px;padding:16px 12px 10px;margin-bottom:8px'>")
+                _H.append(f"<div style='display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1fr 1fr 1.2fr;font-size:12px;gap:4px;align-items:center;margin-bottom:16px'>")
+                _H.append(f"<span style='font-weight:500'>{_tk} <span style='font-size:11px;color:#6B7280'>{_nm}</span><span style='font-size:11px;background:{_grd_bg};color:{_grd_col};padding:1px 5px;border-radius:3px;margin-left:4px'>{_grd}</span></span>")
+                _H.append(f'<button class="pbtn" style="color:#EF4444;text-align:right;width:100%" data-tip="{_uid}_stop">${_stop:.2f}</button>')
+                _H.append(f"<span style='text-align:right;color:#374151;font-weight:500'>${_p:.2f}</span>")
+                _H.append(f'<button class="pbtn" style="color:#16A34A;text-align:right;width:100%" data-tip="{_uid}_t1">${_t1p:.2f}</button>')
+                _H.append(f'<button class="pbtn" style="color:#15803D;text-align:right;width:100%" data-tip="{_uid}_t2">${_t2p:.2f}</button>')
+                _H.append(f'<button class="pbtn" style="color:#166534;text-align:right;width:100%" data-tip="{_uid}_t3">${_t3p:.2f}</button>')
+                _H.append(f"<span style='text-align:right;font-size:11px;color:#6B7280'>{_s1}/{_s2}/{_s3}</span>")
+                _H.append("</div>")
+                _H.append(f"<div style='position:relative;height:10px;border-radius:5px;overflow:hidden;background:#F3F4F6;display:flex;margin-bottom:4px'>")
+                _H.append(f"<div style='width:{_sp}%;background:#FCA5A5'></div>")
+                _H.append(f"<div style='width:{_gp}%;background:#FEE2E2'></div>")
+                _H.append(f"<div style='width:{_tp1}%;background:#BBF7D0'></div>")
+                _H.append(f"<div style='width:{_tp2}%;background:#86EFAC'></div>")
+                _H.append(f"<div style='width:{_tp3}%;background:#4ADE80'></div>")
+                _H.append("</div>")
+                _H.append(f"<div style='position:relative;height:16px;margin-bottom:2px'>")
+                _H.append(f"<div style='position:absolute;left:{_cur_pct}%;transform:translateX(-50%);font-size:13px;color:#EF4444;line-height:1'>&#9660;</div>")
+                _H.append(f"<div style='position:absolute;left:23%;width:1.5px;height:16px;top:0;background:#9CA3AF;opacity:0.5'></div>")
+                _H.append("</div>")
+                _H.append("<div style='display:flex;justify-content:space-between;font-size:11px;color:#9CA3AF'>")
+                _H.append("<span style='color:#EF4444'>손절</span><span>매수가</span>")
+                _H.append(f"<span style='color:#EF4444'>&#9660;현재</span>")
+                _H.append("<span style='color:#86EFAC'>1차</span><span style='color:#4ADE80'>2차</span><span style='color:#166534'>3차</span></div>")
+                _H.append(f"<div id='{_uid}_stop' class='qtip' style='background:#FEF2F2;border:0.5px solid #FECACA'>")
+                _H.append(f"<div style='font-weight:500;color:#B91C1C;margin-bottom:6px'>&#9888; 손절 — ${_stop:.2f} (-8%)</div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>매수가 &#215; -8% 도달 즉시 <b>이유 불문 전량 청산</b></span></div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>MA10(10일선) 이탈 시 청산 검토</span></div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>유동성 2단계↓ → 전량 청산</span></div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>VIX 35↑ → 포지션 50% 즉시 축소</span></div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>auto_stance 위험 전환 → 전량 청산</span></div>")
+                _H.append("<div style='margin-top:5px;font-size:11px;color:#9CA3AF'>리스크:리워드 = 8% : 20% = 1 : 2.5</div></div>")
+                _H.append(f"<div id='{_uid}_t1' class='qtip' style='background:#F0FDF4;border:0.5px solid #BBF7D0'>")
+                _H.append(f"<div style='font-weight:500;color:#166534;margin-bottom:6px'>1차 목표 ${_t1p:.2f} (+20%) — {_t1m}만 · {_s1}</div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>보유량 <b>1/3 매도</b> — 투자 원금 회수</span></div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>나머지 2/3 보유 · 손절선을 매수가로 상향</span></div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>실적 발표 3일 전 도달 시 50% 매도 후 재확인</span></div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>RS 순위 하락 or 섹터 약세 → 추가 매도 검토</span></div></div>")
+                _H.append(f"<div id='{_uid}_t2' class='qtip' style='background:#DCFCE7;border:0.5px solid #86EFAC'>")
+                _H.append(f"<div style='font-weight:500;color:#166534;margin-bottom:6px'>2차 목표 ${_t2p:.2f} (+35%) — {_t2m}만 · {_s2}</div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>추가 <b>1/3 매도</b> — 이익 확정</span></div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>잔여 1/3 보유 · 손절선을 1차 목표가로 상향</span></div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>섹터 자금 유출 전환 시 잔여 전량 매도 검토</span></div></div>")
+                _H.append(f"<div id='{_uid}_t3' class='qtip' style='background:#BBF7D0;border:0.5px solid #4ADE80'>")
+                _H.append(f"<div style='font-weight:500;color:#15803D;margin-bottom:6px'>3차 목표 ${_t3p:.2f} (+50%) — {_t3m}만 · {_s3}</div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>잔여 전량 보유 — <b>대형 수익 구간</b></span></div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>손절선 → 2차 목표가로 상향 (수익 보호)</span></div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>MA10 이탈 시 분할 매도 시작</span></div>")
+                _H.append("<div class='qrow'><span>&#8594;</span><span>+50% 초과 후 MA10 이탈 → 전량 매도</span></div></div>")
+                _H.append("</div>")
+                _rows_html += "".join(_H)
+
+
+            _toggle_js = """
+<script>
+document.addEventListener('click',function(e){
+  var b=e.target.closest('.pbtn');
+  if(!b) return;
+  var id=b.getAttribute('data-tip');
+  if(!id) return;
+  document.querySelectorAll('.qtip').forEach(function(el){
+    if(el.id!==id) el.classList.remove('open');
+  });
+  var el=document.getElementById(id);
+  if(el) el.classList.toggle('open');
+});
+</script>"""
+            st.markdown(_rows_html + _toggle_js, unsafe_allow_html=True)
+
+            if _dash_tks:
                 st.markdown(
                     f"<div style='font-size:11px;color:#9CA3AF;margin-top:4px'>"
-                    f"* — 표시: 배분금액으로 1주 매수 불가 "
-                    f"({', '.join(_dash_tickers)}) · "
-                    f"투자금액 증액 또는 해당 종목 제외 권장</div>",
+                    f"* — 배분금액으로 1주 매수 불가: {', '.join(set(_dash_tks))}</div>",
                     unsafe_allow_html=True)
+
 
             # ── 포트폴리오 요약 ──────────────────────────────
             _total_invested = sum(r["투자금액(만원)"] for r in _pt_rows)
@@ -2677,18 +2724,7 @@ with t_portfolio:
                 f"</div>",
                 unsafe_allow_html=True)
 
-            # 분할 매수 안내
-            st.markdown(
-                "<div style='background:#FFFFFF;border:1px solid #E2E6ED;"
-                "border-radius:3px;padding:8px 12px;margin-top:8px;"
-                "font-size:12px;color:#374151'>"
-                "<b>분할 매수 원칙</b><br>"
-                "1차 40% → 브레이크아웃 확인 시 &nbsp;|&nbsp; "
-                "2차 35% → 추가 상승 확인 시 &nbsp;|&nbsp; "
-                "3차 25% → 완전 확신 시<br>"
-                "<span style='color:#B91C1C'>손절: 매수가 × -8% 도달 시 이유 불문 즉시 청산</span>"
-                "</div>",
-                unsafe_allow_html=True)
+
 
 with t_backtest:
     st.markdown(

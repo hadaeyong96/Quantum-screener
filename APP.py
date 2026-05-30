@@ -1619,12 +1619,79 @@ with t_market:
             _stage_html2 += "<span style='color:#D1D5DB;margin:0 2px'>—</span>"
     _stage_html2 += "</div>" 
 
-    # 행동지침
-    _act_items = _auto_stance.get("actions", [])
-    _act_html3 = "".join(
-        f"<div style='font-size:12px;color:#374151;padding:2px 0'>"
-        f"<span style='color:{_lc};margin-right:6px'>→</span>{a}</div>"
-        for a in _act_items)
+    # 한 줄 요약 — 유동성+침체+VIX 종합
+    _vix_now = mkt_ctx.get("vix", 20)
+    if liq_stage >= 4 and rec_score < 30 and _vix_now < 20:
+        _summary = "유동성·침체·변동성 모두 우호적입니다. 기관 매집이 활발한 최적 진입 구간입니다."
+    elif liq_stage >= 4 and rec_score < 50:
+        _summary = "유동성이 충분하고 침체 위험이 낮습니다. 분할 매수 진입이 적합한 환경입니다."
+    elif liq_stage >= 4 and rec_score >= 50:
+        _summary = f"유동성은 우호적이나 침체 지표({rec_score:.0f}점)가 높아 선별적 접근이 필요합니다."
+    elif liq_stage == 3 and _vix_now >= 28:
+        _summary = f"유동성 혼조 + VIX {_vix_now:.0f} 상승으로 변동성이 높습니다. 현금 비중 확대를 권장합니다."
+    elif liq_stage == 3:
+        _summary = "유동성이 혼조 구간입니다. 강한 종목에만 선택적으로 진입하고 현금을 보유하세요."
+    elif liq_stage <= 2:
+        _summary = "유동성이 수축 중입니다. 신규 매수를 자제하고 현금 보존이 최우선입니다."
+    else:
+        _summary = "시장 상황을 주시하며 신중하게 접근하세요."
+
+    # 행동지침 — 유동성+섹터+이벤트+VIX 종합 동적 생성
+    _color_map = {
+        "green":  ("#16A34A", "#F0FDF4", "#BBF7D0"),
+        "yellow": ("#92400E", "#FFFBEB", "#FDE68A"),
+        "red":    ("#B91C1C", "#FEF2F2", "#FECACA"),
+        "gray":   ("#374151", "#F9FAFB", "#E2E6ED"),
+    }
+    _actions_now = []
+
+    # 유동성 기반
+    if liq_stage >= 4:
+        _actions_now.append(("green", f"유동성 {liq_stage}단계 — A·B등급 분할 매수 (투자금 {int((1-_cash_pct)*100)}% 활용)"))
+    elif liq_stage == 3:
+        _actions_now.append(("yellow", "유동성 혼조 — RS 90↑ A등급만 소량 진입 · 현금 50% 이상 유지"))
+    else:
+        _actions_now.append(("red", f"유동성 {liq_stage}단계 — 신규 매수 전면 중단 · 현금 보존 최우선"))
+
+    # 침체 위험
+    if rec_score >= 70:
+        _actions_now.append(("red", f"침체 위험 {rec_score:.0f}점 — A등급 종목만 보유 · 포지션 50% 이상 축소"))
+    elif rec_score >= 50:
+        _actions_now.append(("yellow", f"침체 주의 {rec_score:.0f}점 — 손절 -6%로 강화 · 신규 진입 최소화"))
+
+    # VIX
+    if _vix_now >= 35:
+        _actions_now.append(("red",    f"VIX {_vix_now:.0f} 공포 구간 — 포지션 50% 즉시 축소"))
+    elif _vix_now >= 28:
+        _actions_now.append(("yellow", f"VIX {_vix_now:.0f} 상승 중 — 변동성 확대 대비 · 현금 비중 확인"))
+
+    # 섹터
+    if _hot_sec:
+        _actions_now.append(("green", f"{' · '.join(_hot_sec[:2])} 섹터 집중 — 자금 유입 확인됨"))
+
+    # 이벤트
+    if _upcoming_ev:
+        _nt, _nd = _upcoming_ev[0]
+        _ndd = (_nd - _today_dt2).days
+        if _ndd <= 3:
+            _actions_now.append(("red",    f"{_nt} D-{_ndd} ({_nd.strftime('%m/%d')}) — 신규 매수 자제 · 기존 포지션 50% 축소 검토"))
+        elif _ndd <= 7:
+            _actions_now.append(("yellow", f"{_nt} D-{_ndd} ({_nd.strftime('%m/%d')}) — 발표 전 포지션 점검 권장"))
+
+    # 손절 기준
+    _stop_pct = "-6%" if liq_stage <= 3 or rec_score >= 50 else "-8%"
+    _actions_now.append(("gray", f"현금 {int(_cash_pct*100)}% 유지 · 손절 {_stop_pct} 기준 준수"))
+
+    _act_html3 = ""
+    for _col, _txt in _actions_now:
+        _tc, _bg, _bd = _color_map.get(_col, _color_map["gray"])
+        _act_html3 += (
+            f"<div style='display:flex;align-items:flex-start;gap:8px;"
+            f"padding:4px 8px;background:{_bg};border-radius:4px;"
+            f"border-left:3px solid {_bd};margin-bottom:3px'>"
+            f"<span style='font-size:12px;color:{_tc};flex-shrink:0'>→</span>"
+            f"<span style='font-size:12px;color:#374151'>{_txt}</span></div>"
+        )
 
     # 지표 4개
     _vix_c = "#B91C1C" if mkt_ctx['vix']>=28 else ("#92400E" if mkt_ctx['vix']>=20 else "#16A34A")
@@ -1688,6 +1755,9 @@ with t_market:
         # 시장 해석
         f"<div style='border-top:0.5px solid #E2E6ED;padding-top:10px;margin-bottom:10px'>"
         f"<div style='font-size:11px;color:#9CA3AF;margin-bottom:4px'>시장 해석</div>"
+        f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 10px;"
+        f"font-size:12px;color:#374151;line-height:1.8;margin-bottom:6px'>"
+        f"<b>{_summary}</b></div>"
         f"<div style='font-size:12px;color:#374151;line-height:1.8'>"
         f"{_interp['interpret']}</div></div>"
 

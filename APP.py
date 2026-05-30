@@ -1601,51 +1601,23 @@ with t_market:
         (4,"🟢","4단계","분할매수","#16A34A"),
         (5,"🚀","5단계","파티",    "#16A34A"),
     ]
-    # A형 진행바 단계 표시
-    _bar_colors  = {1:"#FCA5A5", 2:"#FED7AA", 3:"#FDE68A", 4:"#86EFAC", 5:"#D1FAE5"}
-    _bar_borders = {1:"#B91C1C", 2:"#EA580C", 3:"#CA8A04", 4:"#16A34A", 5:"#16A34A"}
-    _txt_colors  = {1:"#7F1D1D", 2:"#7C2D12", 3:"#713F12", 4:"#14532D", 5:"#14532D"}
-
-    # 상단 단계명 행
-    _top_row = "<div style='display:flex;gap:3px;margin-bottom:3px'>"
+    # 인라인 단계 표시
+    _stage_colors = {1:"#B91C1C", 2:"#EA580C", 3:"#CA8A04", 4:"#16A34A", 5:"#16A34A"}
+    _stage_html2  = "<div style='display:flex;flex-wrap:wrap;align-items:center;gap:2px;font-size:12px'>"
     for _sn, _si, _sc, _sl, _bc in _stage_defs2:
-        _fw = "700" if _sn == liq_stage else "400"
-        _tc = _txt_colors[_sn]
-        _top_row += (
-            f"<div style='flex:1;text-align:center;font-size:11px;"
-            f"font-weight:{_fw};color:{_tc}'>{_sc}</div>")
-    _top_row += "</div>"
-
-    # 진행 바
-    _bar_row = "<div style='display:flex;gap:3px;height:14px;margin-bottom:3px'>"
-    for _sn, _si, _sc, _sl, _bc in _stage_defs2:
-        _bg = _bar_colors[_sn]
-        _bd = f"2px solid {_bar_borders[_sn]}" if _sn == liq_stage else f"0.5px solid {_bar_borders[_sn]}"
-        _bar_row += (
-            f"<div style='flex:1;background:{_bg};border:{_bd};"
-            f"border-radius:3px'></div>")
-    _bar_row += "</div>"
-
-    # 현재 표시 행
-    _cur_row = "<div style='display:flex;gap:3px;margin-bottom:3px'>"
-    for _sn, _si, _sc, _sl, _bc in _stage_defs2:
+        _tc = _stage_colors[_sn]
         if _sn == liq_stage:
-            _cur_row += f"<div style='flex:1;text-align:center;font-size:11px;font-weight:700;color:{_bar_borders[_sn]}'>▲현재</div>"
+            _stage_html2 += (
+                f"<span style='background:#BBF7D0;border:2px solid {_tc};"
+                f"border-radius:20px;padding:2px 10px;"
+                f"color:#14532D;font-weight:700'>"
+                f"{_sc} {_sl} ◀ 현재</span>")
         else:
-            _cur_row += "<div style='flex:1'></div>"
-    _cur_row += "</div>"
-
-    # 하단 범례 행
-    _bot_row = "<div style='display:flex;gap:3px'>"
-    for _sn, _si, _sc, _sl, _bc in _stage_defs2:
-        _fw = "700" if _sn == liq_stage else "400"
-        _tc = _txt_colors[_sn] if _sn == liq_stage else "#9CA3AF"
-        _bot_row += (
-            f"<div style='flex:1;text-align:center;font-size:11px;"
-            f"font-weight:{_fw};color:{_tc}'>{_sl}</div>")
-    _bot_row += "</div>"
-
-    _stage_html2 = _top_row + _bar_row + _cur_row + _bot_row
+            _stage_html2 += (
+                f"<span style='color:{_tc}'>{_sc} {_sl}</span>")
+        if _sn < 5:
+            _stage_html2 += "<span style='color:#D1D5DB;margin:0 2px'>—</span>"
+    _stage_html2 += "</div>" 
 
     # 행동지침
     _act_items = _auto_stance.get("actions", [])

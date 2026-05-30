@@ -1751,6 +1751,8 @@ with t_market:
 
     # ══ 통합 시장 브리핑 카드 (단일 카드) ══════════════════════
     _lc = "#B91C1C" if liq_stage<=2 else ("#F59E0B" if liq_stage==3 else "#16A34A")
+    _interp       = MARKET_INTERPRETATION.get(liq_stage, MARKET_INTERPRETATION[3])
+    _cash_pct     = 0.20 if liq_stage>=4 else (0.50 if liq_stage==3 else 1.0)
 
     _hot_sec  = st.session_state.get("hot_sectors",  [])
     _cold_sec = st.session_state.get("cold_sectors", [])

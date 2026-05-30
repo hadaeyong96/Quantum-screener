@@ -1541,6 +1541,9 @@ with t_market:
     })
 
     # ══ 오늘의 시장 브리핑 카드 ══════════════════════════════
+    _lc = "#B91C1C" if liq_stage<=2 else ("#F59E0B" if liq_stage==3 else "#16A34A")
+    _cash_pct = (0.20 if liq_stage>=4 else (0.50 if liq_stage==3 else 1.0))
+
     # 섹터 데이터는 아직 없으므로 sector_df 로드 후 갱신
     _hot_sec  = st.session_state.get("hot_sectors",  [])
     _cold_sec = st.session_state.get("cold_sectors", [])
@@ -1607,7 +1610,7 @@ with t_market:
     _actions_now = []
     _stance_label = _auto_stance.get("label", "")
     if liq_stage >= 4:
-        _actions_now.append(("green", f"A·B등급 분할 매수 · 투자금 {int((1-_cash_pct if '_cash_pct' in dir() else 0.7)*100)}% 활용"))
+        _actions_now.append(("green", f"A·B등급 분할 매수 · 투자금 {int((1-_cash_pct)*100)}% 활용"))
     elif liq_stage == 3:
         _actions_now.append(("yellow", "RS 90↑ A등급만 소량 진입 · 투자금 20~30%"))
     else:

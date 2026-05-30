@@ -2187,9 +2187,9 @@ with t_leaders:
         f"A→즉시진입 B→분할매수 C→관찰</div>",
         unsafe_allow_html=True)
 
-    _disp_cols = ["FinvizLink","Name","Sector","LeaderGrade","LeaderScore","전략보너스","연속선택",
+    _disp_cols = ["Ticker","Name","Sector","LeaderGrade","LeaderScore","전략보너스","연속선택",
                   "AccScore","RS","HighDist","VolRatio","EPS","RSI",
-                  "Breakout52","Breakout","VolSurge","Consec","EntryPrice","CondCount"]
+                  "Breakout52","Breakout","VolSurge","Consec","EntryPrice","CondCount","FinvizLink"]
     # 모바일: 핵심 컬럼 우선 표시 (전체는 가로 스크롤)
     _disp = _fdf[[c for c in _disp_cols if c in _fdf.columns]].copy()
 
@@ -2198,7 +2198,7 @@ with t_leaders:
         if bc in _disp.columns:
             _disp[bc] = _disp[bc].map({True:"✅", False:"—"})
 
-    # Ticker에 Finviz 링크 추가
+    # Ticker에 Finviz 링크 추가 (Ticker 컬럼이 있을 때 생성)
     _disp["FinvizLink"] = _disp["Ticker"].apply(
         lambda tk: f"https://finviz.com/quote.ashx?t={tk}")
 
@@ -2206,7 +2206,7 @@ with t_leaders:
         _disp,
         use_container_width=True,
         column_config={
-            "FinvizLink":  st.column_config.LinkColumn("Ticker",
+            "Ticker":      st.column_config.LinkColumn("Ticker",
                             display_text=r"https://finviz\.com/quote\.ashx\?t=(.+)",
                             width="small"),
             "Name":        st.column_config.TextColumn("회사명",   width="medium"),

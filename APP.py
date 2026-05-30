@@ -2189,18 +2189,19 @@ with t_leaders:
 
     _disp_cols = ["Ticker","Name","Sector","LeaderGrade","LeaderScore","전략보너스","연속선택",
                   "AccScore","RS","HighDist","VolRatio","EPS","RSI",
-                  "Breakout52","Breakout","VolSurge","Consec","EntryPrice","CondCount","FinvizLink"]
+                  "Breakout52","Breakout","VolSurge","Consec","EntryPrice","CondCount"]
     # 모바일: 핵심 컬럼 우선 표시 (전체는 가로 스크롤)
     _disp = _fdf[[c for c in _disp_cols if c in _fdf.columns]].copy()
+
+    # Ticker → Finviz URL (LinkColumn 표시용)
+    _disp["Ticker"] = _disp["Ticker"].apply(
+        lambda tk: f"https://finviz.com/quote.ashx?t={tk}")
 
     # bool → 기호 변환
     for bc in ["Breakout52","Breakout","VolSurge","Consec"]:
         if bc in _disp.columns:
             _disp[bc] = _disp[bc].map({True:"✅", False:"—"})
 
-    # Ticker에 Finviz 링크 추가 (Ticker 컬럼이 있을 때 생성)
-    _disp["FinvizLink"] = _disp["Ticker"].apply(
-        lambda tk: f"https://finviz.com/quote.ashx?t={tk}")
 
     st.dataframe(
         _disp,

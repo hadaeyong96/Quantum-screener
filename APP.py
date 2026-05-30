@@ -2562,38 +2562,41 @@ with t_portfolio:
                 unsafe_allow_html=True)
 
             # ── details/summary 방식 인터랙티브 표 ──────────────
-            # ── 포트폴리오 인터랙티브 표 ──────────────────────────
+            # ── 포트폴리오 인터랙티브 표 (details/summary 방식) ──
             _css_html = (
                 "<style>"
-                ".qt-head{display:grid;grid-template-columns:1.8fr 1fr 1fr 1fr 1fr 1fr 0.8fr;"
-                "background:#F9FAFB;padding:6px 8px;"
-                "border:0.5px solid #E2E6ED;border-bottom:none;"
-                "font-size:11px;font-weight:500;color:#0D1117}"
+                "details.qt-row{border:0.5px solid #E2E6ED;border-bottom:none;background:#fff;display:block}"
+                "details.qt-row:last-of-type{border-bottom:0.5px solid #E2E6ED}"
+                "details.qt-row summary{display:block;cursor:pointer;list-style:none}"
+                "details.qt-row summary::-webkit-details-marker{display:none}"
+                ".qt-head,.qt-sum{"
+                "display:grid;"
+                "grid-template-columns:1.6fr .9fr .9fr .9fr .9fr .9fr .9fr .7fr;"
+                "align-items:center;padding:6px 8px}"
+                ".qt-head{background:#F9FAFB;border:0.5px solid #E2E6ED;"
+                "border-bottom:none;font-size:11px;font-weight:500;color:#0D1117}"
+                ".qt-sum{font-size:12px}"
+                ".qt-sum:hover{background:#F9FAFB}"
                 ".qt-head>div,.qt-sum>div{text-align:center}"
                 ".qt-head>div:first-child,.qt-sum>div:first-child{text-align:left}"
-                ".qt-row{border:0.5px solid #E2E6ED;border-bottom:none;background:#fff}"
-                ".qt-row:last-child{border-bottom:0.5px solid #E2E6ED}"
-                ".qt-sum{display:grid;grid-template-columns:1.8fr 1fr 1fr 1fr 1fr 1fr 0.8fr;"
-                "padding:7px 8px;cursor:pointer}"
-                ".qt-sum:hover{background:#F9FAFB}"
-                ".qt-guide{display:none;padding:8px 12px;background:#F9FAFB;"
+                ".qt-guide{padding:8px 12px;background:#F9FAFB;"
                 "border-top:0.5px solid #E2E6ED;font-size:11px;line-height:1.7}"
-                ".qt-guide.open{display:block}"
                 ".qt-pbar{height:6px;border-radius:3px;display:flex;overflow:hidden;margin:3px 0 4px}"
                 ".qt-gcols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}"
                 ".qt-gc{border-left:2px solid;padding-left:7px}"
                 "</style>"
-                "<script>"
-                "function qtOpen(el){"
-                "var g=el.nextElementSibling;"
-                "g.classList.toggle('open');}"
-                "</script>"
             )
             _hdr_html = (
                 "<div class='qt-head'>"
-                "<div>종목</div><div>손절 -8%</div><div>매수가</div>"
-                "<div>1차 +20%</div><div>2차 +35%</div><div>3차 +50%</div>"
-                "<div>주수</div></div>"
+                "<div>종목</div>"
+                "<div>손절 -8%</div>"
+                "<div>현재가</div>"
+                "<div>매수가</div>"
+                "<div>1차 +20%</div>"
+                "<div>2차 +35%</div>"
+                "<div>3차 +50%</div>"
+                "<div>주수</div>"
+                "</div>"
             )
             _rows_html = ""
             _dash_tks  = []
@@ -2602,10 +2605,11 @@ with t_portfolio:
                 _nm   = _pr.get("회사명", _tk)
                 _grd  = _pr["등급"]
                 _p    = _pr["현재가"]
-                _stop = round(_p * 0.92, 2)
-                _t1p  = round(_p * 1.20, 2)
-                _t2p  = round(_p * 1.35, 2)
-                _t3p  = round(_p * 1.50, 2)
+                _buy  = _p   # 매수가 = 현재가 (진입 기준)
+                _stop = round(_buy * 0.92, 2)
+                _t1p  = round(_buy * 1.20, 2)
+                _t2p  = round(_buy * 1.35, 2)
+                _t3p  = round(_buy * 1.50, 2)
                 _alloc= _pr["투자금액(만원)"]
                 _t1m  = round(_alloc * 0.40, 1)
                 _t2m  = round(_alloc * 0.35, 1)
@@ -2617,8 +2621,8 @@ with t_portfolio:
 
                 _rng = _t3p - _stop
                 _cp  = int((_p - _stop) / _rng * 100) if _rng > 0 else 44
-                _cp  = max(10, min(80, _cp))
-                _b1  = 8; _b2 = _cp - _b1
+                _cp  = max(10, min(78, _cp))
+                _b1  = 8; _b2 = max(1,_cp - _b1)
                 _b3  = max(1, int((_t1p-_stop)/_rng*100) - _cp)
                 _b4  = max(1, int((_t2p-_stop)/_rng*100) - _cp - _b3)
                 _b5  = max(1, 100 - _cp - _b3 - _b4 - 2)
@@ -2626,19 +2630,22 @@ with t_portfolio:
                 _gc  = "#92400E" if _grd=="A" else ("#C2410C" if _grd=="B" else "#1D4ED8")
 
                 _rows_html += (
-                    f"<div class='qt-row'>"
-                    f"<div class='qt-sum' onclick='qtOpen(this)'>"
+                    f"<details class='qt-row'>"
+                    f"<summary>"
+                    f"<div class='qt-sum'>"
                     f"<div><b>{_tk}</b> "
                     f"<span style='font-size:11px;color:#6B7280'>{_nm}</span> "
                     f"<span style='font-size:10px;background:{_gb};color:{_gc};"
                     f"padding:1px 4px;border-radius:3px'>{_grd}</span></div>"
                     f"<div style='color:#EF4444'>${_stop:.2f}</div>"
                     f"<div style='color:#374151;font-weight:500'>${_p:.2f}</div>"
+                    f"<div style='color:#374151'>${_buy:.2f}</div>"
                     f"<div style='color:#16A34A'>${_t1p:.2f}</div>"
                     f"<div style='color:#15803D'>${_t2p:.2f}</div>"
                     f"<div style='color:#166534'>${_t3p:.2f}</div>"
-                    f"<div style='color:#6B7280'>{_s1}/{_s2}/{_s3}</div>"
+                    f"<div style='color:#6B7280;font-size:11px'>{_s1}/{_s2}/{_s3}</div>"
                     f"</div>"
+                    f"</summary>"
                     f"<div class='qt-guide'>"
                     f"<div class='qt-pbar'>"
                     f"<div style='width:{_b1}%;background:#FCA5A5'></div>"
@@ -2650,6 +2657,7 @@ with t_portfolio:
                     f"<div style='display:flex;justify-content:space-between;"
                     f"font-size:11px;color:#9CA3AF;margin-bottom:8px'>"
                     f"<span style='color:#EF4444'>손절</span>"
+                    f"<span>매수가</span>"
                     f"<span style='color:#EF4444'>&#9660;현재</span>"
                     f"<span style='color:#86EFAC'>1차</span>"
                     f"<span style='color:#4ADE80'>2차</span>"
@@ -2659,27 +2667,28 @@ with t_portfolio:
                     f"<b style='color:#EF4444'>손절 ${_stop:.2f} (-8%)</b><br>"
                     f"즉시 전량 청산 (이유 불문)<br>"
                     f"MA10 이탈 시 청산 검토<br>"
-                    f"VIX 35 이상 → 50% 즉시 축소<br>"
+                    f"VIX 35 이상 시 50% 축소<br>"
                     f"<span style='color:#9CA3AF'>리스크:리워드 = 1:2.5</span>"
                     f"</div>"
                     f"<div class='qt-gc' style='border-color:#16A34A'>"
                     f"<b style='color:#16A34A'>1차 ${_t1p:.2f} (+20%)</b>"
                     f" {_t1m}만 {_s1}<br>"
                     f"1/3 매도 — 원금 회수<br>"
-                    f"손절선 → 매수가로 상향<br>"
-                    f"실적 3일전 → 50% 매도"
+                    f"손절선 매수가로 상향<br>"
+                    f"실적 3일전 50% 매도"
                     f"</div>"
                     f"<div class='qt-gc' style='border-color:#166534'>"
                     f"<b style='color:#166534'>2차 ${_t2p:.2f} (+35%)</b>"
                     f" {_t2m}만 {_s2}<br>"
-                    f"1/3 매도 · 손절선 1차로 상향<br>"
+                    f"1/3 매도 손절선 1차로 상향<br>"
                     f"<b style='color:#15803D'>3차 ${_t3p:.2f} (+50%)</b>"
                     f" {_t3m}만 {_s3}<br>"
-                    f"잔여 보유 · MA10 이탈 시 매도"
-                    f"</div></div></div></div>"
+                    f"잔여 보유 MA10 이탈 매도"
+                    f"</div></div></div></details>"
                 )
 
             st.markdown(_css_html + _hdr_html + _rows_html, unsafe_allow_html=True)
+
 
 
             if _dash_tks:

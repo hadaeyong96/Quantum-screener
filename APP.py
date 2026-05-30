@@ -1750,6 +1750,8 @@ with t_market:
         st.info("섹터 데이터 로드 중...")
 
     # ══ 통합 시장 브리핑 카드 (단일 카드) ══════════════════════
+    _lc = "#B91C1C" if liq_stage<=2 else ("#F59E0B" if liq_stage==3 else "#16A34A")
+
     _hot_sec  = st.session_state.get("hot_sectors",  [])
     _cold_sec = st.session_state.get("cold_sectors", [])
 

@@ -1540,297 +1540,7 @@ with t_market:
         "fred_ready":     True,
     })
 
-    # ══ 오늘의 시장 브리핑 카드 ══════════════════════════════
-    _lc = "#B91C1C" if liq_stage<=2 else ("#F59E0B" if liq_stage==3 else "#16A34A")
-    _cash_pct = (0.20 if liq_stage>=4 else (0.50 if liq_stage==3 else 1.0))
 
-    # 섹터 데이터는 아직 없으므로 sector_df 로드 후 갱신
-    _hot_sec  = st.session_state.get("hot_sectors",  [])
-    _cold_sec = st.session_state.get("cold_sectors", [])
-
-    # 다음 주요 일정 자동 계산
-    _all_ev = (
-        [("FOMC", "2026-01-28"),("FOMC","2026-03-18"),("FOMC","2026-05-06"),
-         ("FOMC","2026-06-17"),("FOMC","2026-07-29"),("FOMC","2026-09-16"),
-         ("FOMC","2026-10-28"),("FOMC","2026-12-09")] +
-        [("CPI","2026-01-14"),("CPI","2026-02-11"),("CPI","2026-03-11"),
-         ("CPI","2026-04-10"),("CPI","2026-05-12"),("CPI","2026-06-10"),
-         ("CPI","2026-07-14"),("CPI","2026-08-12"),("CPI","2026-09-09"),
-         ("CPI","2026-10-14"),("CPI","2026-11-11"),("CPI","2026-12-09")]
-    )
-    _today_dt = pd.Timestamp.now().normalize()
-    _upcoming_ev = sorted(
-        [(t, pd.Timestamp(d)) for t,d in _all_ev
-         if (pd.Timestamp(d) - _today_dt).days >= 0],
-        key=lambda x: x[1])[:3]
-
-    _ev_badges = ""
-    for _et, _ed in _upcoming_ev:
-        _dd = (_ed - _today_dt).days
-        _ec = "#C2410C" if _et=="FOMC" else "#1D4ED8"
-        _eb = "#FFF7ED" if _et=="FOMC" else "#EFF6FF"
-        _ev_badges += (
-            f"<span style='font-size:11px;background:{_eb};color:{_ec};"
-            f"padding:2px 8px;border-radius:20px'>"
-            f"{_et} D-{_dd} ({_ed.strftime('%m/%d')})</span> ")
-
-    # 섹터 흐름 요약 텍스트 (원인→결과 명확히)
-    def _sec_comment(hot, cold, liq_s):
-        if not hot and not cold:
-            return "섹터 데이터 로드 중입니다."
-        parts = []
-        if hot:
-            _h = " · ".join(hot[:2])
-            parts.append(f"<b style='color:#16A34A'>{_h}</b> 섹터로 자금이 유입되고 있어 해당 섹터 주도주에 유리합니다.")
-        if cold:
-            _c = " · ".join(cold[:2])
-            if "헬스케어" in cold or "필수소비재" in cold or "유틸리티" in cold:
-                parts.append(f"<b style='color:#EF4444'>{_c}</b>(방어주)에서 자금이 빠지고 있어, 투자자들이 리스크를 감수하고 성장주로 이동 중임을 의미합니다.")
-            else:
-                parts.append(f"<b style='color:#EF4444'>{_c}</b> 섹터에서 자금이 유출되고 있습니다.")
-        return " ".join(parts) if parts else "섹터 흐름 분석 중입니다."
-
-    _sec_txt = _sec_comment(_hot_sec, _cold_sec, liq_stage)
-
-    # 한 줄 요약 (유동성+침체+VIX 종합)
-    _vix_now  = mkt_ctx.get("vix", 20)
-    _qqq_now  = mkt_ctx.get("qqq_trend", "NEUTRAL")
-    if liq_stage >= 4 and rec_score < 30 and _vix_now < 20:
-        _summary = "유동성·침체·변동성 모두 우호적입니다. 기관 매집이 활발한 최적 진입 구간입니다."
-    elif liq_stage >= 4 and rec_score < 50:
-        _summary = "유동성이 충분하고 침체 위험이 낮습니다. 분할 매수 진입이 적합한 환경입니다."
-    elif liq_stage == 3:
-        _summary = "유동성이 혼조 구간입니다. 강한 종목에만 선택적으로 진입하고 현금을 보유하세요."
-    elif liq_stage <= 2:
-        _summary = "유동성이 수축 중입니다. 신규 매수를 자제하고 현금 보존이 우선입니다."
-    else:
-        _summary = "시장 상황을 주시하며 신중하게 접근하세요."
-
-    # 지금 할 것 (유동성+섹터+일정 종합)
-    _actions_now = []
-    _stance_label = _auto_stance.get("label", "")
-    if liq_stage >= 4:
-        _actions_now.append(("green", f"A·B등급 분할 매수 · 투자금 {int((1-_cash_pct)*100)}% 활용"))
-    elif liq_stage == 3:
-        _actions_now.append(("yellow", "RS 90↑ A등급만 소량 진입 · 투자금 20~30%"))
-    else:
-        _actions_now.append(("red", "신규 매수 전면 중단 · 현금 보존 최우선"))
-
-    if _hot_sec:
-        _actions_now.append(("green", f"{' · '.join(_hot_sec[:2])} 섹터 집중 — 자금 유입 확인"))
-    if _cold_sec and any(s in _cold_sec for s in ["헬스케어","필수소비재","유틸리티"]):
-        _actions_now.append(("green", "방어주 약세 → 성장주 선호 환경 확인됨"))
-
-    # 다음 이벤트 경고
-    if _upcoming_ev:
-        _nt, _nd = _upcoming_ev[0]
-        _ndd = (_nd - _today_dt).days
-        if _ndd <= 3:
-            _actions_now.append(("red",   f"{_nt} D-{_ndd} — 신규 매수 자제 · 기존 포지션 50% 축소 검토"))
-        elif _ndd <= 7:
-            _actions_now.append(("yellow", f"{_nt} D-{_ndd} ({_nd.strftime('%m/%d')}) — 포지션 점검 권장"))
-        else:
-            _actions_now.append(("gray",   f"다음 이벤트: {_nt} D-{_ndd} ({_nd.strftime('%m/%d')})"))
-
-    _actions_now.append(("yellow", f"현금 {int(_auto_stance.get('min_grade','C') and 20)}~30% 유지 · 손절 -8% 표준"))
-
-    _color_map = {
-        "green":  ("#16A34A", "#F0FDF4", "#BBF7D0"),
-        "yellow": ("#92400E", "#FFFBEB", "#FDE68A"),
-        "red":    ("#B91C1C", "#FEF2F2", "#FECACA"),
-        "gray":   ("#374151", "#F9FAFB", "#E2E6ED"),
-    }
-    _act_html2 = ""
-    for _i, (_col, _txt) in enumerate(_actions_now):
-        _tc, _bg, _bd = _color_map.get(_col, _color_map["gray"])
-        _act_html2 += (
-            f"<div style='display:flex;align-items:flex-start;gap:8px;"
-            f"padding:5px 8px;background:{_bg};border-radius:4px;"
-            f"border-left:3px solid {_bd};margin-bottom:4px'>"
-            f"<span style='font-size:11px;font-weight:500;color:{_tc};min-width:14px'>{_i+1}</span>"
-            f"<span style='font-size:12px;color:#374151'>{_txt}</span></div>"
-        )
-
-    st.markdown(
-        f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
-        f"border-left:4px solid {_lc};"
-        f"border-radius:6px;padding:14px 16px;margin-bottom:10px'>"
-
-        f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'>"
-        f"<div>"
-        f"<div style='font-size:14px;font-weight:500;color:{_lc}'>오늘의 시장 브리핑</div>"
-        f"<div style='font-size:11px;color:#6B7280;margin-top:1px'>"
-        f"{_today_dt.strftime('%Y.%m.%d')} · 유동성 {liq_stage}단계 · {_auto_stance.get('label','—')}</div>"
-        f"</div>"
-        f"<div style='font-size:24px;font-weight:500;color:{_lc}'>{liq_stage}</div>"
-        f"</div>"
-
-        f"<div style='background:#F9FAFB;border-radius:4px;padding:8px 12px;"
-        f"margin-bottom:10px;font-size:12px;color:#374151;line-height:1.8'>"
-        f"{_summary}</div>"
-
-        f"<div style='display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px'>"
-        f"<div style='background:#F9FAFB;border-radius:4px;padding:8px 10px'>"
-        f"<div style='font-size:11px;color:#9CA3AF;margin-bottom:3px'>자금 유입 섹터</div>"
-        f"<div style='font-size:12px;font-weight:500;color:#16A34A'>"
-        f"{' · '.join(_hot_sec[:2]) if _hot_sec else '분석 중'}</div>"
-        f"</div>"
-        f"<div style='background:#F9FAFB;border-radius:4px;padding:8px 10px'>"
-        f"<div style='font-size:11px;color:#9CA3AF;margin-bottom:3px'>자금 유출 섹터</div>"
-        f"<div style='font-size:12px;font-weight:500;color:#EF4444'>"
-        f"{' · '.join(_cold_sec[:2]) if _cold_sec else '분석 중'}</div>"
-        f"</div>"
-        f"</div>"
-
-        f"<div style='font-size:12px;color:#374151;line-height:1.7;"
-        f"margin-bottom:10px'>{_sec_txt}</div>"
-
-        f"<div style='margin-bottom:10px'>"
-        f"<div style='font-size:11px;color:#9CA3AF;margin-bottom:5px'>주요 일정</div>"
-        f"<div style='display:flex;flex-wrap:wrap;gap:5px'>{_ev_badges}</div>"
-        f"</div>"
-
-        f"<div style='border-top:0.5px solid #E2E6ED;padding-top:8px'>"
-        f"<div style='font-size:11px;color:#9CA3AF;margin-bottom:6px'>지금 할 것</div>"
-        f"{_act_html2}"
-        f"</div>"
-        f"</div>",
-        unsafe_allow_html=True)
-
-    # ══ 1. 유동성 5단계 범례 ════════════════════════════════
-    # ══ 2. 통합 시장 분석 카드 ════════════════════════════════
-    _interp         = MARKET_INTERPRETATION.get(liq_stage, MARKET_INTERPRETATION[3])
-    _interpret_text = _interp["interpret"]
-    _action_list    = _interp["actions"]
-
-    _liq_sub = (
-        "RRP 해소 · 준비금 충분" if liq_score >= 70 else
-        "M2 증가 · 금리 안정"    if liq_score >= 55 else
-        "혼조 · 방향성 불명확"   if liq_score >= 40 else
-        "유동성 부족 · 긴축 지속"
-    )
-    _rec_sub = (
-        "Sahm 안전 · 금리차 정상" if rec_score < 30 else
-        "일부 지표 경고"          if rec_score < 50 else
-        "침체 가능성 주시"        if rec_score < 70 else
-        "침체 위험 고조"
-    )
-    _vix_sub = (
-        "시장 안정 · 공포 없음" if mkt_ctx["vix"] < 20 else
-        "변동성 상승 주의"      if mkt_ctx["vix"] < 28 else
-        "공포 구간 · 리스크 관리"
-    )
-    _qi      = mkt_ctx.get("qqq_trend", "NEUTRAL")
-    _qqq_sub = (
-        "MA200 위 상승 중"   if _qi == "BULL" else
-        "MA200 아래 하락 중" if _qi == "BEAR" else
-        "방향성 탐색 중"
-    )
-    _lc = "#B91C1C" if liq_stage<=2 else ("#F59E0B" if liq_stage==3 else "#16A34A")
-    _rc = "#B91C1C" if rec_score>=70 else ("#92400E" if rec_score>=30 else "#166534")
-    _vc = "#B91C1C" if mkt_ctx["vix"]>=28 else ("#92400E" if mkt_ctx["vix"]>=20 else "#166534")
-    _qc = "#166534" if _qi=="BULL" else ("#B91C1C" if _qi=="BEAR" else "#374151")
-
-    # 5단계 범례 (현재 단계 강조)
-    _stage_defs = [
-        (5,"🚀","5단계","파티"),
-        (4,"🟢","4단계","분할매수"),
-        (3,"🟡","3단계","현금50%"),
-        (2,"🔴","2단계","매수중단"),
-        (1,"🔴","1단계","전액현금"),
-    ]
-    _stage_html = ""
-    for _sn, _si, _sc, _sl in _stage_defs:
-        # D형: 현재 단계만 채움(BBF7D0), 나머진 테두리만, 글자 모두 검은색
-        _border_colors = {5:"#16A34A", 4:"#16A34A", 3:"#CA8A04", 2:"#EA580C", 1:"#B91C1C"}
-        _bc = _border_colors.get(_sn, "#9CA3AF")
-        if _sn == liq_stage:
-            _stage_html += (
-                f"<span style='font-size:12px;white-space:nowrap;"
-                f"padding:3px 9px;border-radius:20px;"
-                f"background:#BBF7D0;border:1.5px solid {_bc};"
-                f"color:#0D1117;font-weight:700'>"
-                f"{_si} {_sc} 현재</span>")
-        else:
-            _stage_html += (
-                f"<span style='font-size:12px;white-space:nowrap;"
-                f"padding:3px 9px;border-radius:20px;"
-                f"background:transparent;border:1.5px solid {_bc};"
-                f"color:#0D1117'>"
-                f"{_si} {_sc} {_sl}</span>")
-
-    _act_html = "".join(
-        f"<div style='font-size:11px;color:#374151;padding:2px 0'>"
-        f"<span style='color:{_lc};margin-right:5px'>→</span>{a}</div>"
-        for a in _action_list)
-
-    st.markdown(
-        f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
-        f"border-left:4px solid {_lc};"
-        f"border-radius:6px;padding:14px 16px'>"
-
-        f"<div style='display:flex;justify-content:space-between;"
-        f"align-items:center;margin-bottom:10px'>"
-        f"<div>"
-        f"<div style='font-size:14px;font-weight:700;color:{_lc}'>"
-        f"{_auto_stance.get('label', '—')}</div>"
-        f"<div style='font-size:12px;color:#6B7280;margin-top:1px;white-space:nowrap'>"
-        f"신규 {'매수 가능' if _auto_stance.get('buy_ok') else '매수 금지'} 구간</div>"
-        f"</div>"
-        f"<div style='text-align:right'>"
-        f"<div style='font-size:13px;font-weight:700;color:#0D1117'>"
-        f"{liq_stage}단계 / {liq_score:.0f}점</div>"
-        f"<div style='font-size:12px;color:#6B7280'>"
-        f"침체 {rec_score:.0f}점 · VIX {mkt_ctx['vix']:.1f}</div>"
-        f"</div></div>"
-
-        f"<div style='display:flex;align-items:center;gap:8px;margin-bottom:12px'>"
-        f"<div style='flex:1;height:5px;background:#F3F4F6;"
-        f"border-radius:3px;overflow:hidden'>"
-        f"<div style='width:{min(liq_score,100)}%;height:100%;"
-        f"background:{_lc};border-radius:3px'></div></div>"
-        f"<div style='font-size:12px;color:#6B7280;white-space:nowrap'>"
-        f"{liq_score:.0f}/100</div></div>"
-
-        f"<div style='display:grid;grid-template-columns:1fr 1fr;"
-        f"gap:6px;margin-bottom:12px'>"
-        f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 9px'>"
-        f"<div style='font-size:12px;color:#9CA3AF'>유동성</div>"
-        f"<div style='font-size:16px;font-weight:700;color:{_lc}'>{liq_stage}단계</div>"
-        f"<div style='font-size:12px;color:#6B7280'>{_liq_sub}</div></div>"
-        f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 9px'>"
-        f"<div style='font-size:12px;color:#9CA3AF'>침체 위험</div>"
-        f"<div style='font-size:16px;font-weight:700;color:{_rc}'>{rec_score:.0f}점</div>"
-        f"<div style='font-size:12px;color:#6B7280'>{_rec_sub}</div></div>"
-        f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 9px'>"
-        f"<div style='font-size:12px;color:#9CA3AF'>VIX</div>"
-        f"<div style='font-size:16px;font-weight:700;color:{_vc}'>"
-        f"{mkt_ctx['vix']:.1f}</div>"
-        f"<div style='font-size:12px;color:#6B7280'>{_vix_sub}</div></div>"
-        f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 9px'>"
-        f"<div style='font-size:12px;color:#9CA3AF'>QQQ 추세</div>"
-        f"<div style='font-size:16px;font-weight:700;color:{_qc}'>{_qi}</div>"
-        f"<div style='font-size:12px;color:#6B7280'>{_qqq_sub}</div></div>"
-        f"</div>"
-
-        f"<div style='border-top:0.5px solid #E2E6ED;padding-top:10px;margin-bottom:10px'>"
-        f"<div style='font-size:11px;font-weight:700;color:#374151;margin-bottom:5px'>"
-        f"시장 해석</div>"
-        f"<div style='font-size:11px;color:#374151;line-height:1.7'>"
-        f"{_interpret_text}</div></div>"
-
-        f"<div style='border-top:0.5px solid #E2E6ED;padding-top:8px;margin-bottom:10px'>"
-        f"<div style='font-size:11px;font-weight:700;color:#374151;margin-bottom:6px'>"
-        f"행동 지침</div>"
-        f"<div style='display:flex;flex-direction:column;gap:3px'>{_act_html}</div></div>"
-
-        f"<div style='display:flex;flex-wrap:wrap;gap:4px;"
-        f"padding-top:8px;border-top:0.5px solid #E2E6ED'>"
-        f"{_stage_html}</div>"
-        f"<div style='font-size:11px;color:#9CA3AF;margin-top:6px;text-align:right'>"
-        f"자동 판단 · 수동 변경: ⚙️ 설정 탭</div>"
-        f"</div>",
-        unsafe_allow_html=True)
 
     # ══ 4. LIQUIDITY BREAKDOWN 표 (점수만, 막대그래프 없음) ══
     st.markdown("---")
@@ -2038,6 +1748,205 @@ with t_market:
                 unsafe_allow_html=True)
     else:
         st.info("섹터 데이터 로드 중...")
+
+    # ══ 통합 시장 브리핑 카드 (단일 카드) ══════════════════════
+    _hot_sec  = st.session_state.get("hot_sectors",  [])
+    _cold_sec = st.session_state.get("cold_sectors", [])
+
+    # 섹터 흐름 줄글
+    def _sec_text(hot, cold):
+        parts = []
+        if hot:
+            _h = " · ".join(hot[:2])
+            parts.append(f"<b>{_h}</b> 섹터로 자금이 집중되고 있어 해당 종목이 유리합니다.")
+        if cold:
+            _c = " · ".join(cold[:2])
+            if any(s in cold for s in ["헬스케어","필수소비재","유틸리티","부동산"]):
+                parts.append(
+                    f"<b>{_c}</b>(방어주)에서 자금이 빠지고 있습니다. "
+                    f"이는 투자자들이 안전자산 대신 성장주를 선택하고 있다는 신호입니다.")
+            else:
+                parts.append(f"<b>{_c}</b> 섹터에서는 자금이 유출되고 있어 비중 축소가 유리합니다.")
+        return " ".join(parts) if parts else "섹터 데이터 분석 중입니다."
+
+    _sec_txt = _sec_text(_hot_sec, _cold_sec)
+
+    # 다음 이벤트 배지
+    _all_ev = (
+        [("FOMC","2026-06-17"),("FOMC","2026-07-29"),("FOMC","2026-09-16"),
+         ("FOMC","2026-10-28"),("FOMC","2026-12-09")] +
+        [("CPI","2026-06-10"),("CPI","2026-07-14"),("CPI","2026-08-12"),
+         ("CPI","2026-09-09"),("CPI","2026-10-14"),("CPI","2026-11-11"),
+         ("CPI","2026-12-09")]
+    )
+    _today_dt2 = pd.Timestamp.now().normalize()
+    _upcoming_ev = sorted(
+        [(t, pd.Timestamp(d)) for t,d in _all_ev
+         if (pd.Timestamp(d) - _today_dt2).days >= 0],
+        key=lambda x: x[1])[:2]
+
+    _ev_badges = ""
+    for _et, _ed in _upcoming_ev:
+        _dd = (_ed - _today_dt2).days
+        _ec = "#C2410C" if _et=="FOMC" else "#1D4ED8"
+        _eb = "#FFF7ED" if _et=="FOMC" else "#EFF6FF"
+        _warn = " ⚠️" if _dd <= 3 else ""
+        _ev_badges += (
+            f"<span style='font-size:11px;background:{_eb};color:{_ec};"
+            f"padding:2px 8px;border-radius:20px;margin-right:4px'>"
+            f"{_et} D-{_dd} ({_ed.strftime('%m/%d')}){_warn}</span>")
+
+    # 5단계 배지
+    _stage_defs2 = [
+        (1,"🔴","1단계","전액현금","#B91C1C"),
+        (2,"🔴","2단계","매수중단","#EA580C"),
+        (3,"🟡","3단계","현금50%", "#CA8A04"),
+        (4,"🟢","4단계","분할매수","#16A34A"),
+        (5,"🚀","5단계","파티",    "#16A34A"),
+    ]
+    # A형 진행바 단계 표시
+    _bar_colors  = {1:"#FCA5A5", 2:"#FED7AA", 3:"#FDE68A", 4:"#86EFAC", 5:"#D1FAE5"}
+    _bar_borders = {1:"#B91C1C", 2:"#EA580C", 3:"#CA8A04", 4:"#16A34A", 5:"#16A34A"}
+    _txt_colors  = {1:"#7F1D1D", 2:"#7C2D12", 3:"#713F12", 4:"#14532D", 5:"#14532D"}
+
+    # 상단 단계명 행
+    _top_row = "<div style='display:flex;gap:3px;margin-bottom:3px'>"
+    for _sn, _si, _sc, _sl, _bc in _stage_defs2:
+        _fw = "700" if _sn == liq_stage else "400"
+        _tc = _txt_colors[_sn]
+        _top_row += (
+            f"<div style='flex:1;text-align:center;font-size:11px;"
+            f"font-weight:{_fw};color:{_tc}'>{_sc}</div>")
+    _top_row += "</div>"
+
+    # 진행 바
+    _bar_row = "<div style='display:flex;gap:3px;height:14px;margin-bottom:3px'>"
+    for _sn, _si, _sc, _sl, _bc in _stage_defs2:
+        _bg = _bar_colors[_sn]
+        _bd = f"2px solid {_bar_borders[_sn]}" if _sn == liq_stage else f"0.5px solid {_bar_borders[_sn]}"
+        _bar_row += (
+            f"<div style='flex:1;background:{_bg};border:{_bd};"
+            f"border-radius:3px'></div>")
+    _bar_row += "</div>"
+
+    # 현재 표시 행
+    _cur_row = "<div style='display:flex;gap:3px;margin-bottom:3px'>"
+    for _sn, _si, _sc, _sl, _bc in _stage_defs2:
+        if _sn == liq_stage:
+            _cur_row += f"<div style='flex:1;text-align:center;font-size:11px;font-weight:700;color:{_bar_borders[_sn]}'>▲현재</div>"
+        else:
+            _cur_row += "<div style='flex:1'></div>"
+    _cur_row += "</div>"
+
+    # 하단 범례 행
+    _bot_row = "<div style='display:flex;gap:3px'>"
+    for _sn, _si, _sc, _sl, _bc in _stage_defs2:
+        _fw = "700" if _sn == liq_stage else "400"
+        _tc = _txt_colors[_sn] if _sn == liq_stage else "#9CA3AF"
+        _bot_row += (
+            f"<div style='flex:1;text-align:center;font-size:11px;"
+            f"font-weight:{_fw};color:{_tc}'>{_sl}</div>")
+    _bot_row += "</div>"
+
+    _stage_html2 = _top_row + _bar_row + _cur_row + _bot_row
+
+    # 행동지침
+    _act_items = _auto_stance.get("actions", [])
+    _act_html3 = "".join(
+        f"<div style='font-size:12px;color:#374151;padding:2px 0'>"
+        f"<span style='color:{_lc};margin-right:6px'>→</span>{a}</div>"
+        for a in _act_items)
+
+    # 지표 4개
+    _vix_c = "#B91C1C" if mkt_ctx['vix']>=28 else ("#92400E" if mkt_ctx['vix']>=20 else "#16A34A")
+    _rc2   = "#B91C1C" if rec_score>=70 else ("#92400E" if rec_score>=30 else "#16A34A")
+    _qc2   = "#16A34A" if mkt_ctx.get('qqq_trend')=="BULL" else ("#B91C1C" if mkt_ctx.get('qqq_trend')=="BEAR" else "#374151")
+
+    _liq_sub2 = ("RRP 해소 · 준비금 충분" if liq_score>=70 else
+                 "M2 증가 · 금리 안정"    if liq_score>=55 else
+                 "혼조 · 방향성 불명확"   if liq_score>=40 else "유동성 부족")
+    _rec_sub2 = ("Sahm 안전 · 금리차 정상" if rec_score<30 else
+                 "일부 지표 경고"          if rec_score<50 else
+                 "침체 가능성 주시"        if rec_score<70 else "침체 위험 고조")
+    _vix_sub2 = ("시장 안정 · 공포 없음" if mkt_ctx['vix']<20 else
+                 "변동성 상승 주의"      if mkt_ctx['vix']<28 else "공포 구간")
+    _qi2 = mkt_ctx.get('qqq_trend','NEUTRAL')
+    _qqq_sub2 = ("MA200 위 상승 중" if _qi2=="BULL" else
+                 "MA200 아래 하락" if _qi2=="BEAR" else "방향성 탐색")
+
+    st.markdown(
+        f"<div style='background:#FFFFFF;border:0.5px solid #E2E6ED;"
+        f"border-left:4px solid {_lc};border-radius:6px;padding:16px 18px'>"
+
+        # 헤더
+        f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px'>"
+        f"<div>"
+        f"<div style='font-size:14px;font-weight:700;color:{_lc}'>오늘의 시장 브리핑</div>"
+        f"<div style='font-size:11px;color:#6B7280;margin-top:2px'>"
+        f"{_today_dt2.strftime('%Y.%m.%d')} · 유동성 {liq_stage}단계 · {_auto_stance.get('label','—')}</div>"
+        f"</div>"
+        f"<div style='text-align:right'>"
+        f"<div style='font-size:13px;font-weight:700;color:#0D1117'>{liq_score:.0f}점 / 100</div>"
+        f"<div style='font-size:11px;color:#6B7280'>침체 {rec_score:.0f}점 · VIX {mkt_ctx['vix']:.1f}</div>"
+        f"</div></div>"
+
+        # 진행바
+        f"<div style='display:flex;align-items:center;gap:8px;margin-bottom:14px'>"
+        f"<div style='flex:1;height:5px;background:#F3F4F6;border-radius:3px;overflow:hidden'>"
+        f"<div style='width:{min(liq_score,100):.0f}%;height:100%;background:{_lc};border-radius:3px'></div></div>"
+        f"<div style='font-size:11px;color:#6B7280;white-space:nowrap'>{liq_stage}단계</div></div>"
+
+        # 지표 4개 (인라인 줄글)
+        f"<div style='display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px'>"
+        f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 10px'>"
+        f"<div style='font-size:11px;color:#9CA3AF'>유동성</div>"
+        f"<div style='font-size:15px;font-weight:700;color:{_lc}'>{liq_stage}단계</div>"
+        f"<div style='font-size:11px;color:#6B7280'>{_liq_sub2}</div></div>"
+        f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 10px'>"
+        f"<div style='font-size:11px;color:#9CA3AF'>침체 위험</div>"
+        f"<div style='font-size:15px;font-weight:700;color:{_rc2}'>{rec_score:.0f}점</div>"
+        f"<div style='font-size:11px;color:#6B7280'>{_rec_sub2}</div></div>"
+        f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 10px'>"
+        f"<div style='font-size:11px;color:#9CA3AF'>VIX</div>"
+        f"<div style='font-size:15px;font-weight:700;color:{_vix_c}'>{mkt_ctx['vix']:.1f}</div>"
+        f"<div style='font-size:11px;color:#6B7280'>{_vix_sub2}</div></div>"
+        f"<div style='background:#F9FAFB;border-radius:4px;padding:7px 10px'>"
+        f"<div style='font-size:11px;color:#9CA3AF'>QQQ 추세</div>"
+        f"<div style='font-size:15px;font-weight:700;color:{_qc2}'>{_qi2}</div>"
+        f"<div style='font-size:11px;color:#6B7280'>{_qqq_sub2}</div></div>"
+        f"</div>"
+
+        # 시장 해석
+        f"<div style='border-top:0.5px solid #E2E6ED;padding-top:10px;margin-bottom:10px'>"
+        f"<div style='font-size:11px;color:#9CA3AF;margin-bottom:4px'>시장 해석</div>"
+        f"<div style='font-size:12px;color:#374151;line-height:1.8'>"
+        f"{_interp['interpret']}</div></div>"
+
+        # 섹터 흐름 (줄글)
+        f"<div style='border-top:0.5px solid #E2E6ED;padding-top:10px;margin-bottom:10px'>"
+        f"<div style='font-size:11px;color:#9CA3AF;margin-bottom:4px'>섹터 자금 흐름</div>"
+        f"<div style='font-size:12px;color:#374151;line-height:1.8'>{_sec_txt}</div></div>"
+
+        # 주요 일정
+        f"<div style='border-top:0.5px solid #E2E6ED;padding-top:10px;margin-bottom:10px'>"
+        f"<div style='font-size:11px;color:#9CA3AF;margin-bottom:5px'>주요 일정</div>"
+        f"<div>{_ev_badges}</div></div>"
+
+        # 행동 지침
+        f"<div style='border-top:0.5px solid #E2E6ED;padding-top:10px;margin-bottom:10px'>"
+        f"<div style='font-size:11px;color:#9CA3AF;margin-bottom:5px'>행동 지침</div>"
+        f"{_act_html3}</div>"
+
+        # 5단계 배지
+        f"<div style='border-top:0.5px solid #E2E6ED;padding-top:8px'>"
+        f"<div style='display:flex;flex-wrap:wrap;gap:4px'>{_stage_html2}</div>"
+        f"<div style='font-size:11px;color:#9CA3AF;margin-top:5px;text-align:right'>"
+        f"자동 판단 · 수동 변경: ⚙️ 설정 탭</div>"
+        f"</div>"
+
+        f"</div>",
+        unsafe_allow_html=True)
+
 
     # ══ 경제 이벤트 일정 ═══════════════════════════════════
     st.markdown("---")
